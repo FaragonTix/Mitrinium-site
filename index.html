@@ -379,6 +379,217 @@
       color: var(--muted);
     }
 
+
+    .class-carousel {
+      position: relative;
+      margin-top: 12px;
+    }
+
+    .class-viewport {
+      overflow: hidden;
+      border-radius: calc(var(--radius) + 2px);
+    }
+
+    .class-track {
+      display: flex;
+      transition: transform .45s ease;
+      will-change: transform;
+    }
+
+    .class-slide {
+      min-width: 100%;
+      padding: 1px;
+    }
+
+    .class-card {
+      position: relative;
+      min-height: 390px;
+      display: grid;
+      grid-template-columns: minmax(220px, .72fr) minmax(0, 1.28fr);
+      gap: 34px;
+      align-items: stretch;
+      padding: 34px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: calc(var(--radius) + 2px);
+      background:
+        linear-gradient(135deg, rgba(201,152,85,.10), rgba(111,165,170,.05)),
+        linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018));
+    }
+
+    .class-card::after {
+      content: "";
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      right: -90px;
+      bottom: -120px;
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: 50%;
+      box-shadow:
+        0 0 0 34px rgba(255,255,255,.015),
+        0 0 0 68px rgba(255,255,255,.01);
+      pointer-events: none;
+    }
+
+    .class-mark {
+      position: relative;
+      z-index: 1;
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(230,196,143,.20);
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at 50% 38%, rgba(230,196,143,.15), transparent 30%),
+        repeating-linear-gradient(135deg, transparent 0 18px, rgba(255,255,255,.025) 18px 19px),
+        rgba(255,255,255,.02);
+      text-align: center;
+      padding: 24px;
+    }
+
+    .class-mark strong {
+      display: block;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(3.6rem, 8vw, 6.8rem);
+      line-height: 1;
+      color: var(--accent-soft);
+      opacity: .95;
+    }
+
+    .class-mark span {
+      display: block;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: .74rem;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    .class-copy {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 0;
+    }
+
+    .class-copy h3 {
+      margin: 0;
+      font-size: clamp(2rem, 4.5vw, 3.5rem);
+    }
+
+    .class-role {
+      margin: 10px 0 18px;
+      color: var(--accent-soft);
+      font-weight: 700;
+    }
+
+    .class-description {
+      margin: 0;
+      max-width: 720px;
+      color: var(--muted);
+      font-size: 1.03rem;
+    }
+
+    .class-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 24px;
+    }
+
+    .class-tags span {
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.025);
+      color: #d6d0c5;
+      font-size: .84rem;
+    }
+
+    .class-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .class-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .class-button {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      font-size: 1.3rem;
+      cursor: pointer;
+    }
+
+    .class-button:hover {
+      background: rgba(255,255,255,.07);
+    }
+
+    .class-dots {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .class-dot {
+      width: 9px;
+      height: 9px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,.22);
+      cursor: pointer;
+    }
+
+    .class-dot.is-active {
+      width: 26px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+    }
+
+    .class-count {
+      min-width: 64px;
+      color: var(--muted);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    @media (max-width: 760px) {
+      .class-card {
+        grid-template-columns: 1fr;
+        padding: 24px;
+      }
+
+      .class-mark {
+        min-height: 180px;
+      }
+
+      .class-controls {
+        align-items: center;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .class-track {
+        transition: none;
+      }
+    }
+
     footer {
       padding: 32px 0 46px;
       color: #918b82;
@@ -443,6 +654,7 @@
         <a href="#world">Мир</a>
         <a href="#game">Игра</a>
         <a href="#rules">Правила</a>
+        <a href="#classes">Классы</a>
         <a href="#status">Разработка</a>
       </nav>
     </div>
@@ -457,8 +669,8 @@
           <p class="hero-lead">
             Мы создаём игру об индустриальном мире, который пережил большую катастрофу
             и успел заново научиться жить. Здесь работают железные дороги и фабрики,
-            растут города, спорят учёные и чиновники, а за пределами привычных маршрутов
-            всё ещё остаются места, которые плохо подчиняются человеческой логике.
+            растут города, спорят учёные и чиновники, но за пределами привычных маршрутов
+            всё ещё остаются места, которые плохо подчиняются рациональной логике.
           </p>
           <p class="hero-note">
             Этот сайт — краткое введение в замысел проекта. Термины, устройство мира
@@ -473,7 +685,7 @@
         <div class="sigil" aria-label="Декоративный символ проекта">
           <div class="sigil-text">
             <strong>Мир после катастрофы</strong>
-            <span>не руины, а новая повседневность</span>
+            <span>Стимпанк и немного магииь</span>
           </div>
         </div>
       </div>
@@ -487,32 +699,30 @@
             <h2>Что мы пытаемся сделать</h2>
           </div>
           <p>
-            Mitrinium задуман как игра о людях, которые работают с последствиями
-            прошлого. Нас интересует не только исследование странных мест, но и обычная
-            жизнь вокруг них: кто обслуживает технику, кто оплачивает экспедицию,
-            кто отвечает за ошибку, кто скрывает неудобный отчёт и как новое открытие
-            меняет отношения между людьми.
+            Mitrinium задуман как игра, где мир стоит на распутье. В этом мире
+            нет больше старых устоев. Общество изменилось раз и навсегда, но порядок
+            ещё не устоялся. Возможно, вам решать, что будет дальше.
           </p>
         </div>
 
         <div class="grid three">
           <article class="card">
             <span class="number">01</span>
-            <h3>Работающий мир</h3>
+            <h3>Мир полон надежд</h3>
             <p>
-              Это не пустошь после конца света. В мире есть транспорт, учреждения,
-              торговля, медицина, пресса, полиция, образование и множество людей,
-              занятых вполне повседневными делами.
+              Это не пустошь после конца света. В мире кипит жизнь множества людей,
+              занятых вполне повседневными делами. Все они ждут, что прогресс
+              спасёт их от невзгод и тягот.
             </p>
           </article>
 
           <article class="card">
             <span class="number">02</span>
-            <h3>Техника с последствиями</h3>
+            <h3>Расплата за технологии</h3>
             <p>
-              Устройства требуют ухода, оружие может дать сбой, экспедиции стоят денег,
-              а сложное решение часто создаёт новую проблему. Технология здесь полезна,
-              но не бесплатна и не безошибочна.
+              Техника движет общество вперёд, но делает жизнь людей
+              сложнее и опаснее. Огнестрельное оружие уравняло рыцаря
+              и крестьянина, но теперь нет ни царей, ни героев.
             </p>
           </article>
 
@@ -520,9 +730,8 @@
             <span class="number">03</span>
             <h3>Странное рядом с обычным</h3>
             <p>
-              Необъяснимые явления существуют рядом с фабриками, архивами и городскими
-              кварталами. Они не всегда враждебны, но почти всегда нарушают привычный
-              порядок и требуют внимательного отношения.
+              Таинственные явления и необычные события
+              становятся частью быта простых жителей.
             </p>
           </article>
         </div>
@@ -537,11 +746,11 @@
             <h2>Общая атмосфера</h2>
           </div>
           <p>
-            Визуально и тематически проект соединяет раннюю индустриальную эпоху,
-            научную фантазию и сдержанную мистику. На улицах много дыма, бумаги,
-            меди, дерева, стекла и рабочей одежды. Рядом с поездами и лабораториями
-            могут существовать необычные материалы, психические технологии,
-            изменённые животные и участки пространства с нестабильными свойствами.
+            Визуально и тематически проект соединяет магию, индустриализацию и мистику. 
+            По улицам ездят механизированные экипажи, но, рядом с фабриками, маги в
+            своих алхимических кабинетах ищут разгадки таинственных явлений. Хаотические
+            потоки порождают жизнь, там где её не должно быть, меняют свойства предметов
+            и физические законы. 
           </p>
         </div>
 
@@ -549,9 +758,9 @@
           <article class="card">
             <h3>Что здесь привычно</h3>
             <ul class="plain-list">
-              <li>поезда, баржи, омнибусы и дальние маршруты;</li>
+              <li>поезда, баржи, порталы и дирижабли;</li>
               <li>фабрики, шахты, мастерские и лаборатории;</li>
-              <li>чиновники, газеты, суды, профсоюзы и преступные связи;</li>
+              <li>чиновники, профсоюзы, мафиози и бандиты;</li>
               <li>врачи, инженеры, военные, торговцы и исследователи.</li>
             </ul>
           </article>
@@ -561,7 +770,7 @@
             <ul class="plain-list">
               <li>опасные погодные и магические явления;</li>
               <li>техника, которая работает непредсказуемо;</li>
-              <li>следы старых проектов и исчезнувших обществ;</li>
+              <li>следы забытых проектов и исчезнувших обществ;</li>
               <li>живые существа и пространства с необычными свойствами.</li>
             </ul>
           </article>
@@ -579,33 +788,34 @@
           <p>
             Персонажи могут быть инженерами, врачами, стрелками, посредниками,
             исследователями или специалистами по человеческой психике. Игра строится
-            вокруг совместного решения проблем: расследований, поездок, ремонта,
-            переговоров, работы с опасными веществами и прямых столкновений.
+            вокруг совместного решения проблем: расследований, переговоров, работы с 
+            опасными веществами и прямых столкновений.
           </p>
         </div>
 
         <div class="grid three">
           <article class="card">
-            <h3>Разобраться</h3>
+            <h3>Поиск решения</h3>
             <p>
-              Собрать сведения, осмотреть место, проверить документы, понять работу
-              устройства и отделить случайность от чьего-то намерения.
+              Задачи в Митриниуме могут рассматриваться и как
+              действия персонажей, и как проекты для всей группы.
             </p>
           </article>
 
           <article class="card">
-            <h3>Подготовиться</h3>
+            <h3>Стратегия</h3>
             <p>
-              Найти инструменты, договориться о доступе, выбрать маршрут, починить
-              снаряжение и решить, какой риск группа готова принять.
+              Многие проблемы в Митриниуме не решаются одномоментно.
+              Система побуждает игроков к планированию и стратегическому
+              мышлению.
             </p>
           </article>
 
           <article class="card">
-            <h3>Справиться с последствиями</h3>
+            <h3>Послдествия</h3>
             <p>
-              Успех не всегда закрывает вопрос. Иногда он оставляет долг, поломку,
-              раненого человека, политическую проблему или новый повод для исследования.
+              Успех не всегда закрывает вопрос. Даже успешное
+              действие может иметь нарративные последствия.
             </p>
           </article>
         </div>
@@ -627,9 +837,7 @@
             <h2>Самые основы правил</h2>
           </div>
           <p>
-            Ниже приведена только общая схема текущей редакции. Она нужна, чтобы понять
-            характер системы, а не заменить полный текст правил. Числа и формулировки
-            могут измениться после тестов.
+            Ниже приведена общая схема бросков Эффективности.
           </p>
         </div>
 
@@ -695,27 +903,205 @@
             <p>
               В текущей редакции используются пять широких атрибутов и связанные
               с ними навыки. Биография персонажа также может один раз за встречу
-              помочь изменить неудачный результат одной кости.
+              помочь изменить неудачный результат.
             </p>
           </article>
 
           <article class="card">
             <h3>Бой</h3>
             <p>
-              В ход обычно доступны действие и передвижение. Атаки сравниваются
-              с порогом защиты, после чего отдельно определяется урон. Броня сначала
-              поглощает часть урона, но изнашивается от пробивных попаданий.
+              Основной особенностью игры является сложная тактическая боёвка
+              и плавающий показатель защиты персонажей. Броня поглощает урон, 
+              но изнашивается при попадании.
             </p>
           </article>
 
           <article class="card">
             <h3>Снаряжение</h3>
             <p>
-              Сложное оружие, инструменты и устройства требуют обслуживания.
-              Поломки и расход материалов являются частью игрового процесса,
-              особенно для технических и экспедиционных персонажей.
+              Каждый класс имеет уникальную кастомизацию снаряжения.
+              Поломки и обслуживание являются частью игрового процесса.
             </p>
           </article>
+        </div>
+      </div>
+    </section>
+
+
+    <section id="classes">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Классы персонажей</p>
+            <h2>Разные способы решать проблемы</h2>
+          </div>
+          <p>
+            Класс задаёт профессиональную основу персонажа, его сильные стороны
+            и типичные инструменты. Он не определяет характер или биографию:
+            два представителя одного класса могут занимать совершенно разное
+            место в обществе и по-разному относиться к своей работе.
+          </p>
+        </div>
+
+        <div class="class-carousel" data-class-carousel>
+          <div class="class-viewport">
+            <div class="class-track">
+
+              <article class="class-slide">
+                <div class="class-card">
+                  <div class="class-mark">
+                    <div>
+                      <strong>Ψ</strong>
+                      <span>опасные вещества</span>
+                    </div>
+                  </div>
+                  <div class="class-copy">
+                    <p class="eyebrow">Полевой химик</p>
+                    <h3>Психопат</h3>
+                    <div class="class-role">Контроль, диверсия и работа с реагентами</div>
+                    <p class="class-description">
+                      Практик, который разбирается в ядах, кислотах и пиротехнике.
+                      Он может быть крайне полезен как в открытом бою, так и в
+                      диверсии.
+                    </p>
+                    <div class="class-tags">
+                      <span>Химия</span><span>Порох</span><span>Яды</span><span>Зоны</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="class-slide">
+                <div class="class-card">
+                  <div class="class-mark">
+                    <div>
+                      <strong>⚙</strong>
+                      <span>ремонт и конструкции</span>
+                    </div>
+                  </div>
+                  <div class="class-copy">
+                    <p class="eyebrow">Инженер-практик</p>
+                    <h3>Кустарь</h3>
+                    <div class="class-role">Механизмы, защита и техническая поддержка</div>
+                    <p class="class-description">
+                      Кустарь - лицо эпохи. Он умеет собирать, чинить и проектировать технику.
+                      В его распоряжении механизированные помощники, турели и телекинез.
+                    </p>
+                    <div class="class-tags">
+                      <span>Механизмы</span><span>Пар</span><span>Ремонт</span><span>Автоматоны</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="class-slide">
+                <div class="class-card">
+                  <div class="class-mark">
+                    <div>
+                      <strong>§</strong>
+                      <span>связи и давление</span>
+                    </div>
+                  </div>
+                  <div class="class-copy">
+                    <p class="eyebrow">Посредник и человек улицы</p>
+                    <h3>Воротила</h3>
+                    <div class="class-role">Переговоры, документы и неофициальные пути</div>
+                    <p class="class-description">
+                      Воротила всегда балансирует на грани. Он знает, как избежать наказания, 
+                      где найти нужных людей и как отыскать неожиданное решение проблемы. Воротила умеет 
+                      маскироваться и использовать окружение.
+                    </p>
+                    <div class="class-tags">
+                      <span>Убеждение</span><span>Улица</span><span>Документы</span><span>Контрабанда</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="class-slide">
+                <div class="class-card">
+                  <div class="class-mark">
+                    <div>
+                      <strong>⌖</strong>
+                      <span>позиция и выстрел</span>
+                    </div>
+                  </div>
+                  <div class="class-copy">
+                    <p class="eyebrow">Боевой специалист</p>
+                    <h3>Рекрут</h3>
+                    <div class="class-role">Стрельба, разведка и прямое столкновение</div>
+                    <p class="class-description">
+                      Обучен действовать, когда разговор уже закончился. Рекрут умеет
+                      держать позицию, выбирать дистанцию, прикрывать отход и срывать
+                      действия противника.
+                    </p>
+                    <div class="class-tags">
+                      <span>Стрельба</span><span>Тактика</span><span>Реакции</span><span>Проникновение</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="class-slide">
+                <div class="class-card">
+                  <div class="class-mark">
+                    <div>
+                      <strong>◉</strong>
+                      <span>разум и внимание</span>
+                    </div>
+                  </div>
+                  <div class="class-copy">
+                    <p class="eyebrow">Специалист по психике</p>
+                    <h3>Менталист</h3>
+                    <div class="class-role">Внушение, защита разума и чтение людей</div>
+                    <p class="class-description">
+                      Работает со страхом, вниманием, памятью и волей. Технологические
+                      фокусы усиливают его методы, но основой остаются наблюдение,
+                      разговор и понимание человеческого поведения. 
+                    </p>
+                    <div class="class-tags">
+                      <span>Психо</span><span>Внушение</span><span>Нерв</span><span>Терапия</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="class-slide">
+                <div class="class-card">
+                  <div class="class-mark">
+                    <div>
+                      <strong>✥</strong>
+                      <span>жизнь и экспедиции</span>
+                    </div>
+                  </div>
+                  <div class="class-copy">
+                    <p class="eyebrow">Врач и полевой исследователь</p>
+                    <h3>Натуралист</h3>
+                    <div class="class-role">Лечение, животные и работа вне города</div>
+                    <p class="class-description">
+                      Совмещает медицину, знание природы и опыт экспедиций. Натуралист
+                      лечит раненых, читает следы, работает с образцами и использует
+                      животных как помощников. 
+                    </p>
+                    <div class="class-tags">
+                      <span>Медицина</span><span>Природа</span><span>Животные</span><span>Выживание</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+            </div>
+          </div>
+
+          <div class="class-controls">
+            <div class="class-buttons">
+              <button class="class-button" type="button" data-class-prev aria-label="Предыдущий класс">←</button>
+              <button class="class-button" type="button" data-class-next aria-label="Следующий класс">→</button>
+            </div>
+
+            <div class="class-dots" data-class-dots aria-label="Выбор класса"></div>
+            <div class="class-count" data-class-count>1 / 6</div>
+          </div>
         </div>
       </div>
     </section>
@@ -726,10 +1112,9 @@
           <p class="eyebrow">Текущий статус</p>
           <h2>Проект находится в разработке</h2>
           <p>
-            Сейчас мы уточняем базовые правила, классы, снаряжение, регионы мира
-            и структуру приключений. Часть материалов уже существует в рабочем виде,
+            Сейчас мы уточняем базовые правила, классы, снаряжение и особенности приключений. Часть материалов уже существует в рабочем виде,
             но ещё не считается окончательной. На сайте постепенно будут появляться
-            новые тексты, памятки и материалы для тестирования.
+            новые тексты, памятки и материалы.
           </p>
           <div class="hero-actions">
             <a class="button primary"
@@ -752,6 +1137,68 @@
 
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
+
+    (() => {
+      const root = document.querySelector("[data-class-carousel]");
+      if (!root) return;
+
+      const track = root.querySelector(".class-track");
+      const slides = [...root.querySelectorAll(".class-slide")];
+      const prev = root.querySelector("[data-class-prev]");
+      const next = root.querySelector("[data-class-next]");
+      const dotsWrap = root.querySelector("[data-class-dots]");
+      const count = root.querySelector("[data-class-count]");
+      let index = 0;
+      let touchStartX = 0;
+
+      const dots = slides.map((_, i) => {
+        const dot = document.createElement("button");
+        dot.type = "button";
+        dot.className = "class-dot";
+        dot.setAttribute("aria-label", `Показать класс ${i + 1}`);
+        dot.addEventListener("click", () => {
+          index = i;
+          update();
+        });
+        dotsWrap.appendChild(dot);
+        return dot;
+      });
+
+      function update() {
+        track.style.transform = `translateX(-${index * 100}%)`;
+        dots.forEach((dot, i) => dot.classList.toggle("is-active", i === index));
+        count.textContent = `${index + 1} / ${slides.length}`;
+      }
+
+      prev.addEventListener("click", () => {
+        index = (index - 1 + slides.length) % slides.length;
+        update();
+      });
+
+      next.addEventListener("click", () => {
+        index = (index + 1) % slides.length;
+        update();
+      });
+
+      root.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowLeft") prev.click();
+        if (event.key === "ArrowRight") next.click();
+      });
+
+      root.addEventListener("touchstart", (event) => {
+        touchStartX = event.changedTouches[0].clientX;
+      }, { passive: true });
+
+      root.addEventListener("touchend", (event) => {
+        const distance = event.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(distance) < 45) return;
+        if (distance < 0) next.click();
+        else prev.click();
+      }, { passive: true });
+
+      update();
+    })();
+
   </script>
 </body>
 </html>
