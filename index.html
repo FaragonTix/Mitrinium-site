@@ -1,35 +1,757 @@
 <!DOCTYPE html>
-
 <html lang="ru">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<meta content="Mitrinium — настольная ролевая игра о расколотом индустриальном мире, опасных экспедициях, политических интригах и странностях, которые невозможно полностью объяснить." name="description"/>
-<meta content="#171a20" name="theme-color"/>
-<title>Mitrinium — настольная ролевая игра</title>
-<style>
-    :root{--bg:#111318;--panel:#1d2129;--text:#f1ede3;--muted:#b8b1a4;--line:rgba(255,255,255,.12);--accent:#d39b4a;--accent2:#f0c980;--cold:#69aeb4;--danger:#a9544c;--max:1180px;--radius:22px;--shadow:0 24px 70px rgba(0,0,0,.34)}
-    *{box-sizing:border-box}html{scroll-behavior:smooth;background:var(--bg)}body{margin:0;color:var(--text);background:radial-gradient(circle at 18% 8%,rgba(211,155,74,.12),transparent 30rem),radial-gradient(circle at 88% 18%,rgba(105,174,180,.1),transparent 28rem),linear-gradient(180deg,#101217 0%,#14171d 55%,#0e1014 100%);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.65}a{color:inherit}.container{width:min(calc(100% - 32px),var(--max));margin-inline:auto}.site-header{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line);background:rgba(17,19,24,.78);backdrop-filter:blur(18px)}.nav{min-height:70px;display:flex;align-items:center;justify-content:space-between;gap:20px}.brand{text-decoration:none;font-family:Georgia,"Times New Roman",serif;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.brand span{color:var(--accent2)}.nav-links{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:20px}.nav-links a{color:var(--muted);text-decoration:none;font-size:.93rem}.nav-links a:hover{color:var(--text)}.hero{min-height:calc(100vh - 70px);display:grid;align-items:center;padding:80px 0 70px;overflow:hidden}.hero-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);align-items:center;gap:70px}.eyebrow{margin:0 0 14px;color:var(--accent2);text-transform:uppercase;letter-spacing:.18em;font-size:.78rem;font-weight:750}h1,h2,h3{font-family:Georgia,"Times New Roman",serif;line-height:1.1}h1{margin:0;max-width:850px;font-size:clamp(3.6rem,10vw,8.4rem);letter-spacing:-.055em}.hero-lead{max-width:760px;margin:24px 0 0;color:#d6d0c4;font-size:clamp(1.08rem,2vw,1.35rem)}.hero-actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px}.button{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 22px;border:1px solid var(--line);border-radius:999px;text-decoration:none;font-weight:700;transition:180ms ease}.button.primary{color:#17130d;border-color:var(--accent);background:linear-gradient(135deg,var(--accent2),var(--accent))}.button.secondary{color:var(--text);background:rgba(255,255,255,.035)}.button:hover{transform:translateY(-2px);box-shadow:0 10px 35px rgba(0,0,0,.24)}.sigil{position:relative;aspect-ratio:1;display:grid;place-items:center;border:1px solid rgba(240,201,128,.28);border-radius:50%;box-shadow:var(--shadow),inset 0 0 70px rgba(211,155,74,.08);background:radial-gradient(circle,rgba(211,155,74,.13) 0 3%,transparent 3.4%),repeating-radial-gradient(circle,transparent 0 10%,rgba(255,255,255,.05) 10.3% 10.7%,transparent 11% 18%),conic-gradient(from 45deg,transparent 0 11%,rgba(105,174,180,.13) 11% 14%,transparent 14% 36%,rgba(211,155,74,.16) 36% 39%,transparent 39% 61%,rgba(105,174,180,.13) 61% 64%,transparent 64% 86%,rgba(211,155,74,.16) 86% 89%,transparent 89%)}.sigil:before,.sigil:after{content:"";position:absolute;inset:12%;border:1px solid rgba(255,255,255,.13);transform:rotate(45deg)}.sigil:after{inset:25%;border-color:rgba(240,201,128,.28);transform:rotate(22.5deg)}.sigil-text{position:relative;z-index:2;text-align:center;padding:30px}.sigil-text strong{display:block;font-family:Georgia,"Times New Roman",serif;font-size:clamp(2rem,5vw,4.2rem)}.sigil-text span{color:var(--muted);font-size:.82rem;letter-spacing:.18em;text-transform:uppercase}section{padding:92px 0}.section-head{display:grid;grid-template-columns:minmax(0,.72fr) minmax(300px,1.28fr);gap:50px;align-items:start;margin-bottom:42px}h2{margin:0;font-size:clamp(2.2rem,5vw,4.5rem);letter-spacing:-.035em}.section-head p{margin:4px 0 0;color:var(--muted);font-size:1.08rem}.grid{display:grid;gap:18px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}.card{min-height:100%;padding:26px;border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.018));box-shadow:0 14px 45px rgba(0,0,0,.16)}.card .number{color:var(--accent2);font-family:Georgia,"Times New Roman",serif;font-size:.92rem;letter-spacing:.15em}.card h3{margin:16px 0 10px;font-size:1.55rem}.card p{margin:0;color:var(--muted)}.world-card{position:relative;overflow:hidden}.world-card:after{content:"";position:absolute;width:170px;height:170px;right:-75px;bottom:-90px;border:1px solid rgba(255,255,255,.08);border-radius:50%;box-shadow:0 0 0 24px rgba(255,255,255,.015),0 0 0 48px rgba(255,255,255,.01)}.world-card[data-tone="gold"]{border-top:3px solid var(--accent)}.world-card[data-tone="blue"]{border-top:3px solid var(--cold)}.world-card[data-tone="red"]{border-top:3px solid var(--danger)}.world-card[data-tone="pale"]{border-top:3px solid #c8c3b8}.feature-strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;overflow:hidden;border:1px solid var(--line);border-radius:var(--radius);background:var(--line)}.feature{padding:25px 22px;background:var(--panel)}.feature strong{display:block;margin-bottom:8px;font-family:Georgia,"Times New Roman",serif;font-size:1.15rem}.feature span{color:var(--muted);font-size:.92rem}.quote{padding:34px;border-left:4px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;background:rgba(211,155,74,.07);color:#ddd5c7;font-family:Georgia,"Times New Roman",serif;font-size:clamp(1.35rem,3vw,2.25rem);line-height:1.35}.cta{padding:44px;border:1px solid rgba(240,201,128,.28);border-radius:calc(var(--radius) + 8px);background:linear-gradient(135deg,rgba(211,155,74,.11),rgba(105,174,180,.07)),rgba(29,33,41,.84);box-shadow:var(--shadow);text-align:center}.cta h2{font-size:clamp(2.3rem,6vw,5rem)}.cta p{max-width:760px;margin:20px auto 0;color:var(--muted);font-size:1.08rem}footer{padding:35px 0 50px;color:#8f8a81;font-size:.9rem}.footer-row{display:flex;justify-content:space-between;gap:24px;padding-top:25px;border-top:1px solid var(--line)}@media(max-width:920px){.hero-grid,.section-head{grid-template-columns:1fr}.hero-grid{gap:45px}.sigil{width:min(520px,88vw);margin-inline:auto}.grid.three,.grid.four{grid-template-columns:repeat(2,minmax(0,1fr))}.feature-strip{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.nav{align-items:flex-start;padding:18px 0}.nav-links{display:none}.hero{padding-top:58px}section{padding:70px 0}.grid.three,.grid.four,.feature-strip{grid-template-columns:1fr}.cta{padding:32px 20px}.footer-row{flex-direction:column}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.button{transition:none}}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Mitrinium — разрабатываемая настольная ролевая игра об индустриальном мире после большой катастрофы." />
+  <meta name="theme-color" content="#12151a" />
+  <title>Mitrinium — настольная ролевая игра</title>
+
+  <style>
+    :root {
+      --bg: #111419;
+      --panel: #1a1e25;
+      --panel-soft: rgba(255,255,255,.035);
+      --text: #eee9df;
+      --muted: #b8b0a3;
+      --line: rgba(255,255,255,.11);
+      --accent: #c99855;
+      --accent-soft: #e6c48f;
+      --cold: #6fa5aa;
+      --max: 1120px;
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 18% 8%, rgba(201,152,85,.10), transparent 29rem),
+        radial-gradient(circle at 88% 16%, rgba(111,165,170,.08), transparent 26rem),
+        linear-gradient(180deg, #101318 0%, #15191f 58%, #0f1216 100%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      line-height: 1.65;
+    }
+
+    a { color: inherit; }
+
+    .container {
+      width: min(calc(100% - 32px), var(--max));
+      margin-inline: auto;
+    }
+
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid var(--line);
+      background: rgba(17,20,25,.84);
+      backdrop-filter: blur(16px);
+    }
+
+    .nav {
+      min-height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand {
+      text-decoration: none;
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 700;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .brand span { color: var(--accent-soft); }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 18px;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: .92rem;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+
+    .hero {
+      min-height: 78vh;
+      display: grid;
+      align-items: center;
+      padding: 76px 0 68px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
+      align-items: center;
+      gap: 64px;
+    }
+
+    .eyebrow {
+      margin: 0 0 14px;
+      color: var(--accent-soft);
+      text-transform: uppercase;
+      letter-spacing: .16em;
+      font-size: .76rem;
+      font-weight: 750;
+    }
+
+    h1, h2, h3 {
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.12;
+      overflow-wrap: anywhere;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(3.6rem, 9vw, 7.4rem);
+      letter-spacing: -.045em;
+    }
+
+    h2 {
+      margin: 0;
+      max-width: 12ch;
+      font-size: clamp(2rem, 4.5vw, 3.8rem);
+      letter-spacing: -.025em;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 1.45rem;
+    }
+
+    .hero-lead {
+      max-width: 720px;
+      margin: 23px 0 0;
+      color: #d3cdc2;
+      font-size: clamp(1.05rem, 1.8vw, 1.28rem);
+    }
+
+    .hero-note {
+      margin-top: 26px;
+      max-width: 700px;
+      color: var(--muted);
+      font-size: .96rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 0 20px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 680;
+    }
+
+    .button.primary {
+      color: #18130d;
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .button.secondary {
+      background: rgba(255,255,255,.03);
+    }
+
+    .sigil {
+      position: relative;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(230,196,143,.24);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle, rgba(201,152,85,.11) 0 3%, transparent 3.4%),
+        repeating-radial-gradient(circle, transparent 0 10%, rgba(255,255,255,.045) 10.3% 10.7%, transparent 11% 18%),
+        conic-gradient(from 45deg, transparent 0 11%, rgba(111,165,170,.11) 11% 14%, transparent 14% 36%, rgba(201,152,85,.13) 36% 39%, transparent 39% 61%, rgba(111,165,170,.11) 61% 64%, transparent 64% 86%, rgba(201,152,85,.13) 86% 89%, transparent 89%);
+    }
+
+    .sigil::before,
+    .sigil::after {
+      content: "";
+      position: absolute;
+      inset: 13%;
+      border: 1px solid rgba(255,255,255,.11);
+      transform: rotate(45deg);
+    }
+
+    .sigil::after {
+      inset: 26%;
+      border-color: rgba(230,196,143,.24);
+      transform: rotate(22.5deg);
+    }
+
+    .sigil-text {
+      position: relative;
+      z-index: 2;
+      max-width: 70%;
+      text-align: center;
+    }
+
+    .sigil-text strong {
+      display: block;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(1.5rem, 3.3vw, 2.7rem);
+      line-height: 1.18;
+    }
+
+    .sigil-text span {
+      display: block;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: .78rem;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    section { padding: 82px 0; }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(240px, .8fr) minmax(0, 1.2fr);
+      gap: 56px;
+      align-items: start;
+      margin-bottom: 38px;
+    }
+
+    .section-head > * { min-width: 0; }
+
+    .section-head p {
+      margin: 2px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 1.04rem;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .card {
+      min-width: 0;
+      padding: 25px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.018));
+    }
+
+    .card .number {
+      display: block;
+      margin-bottom: 12px;
+      color: var(--accent-soft);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: .86rem;
+      letter-spacing: .14em;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .plain-list {
+      display: grid;
+      gap: 13px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .plain-list li {
+      padding-left: 18px;
+      position: relative;
+      color: var(--muted);
+    }
+
+    .plain-list li::before {
+      content: "—";
+      position: absolute;
+      left: 0;
+      color: var(--accent-soft);
+    }
+
+    .rule-box {
+      padding: 28px;
+      border: 1px solid rgba(230,196,143,.22);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(135deg, rgba(201,152,85,.08), rgba(111,165,170,.045)),
+        var(--panel);
+    }
+
+    .rule-box h3 { margin-bottom: 14px; }
+
+    .rule-formula {
+      margin: 14px 0;
+      padding: 16px 18px;
+      border-left: 3px solid var(--accent);
+      background: rgba(255,255,255,.025);
+      color: #ddd6ca;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .result {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255,255,255,.025);
+    }
+
+    .result strong {
+      display: block;
+      color: var(--accent-soft);
+      font-size: 1.02rem;
+    }
+
+    .result span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: .86rem;
+    }
+
+    .quote {
+      padding: 30px;
+      border-left: 3px solid var(--accent);
+      background: rgba(201,152,85,.055);
+      color: #d8d1c5;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(1.15rem, 2.2vw, 1.7rem);
+      line-height: 1.42;
+    }
+
+    .cta {
+      padding: 38px;
+      border: 1px solid var(--line);
+      border-radius: calc(var(--radius) + 4px);
+      background: var(--panel-soft);
+    }
+
+    .cta h2 {
+      max-width: 16ch;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+    }
+
+    .cta p {
+      max-width: 760px;
+      margin: 18px 0 0;
+      color: var(--muted);
+    }
+
+    footer {
+      padding: 32px 0 46px;
+      color: #918b82;
+      font-size: .9rem;
+    }
+
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+    }
+
+    @media (max-width: 920px) {
+      .hero-grid,
+      .section-head {
+        grid-template-columns: 1fr;
+        gap: 34px;
+      }
+
+      h2 { max-width: 18ch; }
+
+      .sigil {
+        width: min(480px, 88vw);
+        margin-inline: auto;
+      }
+
+      .grid.three,
+      .grid.four {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .result-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 620px) {
+      .nav { padding: 17px 0; }
+      .nav-links { display: none; }
+      .hero { min-height: auto; padding-top: 58px; }
+      section { padding: 64px 0; }
+      .grid.two,
+      .grid.three,
+      .grid.four,
+      .result-grid {
+        grid-template-columns: 1fr;
+      }
+      .cta { padding: 28px 22px; }
+      .footer-row { flex-direction: column; }
+    }
   </style>
 </head>
+
 <body>
-<header class="site-header">
-<div class="container nav">
-<a class="brand" href="#top">Mitrin<span>ium</span></a>
-<nav aria-label="Основная навигация" class="nav-links">
-<a href="#about">Что это</a><a href="#world">Атмосфера</a><a href="#themes">О чём игра</a><a href="#continents">Мир</a><a href="#status">Разработка</a>
-</nav>
-</div>
-</header>
-<main id="top">
-<section class="hero"><div class="container hero-grid"><div><p class="eyebrow">Настольная ролевая игра и авторский сеттинг</p><h1>Mitrinium</h1><p class="hero-lead">Мир пережил великую катастрофу и не исчез. Города продолжают работать, поезда ходят по новым маршрутам, фабрики дымят, чиновники спорят о будущем, а исследователи отправляются туда, где старые карты больше не помогают. Это игра о людях, которые живут среди последствий прошлого и каждый день решают, что сохранить, что перестроить и чем ради этого пожертвовать.</p><div class="hero-actions"><a class="button primary" href="#about">Узнать о проекте</a><a class="button secondary" href="#themes">О чём будут приключения</a></div></div><div aria-label="Декоративный символ Митриниума" class="sigil"><div class="sigil-text"><strong>После Раскола</strong><span>не руины, а новая цивилизация</span></div></div></div></section>
-<section id="about"><div class="container"><div class="section-head"><div><p class="eyebrow">Что такое Mitrinium</p><h2>Не конец света, а жизнь после него</h2></div><p>Когда-то мир был связан единой империей. Затем произошёл Раскол: материки разошлись, привычные пути исчезли, а многие области оказались отрезаны друг от друга. Прошли поколения. Люди успели построить новые государства, восстановить торговлю, создать промышленность и научиться жить рядом с опасными явлениями, которые раньше считались невозможными. Поэтому Mitrinium — не история о выживании среди пустошей. Это история о сложной цивилизации, выросшей поверх незажившей раны.</p></div><div class="grid three"><article class="card"><span class="number">01</span><h3>Индустриальный мир</h3><p>Железные дороги, паровые машины, телеграф, шахты, фабрики и первые воздушные суда соседствуют с труднодоступными островами, заброшенными станциями и территориями, где техника работает не так, как должна.</p></article><article class="card"><span class="number">02</span><h3>Неустойчивая реальность</h3><p>Магия здесь не является повседневным набором заклинаний. Она проявляется через бури, аномалии, редкие способности, странные материалы и последствия старых экспериментов. Необъяснимое всегда оставляет конкретную проблему.</p></article><article class="card"><span class="number">03</span><h3>Власть без единого центра</h3><p>После падения империи миром управляют конкурирующие союзы, города, ведомства, промышленные дома и научные организации. Они могут сотрудничать сегодня и вести тайную войну завтра.</p></article></div></div></section>
-<section id="world"><div class="container"><div class="section-head"><div><p class="eyebrow">Атмосфера</p><h2>Красота прогресса и тревога неизвестного</h2></div><p>В Mitrinium есть ощущение большого, деятельного мира. На вокзалах шумно, в редакциях спорят о новых открытиях, по каналам идут грузовые баржи, а далёкие экспедиции обещают славу и прибыль. Но за этой уверенностью скрывается постоянное напряжение: старые системы могут проснуться, привычная дорога — измениться, а научное открытие — оказаться частью чужого политического плана.</p></div><div class="feature-strip"><div class="feature"><strong>Индустриальное приключение</strong><span>Поезда, шахты, мастерские, экспедиционные суда и города в период быстрого роста.</span></div><div class="feature"><strong>Политическая интрига</strong><span>Конкурирующие организации, шпионаж, влияние, сделки и скрытые покровители.</span></div><div class="feature"><strong>Исследование неизвестного</strong><span>Заброшенные объекты, далёкие острова, спорные карты и следы исчезнувших эпох.</span></div><div class="feature"><strong>Сдержанный ужас</strong><span>Странности редко выглядят как чистое зло, но почти всегда нарушают привычный порядок.</span></div><div class="feature"><strong>Последствия решений</strong><span>Победа над непосредственной угрозой не гарантирует, что мир после неё станет лучше.</span></div></div></div></section>
-<section id="continents"><div class="container"><div class="section-head"><div><p class="eyebrow">Мир</p><h2>Один мир — разные способы жить дальше</h2></div><p>Разные материки и острова по-разному пережили Раскол. Где-то ставка была сделана на тяжёлую промышленность, где-то — на торговлю, сельское хозяйство, науку или сохранение старых традиций. Между регионами нет простого деления на «цивилизованные» и «дикие»: каждый из них нашёл собственный способ приспособиться и заплатил за него свою цену.</p></div><div class="grid four"><article class="card world-card" data-tone="gold"><h3>Промышленные земли</h3><p>Города растут вокруг шахт, железных дорог и мастерских. Здесь ценят изобретателей, но человеческая жизнь часто оказывается дешевле проекта.</p></article><article class="card world-card" data-tone="blue"><h3>Большие города</h3><p>Администрация, научные учреждения, редакции, тайные службы и теневой бизнес существуют рядом и постоянно влияют друг на друга.</p></article><article class="card world-card" data-tone="pale"><h3>Речные и сельские области</h3><p>Здесь новые технологии входят в жизнь медленнее, а власть часто держится на личных связях, местных соглашениях и контроле путей сообщения.</p></article><article class="card world-card" data-tone="red"><h3>Изолированные культуры</h3><p>Некоторые народы веками развивались отдельно от остальных. Их обычаи могут казаться странными, но за ними стоит собственная логика, история и опыт выживания.</p></article></div></div></section>
-<section id="themes"><div class="container"><div class="section-head"><div><p class="eyebrow">О чём игра</p><h2>Приключения о выборе и последствиях</h2></div><p>Герои Mitrinium — не обязательно спасители мира. Они могут быть исследователями, инженерами, сыщиками, наёмниками, чиновниками, журналистами или людьми, случайно оказавшимися между несколькими силами. Их задачи обычно начинаются с понятной проблемы, но постепенно раскрывают более крупный конфликт.</p></div><div class="grid three"><article class="card"><h3>Расследовать</h3><p>Почему исчез грузовой поезд? Кто подделывает отчёты экспедиции? Откуда в рабочем районе появились одинаковые сны? И кому выгодно, чтобы официальная версия выглядела убедительно?</p></article><article class="card"><h3>Договариваться</h3><p>У большинства конфликтов несколько сторон. Даже бандиты могут защищать деревню, учёные — скрывать опасное открытие, а чиновники — нарушать закон, чтобы не допустить ещё большей катастрофы.</p></article><article class="card"><h3>Идти туда, где нет ответов</h3><p>Удалённые шахты, нестабильные острова, заброшенные лаборатории, древние сооружения и места, где пространство ведёт себя неправильно, требуют не только силы, но и осторожности.</p></article></div><div style="height:30px"></div><div class="quote">«Самые опасные вещи в этом мире редко приходят извне. Чаще они появляются, когда кто-то пытается заставить прошлое снова работать».</div></div></section>
-<section id="status"><div class="container"><div class="cta"><p class="eyebrow">Проект в разработке</p><h2>Создаётся книга мира и правила игры</h2><p>Сейчас разрабатываются основные регионы, история, организации, существа, технологии, приключения и материалы для ведущего. Позднее на сайте появятся демонстрационные главы, иллюстрации, новости разработки и игровые материалы.</p><div class="hero-actions" style="justify-content:center"><a class="button primary" href="#">Материалы проекта</a><a class="button secondary" href="mailto:your-email@example.com">Связаться с автором</a></div></div></div></section>
-</main>
-<footer><div class="container footer-row"><div>© <span id="year"></span> Mitrinium. Авторский проект.</div><div>Сайт-визитка · версия 0.2</div></div></footer>
-<script>document.getElementById("year").textContent=new Date().getFullYear();</script>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="#top">Mitrin<span>ium</span></a>
+      <nav class="nav-links" aria-label="Основная навигация">
+        <a href="#project">О проекте</a>
+        <a href="#world">Мир</a>
+        <a href="#game">Игра</a>
+        <a href="#rules">Правила</a>
+        <a href="#status">Разработка</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <p class="eyebrow">Разрабатываемая настольная ролевая игра</p>
+          <h1>Mitrinium</h1>
+          <p class="hero-lead">
+            Мы создаём игру об индустриальном мире, который пережил большую катастрофу
+            и успел заново научиться жить. Здесь работают железные дороги и фабрики,
+            растут города, спорят учёные и чиновники, а за пределами привычных маршрутов
+            всё ещё остаются места, которые плохо подчиняются человеческой логике.
+          </p>
+          <p class="hero-note">
+            Этот сайт — краткое введение в замысел проекта. Термины, устройство мира
+            и правила ещё меняются по мере разработки и игровых тестов.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#project">О замысле</a>
+            <a class="button secondary" href="#rules">Кратко о правилах</a>
+          </div>
+        </div>
+
+        <div class="sigil" aria-label="Декоративный символ проекта">
+          <div class="sigil-text">
+            <strong>Мир после катастрофы</strong>
+            <span>не руины, а новая повседневность</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="project">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">О проекте</p>
+            <h2>Что мы пытаемся сделать</h2>
+          </div>
+          <p>
+            Mitrinium задуман как игра о людях, которые работают с последствиями
+            прошлого. Нас интересует не только исследование странных мест, но и обычная
+            жизнь вокруг них: кто обслуживает технику, кто оплачивает экспедицию,
+            кто отвечает за ошибку, кто скрывает неудобный отчёт и как новое открытие
+            меняет отношения между людьми.
+          </p>
+        </div>
+
+        <div class="grid three">
+          <article class="card">
+            <span class="number">01</span>
+            <h3>Работающий мир</h3>
+            <p>
+              Это не пустошь после конца света. В мире есть транспорт, учреждения,
+              торговля, медицина, пресса, полиция, образование и множество людей,
+              занятых вполне повседневными делами.
+            </p>
+          </article>
+
+          <article class="card">
+            <span class="number">02</span>
+            <h3>Техника с последствиями</h3>
+            <p>
+              Устройства требуют ухода, оружие может дать сбой, экспедиции стоят денег,
+              а сложное решение часто создаёт новую проблему. Технология здесь полезна,
+              но не бесплатна и не безошибочна.
+            </p>
+          </article>
+
+          <article class="card">
+            <span class="number">03</span>
+            <h3>Странное рядом с обычным</h3>
+            <p>
+              Необъяснимые явления существуют рядом с фабриками, архивами и городскими
+              кварталами. Они не всегда враждебны, но почти всегда нарушают привычный
+              порядок и требуют внимательного отношения.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="world">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Мир</p>
+            <h2>Общая атмосфера</h2>
+          </div>
+          <p>
+            Визуально и тематически проект соединяет раннюю индустриальную эпоху,
+            научную фантазию и сдержанную мистику. На улицах много дыма, бумаги,
+            меди, дерева, стекла и рабочей одежды. Рядом с поездами и лабораториями
+            могут существовать необычные материалы, психические технологии,
+            изменённые животные и участки пространства с нестабильными свойствами.
+          </p>
+        </div>
+
+        <div class="grid two">
+          <article class="card">
+            <h3>Что здесь привычно</h3>
+            <ul class="plain-list">
+              <li>поезда, баржи, омнибусы и дальние маршруты;</li>
+              <li>фабрики, шахты, мастерские и лаборатории;</li>
+              <li>чиновники, газеты, суды, профсоюзы и преступные связи;</li>
+              <li>врачи, инженеры, военные, торговцы и исследователи.</li>
+            </ul>
+          </article>
+
+          <article class="card">
+            <h3>Что нарушает привычный порядок</h3>
+            <ul class="plain-list">
+              <li>опасные погодные и магические явления;</li>
+              <li>техника, которая работает непредсказуемо;</li>
+              <li>следы старых проектов и исчезнувших обществ;</li>
+              <li>живые существа и пространства с необычными свойствами.</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="game">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Игра</p>
+            <h2>Чем занимаются персонажи</h2>
+          </div>
+          <p>
+            Персонажи могут быть инженерами, врачами, стрелками, посредниками,
+            исследователями или специалистами по человеческой психике. Игра строится
+            вокруг совместного решения проблем: расследований, поездок, ремонта,
+            переговоров, работы с опасными веществами и прямых столкновений.
+          </p>
+        </div>
+
+        <div class="grid three">
+          <article class="card">
+            <h3>Разобраться</h3>
+            <p>
+              Собрать сведения, осмотреть место, проверить документы, понять работу
+              устройства и отделить случайность от чьего-то намерения.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>Подготовиться</h3>
+            <p>
+              Найти инструменты, договориться о доступе, выбрать маршрут, починить
+              снаряжение и решить, какой риск группа готова принять.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>Справиться с последствиями</h3>
+            <p>
+              Успех не всегда закрывает вопрос. Иногда он оставляет долг, поломку,
+              раненого человека, политическую проблему или новый повод для исследования.
+            </p>
+          </article>
+        </div>
+
+        <div style="height:28px"></div>
+
+        <div class="quote">
+          Мы стремимся сделать игру, в которой важны не только способности персонажа,
+          но и инструменты, время, положение в обществе, подготовка и цена ошибки.
+        </div>
+      </div>
+    </section>
+
+    <section id="rules">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Краткая памятка</p>
+            <h2>Самые основы правил</h2>
+          </div>
+          <p>
+            Ниже приведена только общая схема текущей редакции. Она нужна, чтобы понять
+            характер системы, а не заменить полный текст правил. Числа и формулировки
+            могут измениться после тестов.
+          </p>
+        </div>
+
+        <div class="grid two">
+          <article class="rule-box">
+            <h3>Основной бросок</h3>
+            <p>
+              Для проверки собирается пул из кубов сцены, подходящего атрибута
+              и навыка. Атрибут и навык добавляют шестигранные кубы.
+            </p>
+            <div class="rule-formula">Кубы сцены + Атрибут + Навык</div>
+            <ul class="plain-list">
+              <li>обычная ситуация: d4 + d6;</li>
+              <li>помеха: 2d4;</li>
+              <li>преимущество: 2d6.</li>
+            </ul>
+          </article>
+
+          <article class="rule-box">
+            <h3>Как получить результат</h3>
+            <ul class="plain-list">
+              <li>бросьте все кубы;</li>
+              <li>сложите два наибольших результата;</li>
+              <li>сложите два наименьших результата;</li>
+              <li>вычтите нижнюю сумму из верхней.</li>
+            </ul>
+            <div class="rule-formula">Эффективность = две лучшие кости − две худшие</div>
+            <p>
+              Единицы считаются отдельно: успех может сопровождаться осложнением.
+              Высокие грани некоторых кубов могут дать дополнительный прорыв.
+            </p>
+          </article>
+        </div>
+
+        <div class="result-grid" aria-label="Шкала эффективности">
+          <div class="result">
+            <strong>0–3</strong>
+            <span>неудача</span>
+          </div>
+          <div class="result">
+            <strong>4–5</strong>
+            <span>минимальный результат</span>
+          </div>
+          <div class="result">
+            <strong>6–7</strong>
+            <span>обычный успех</span>
+          </div>
+          <div class="result">
+            <strong>8</strong>
+            <span>сильный успех</span>
+          </div>
+          <div class="result">
+            <strong>9+</strong>
+            <span>выдающийся результат</span>
+          </div>
+        </div>
+
+        <div style="height:28px"></div>
+
+        <div class="grid three">
+          <article class="card">
+            <h3>Персонаж</h3>
+            <p>
+              В текущей редакции используются пять широких атрибутов и связанные
+              с ними навыки. Биография персонажа также может один раз за встречу
+              помочь изменить неудачный результат одной кости.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>Бой</h3>
+            <p>
+              В ход обычно доступны действие и передвижение. Атаки сравниваются
+              с порогом защиты, после чего отдельно определяется урон. Броня сначала
+              поглощает часть урона, но изнашивается от пробивных попаданий.
+            </p>
+          </article>
+
+          <article class="card">
+            <h3>Снаряжение</h3>
+            <p>
+              Сложное оружие, инструменты и устройства требуют обслуживания.
+              Поломки и расход материалов являются частью игрового процесса,
+              особенно для технических и экспедиционных персонажей.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="status">
+      <div class="container">
+        <div class="cta">
+          <p class="eyebrow">Текущий статус</p>
+          <h2>Проект находится в разработке</h2>
+          <p>
+            Сейчас мы уточняем базовые правила, классы, снаряжение, регионы мира
+            и структуру приключений. Часть материалов уже существует в рабочем виде,
+            но ещё не считается окончательной. На сайте постепенно будут появляться
+            новые тексты, памятки и материалы для тестирования.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary"
+               href="https://docs.google.com/document/d/1lrJRQbbYDmEap1faz7Fh2OEfor8c2XDOKNyRxb3jxPQ/edit?usp=sharing"
+               target="_blank" rel="noopener noreferrer">
+              Рабочая редакция правил
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container footer-row">
+      <div>© <span id="year"></span> Mitrinium. Авторский проект.</div>
+      <div>Сайт-визитка · рабочая версия</div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
