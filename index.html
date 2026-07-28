@@ -3,18 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Mitrinium — разрабатываемая настольная ролевая игра об индустриальном мире после большой катастрофы." />
+
+  <meta
+    name="description"
+    content="Mitrinium — разрабатываемая настольная ролевая игра об индустриальном мире после большой катастрофы."
+  />
+
   <meta name="theme-color" content="#12151a" />
+
   <title>Mitrinium — настольная ролевая игра</title>
 
   <style>
     :root {
       --bg: #111419;
       --panel: #1a1e25;
-      --panel-soft: rgba(255,255,255,.035);
+      --panel-soft: rgba(255, 255, 255, 0.035);
       --text: #eee9df;
       --muted: #b8b0a3;
-      --line: rgba(255,255,255,.11);
+      --line: rgba(255, 255, 255, 0.11);
       --accent: #c99855;
       --accent-soft: #e6c48f;
       --cold: #6fa5aa;
@@ -22,7 +28,9 @@
       --radius: 20px;
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     html {
       scroll-behavior: smooth;
@@ -32,89 +40,217 @@
     body {
       margin: 0;
       color: var(--text);
+
       background:
-        radial-gradient(circle at 18% 8%, rgba(201,152,85,.10), transparent 29rem),
-        radial-gradient(circle at 88% 16%, rgba(111,165,170,.08), transparent 26rem),
-        linear-gradient(180deg, #101318 0%, #15191f 58%, #0f1216 100%);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-        "Segoe UI", sans-serif;
+        radial-gradient(
+          circle at 18% 8%,
+          rgba(201, 152, 85, 0.1),
+          transparent 29rem
+        ),
+        radial-gradient(
+          circle at 88% 16%,
+          rgba(111, 165, 170, 0.08),
+          transparent 26rem
+        ),
+        linear-gradient(
+          180deg,
+          #101318 0%,
+          #15191f 58%,
+          #0f1216 100%
+        );
+
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
       line-height: 1.65;
     }
 
-    a { color: inherit; }
+    a {
+      color: inherit;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
 
     .container {
       width: min(calc(100% - 32px), var(--max));
       margin-inline: auto;
     }
 
+    /* Шапка */
+
     .site-header {
       position: sticky;
       top: 0;
       z-index: 20;
+
       border-bottom: 1px solid var(--line);
-      background: rgba(17,20,25,.84);
+
+      background: rgba(17, 20, 25, 0.84);
       backdrop-filter: blur(16px);
     }
 
     .nav {
       min-height: 68px;
+
       display: flex;
       align-items: center;
       justify-content: space-between;
+
       gap: 24px;
     }
 
     .brand {
+      flex: 0 0 auto;
+
+      color: var(--text);
       text-decoration: none;
+
       font-family: Georgia, "Times New Roman", serif;
       font-weight: 700;
-      letter-spacing: .11em;
+
+      letter-spacing: 0.11em;
       text-transform: uppercase;
       white-space: nowrap;
     }
 
-    .brand span { color: var(--accent-soft); }
+    .brand span {
+      color: var(--accent-soft);
+    }
 
     .nav-links {
       display: flex;
       flex-wrap: wrap;
       justify-content: flex-end;
+
       gap: 18px;
     }
 
     .nav-links a {
       color: var(--muted);
       text-decoration: none;
-      font-size: .92rem;
+      font-size: 0.92rem;
     }
 
-    .nav-links a:hover { color: var(--text); }
+    .nav-links a:hover,
+    .nav-links a:focus-visible {
+      color: var(--text);
+    }
 
-    .hero {
-      min-height: 78vh;
-      display: grid;
+    /* Секретный поиск */
+
+    .secret-search {
+      width: min(250px, 26vw);
+      min-width: 150px;
+
+      display: flex;
       align-items: center;
-      padding: 76px 0 68px;
+
+      overflow: hidden;
+
+      border: 1px solid var(--line);
+      border-radius: 999px;
+
+      background: rgba(255, 255, 255, 0.03);
+
+      transition:
+        border-color 0.2s ease,
+        background 0.2s ease;
     }
 
-    .hero-grid {
+    .secret-search:focus-within {
+      border-color: rgba(230, 196, 143, 0.46);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .secret-search input {
+      width: 100%;
+      min-width: 0;
+      height: 40px;
+
+      padding: 0 8px 0 16px;
+
+      border: 0;
+      outline: 0;
+
+      color: var(--text);
+      background: transparent;
+    }
+
+    .secret-search input::placeholder {
+      color: #88857f;
+    }
+
+    .secret-search input::-webkit-search-cancel-button {
+      display: none;
+    }
+
+    .secret-search button {
+      flex: 0 0 42px;
+
+      width: 42px;
+      height: 40px;
+
       display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
-      align-items: center;
-      gap: 64px;
+      place-items: center;
+
+      padding: 0;
+      border: 0;
+
+      color: var(--muted);
+      background: transparent;
+
+      cursor: pointer;
     }
 
-    .eyebrow {
-      margin: 0 0 14px;
-      color: var(--accent-soft);
-      text-transform: uppercase;
-      letter-spacing: .16em;
-      font-size: .76rem;
-      font-weight: 750;
+    .secret-search button:hover,
+    .secret-search button:focus-visible {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      outline: none;
     }
 
-    h1, h2, h3 {
+    .secret-search svg {
+      width: 18px;
+      height: 18px;
+
+      fill: none;
+      stroke: currentColor;
+
+      stroke-width: 1.8;
+      stroke-linecap: round;
+    }
+
+    .visually-hidden {
+      position: absolute;
+
+      width: 1px;
+      height: 1px;
+
+      padding: 0;
+      margin: -1px;
+
+      overflow: hidden;
+
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+
+      border: 0;
+    }
+
+    /* Общая типографика */
+
+    h1,
+    h2,
+    h3 {
       font-family: Georgia, "Times New Roman", serif;
       line-height: 1.12;
       overflow-wrap: anywhere;
@@ -122,15 +258,17 @@
 
     h1 {
       margin: 0;
+
       font-size: clamp(3.6rem, 9vw, 7.4rem);
-      letter-spacing: -.045em;
+      letter-spacing: -0.045em;
     }
 
     h2 {
-      margin: 0;
       max-width: 12ch;
+      margin: 0;
+
       font-size: clamp(2rem, 4.5vw, 3.8rem);
-      letter-spacing: -.025em;
+      letter-spacing: -0.025em;
     }
 
     h3 {
@@ -138,357 +276,543 @@
       font-size: 1.45rem;
     }
 
+    .eyebrow {
+      margin: 0 0 14px;
+
+      color: var(--accent-soft);
+
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+
+      font-size: 0.76rem;
+      font-weight: 750;
+    }
+
+    section {
+      padding: 82px 0;
+    }
+
+    /* Главный экран */
+
+    .hero {
+      min-height: 78vh;
+
+      display: grid;
+      align-items: center;
+
+      padding: 76px 0 68px;
+    }
+
+    .hero-grid {
+      display: grid;
+
+      grid-template-columns:
+        minmax(0, 1.15fr)
+        minmax(280px, 0.85fr);
+
+      align-items: center;
+      gap: 64px;
+    }
+
     .hero-lead {
       max-width: 720px;
+
       margin: 23px 0 0;
+
       color: #d3cdc2;
+
       font-size: clamp(1.05rem, 1.8vw, 1.28rem);
     }
 
     .hero-note {
-      margin-top: 26px;
       max-width: 700px;
+
+      margin-top: 26px;
+
       color: var(--muted);
-      font-size: .96rem;
+      font-size: 0.96rem;
     }
 
     .hero-actions {
       display: flex;
       flex-wrap: wrap;
+
       gap: 12px;
       margin-top: 30px;
     }
 
     .button {
+      min-height: 46px;
+
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 46px;
+
       padding: 0 20px;
+
       border: 1px solid var(--line);
       border-radius: 999px;
+
       text-decoration: none;
       font-weight: 680;
     }
 
     .button.primary {
       color: #18130d;
+
       border-color: var(--accent);
       background: var(--accent-soft);
     }
 
     .button.secondary {
-      background: rgba(255,255,255,.03);
+      background: rgba(255, 255, 255, 0.03);
     }
 
     .sigil {
       position: relative;
+
       aspect-ratio: 1;
+
       display: grid;
       place-items: center;
-      border: 1px solid rgba(230,196,143,.24);
+
+      border: 1px solid rgba(230, 196, 143, 0.24);
       border-radius: 50%;
+
       background:
-        radial-gradient(circle, rgba(201,152,85,.11) 0 3%, transparent 3.4%),
-        repeating-radial-gradient(circle, transparent 0 10%, rgba(255,255,255,.045) 10.3% 10.7%, transparent 11% 18%),
-        conic-gradient(from 45deg, transparent 0 11%, rgba(111,165,170,.11) 11% 14%, transparent 14% 36%, rgba(201,152,85,.13) 36% 39%, transparent 39% 61%, rgba(111,165,170,.11) 61% 64%, transparent 64% 86%, rgba(201,152,85,.13) 86% 89%, transparent 89%);
+        radial-gradient(
+          circle,
+          rgba(201, 152, 85, 0.11) 0 3%,
+          transparent 3.4%
+        ),
+        repeating-radial-gradient(
+          circle,
+          transparent 0 10%,
+          rgba(255, 255, 255, 0.045) 10.3% 10.7%,
+          transparent 11% 18%
+        ),
+        conic-gradient(
+          from 45deg,
+          transparent 0 11%,
+          rgba(111, 165, 170, 0.11) 11% 14%,
+          transparent 14% 36%,
+          rgba(201, 152, 85, 0.13) 36% 39%,
+          transparent 39% 61%,
+          rgba(111, 165, 170, 0.11) 61% 64%,
+          transparent 64% 86%,
+          rgba(201, 152, 85, 0.13) 86% 89%,
+          transparent 89%
+        );
     }
 
     .sigil::before,
     .sigil::after {
       content: "";
+
       position: absolute;
       inset: 13%;
-      border: 1px solid rgba(255,255,255,.11);
+
+      border: 1px solid rgba(255, 255, 255, 0.11);
+
       transform: rotate(45deg);
     }
 
     .sigil::after {
       inset: 26%;
-      border-color: rgba(230,196,143,.24);
+
+      border-color: rgba(230, 196, 143, 0.24);
+
       transform: rotate(22.5deg);
     }
 
     .sigil-text {
       position: relative;
       z-index: 2;
+
       max-width: 70%;
+
       text-align: center;
     }
 
     .sigil-text strong {
       display: block;
+
       font-family: Georgia, "Times New Roman", serif;
+
       font-size: clamp(1.5rem, 3.3vw, 2.7rem);
       line-height: 1.18;
     }
 
     .sigil-text span {
       display: block;
+
       margin-top: 12px;
+
       color: var(--muted);
-      font-size: .78rem;
-      letter-spacing: .14em;
+
+      font-size: 0.78rem;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
     }
 
-    section { padding: 82px 0; }
+    /* Заголовки разделов */
 
     .section-head {
       display: grid;
-      grid-template-columns: minmax(240px, .8fr) minmax(0, 1.2fr);
-      gap: 56px;
+
+      grid-template-columns:
+        minmax(240px, 0.8fr)
+        minmax(0, 1.2fr);
+
       align-items: start;
+
+      gap: 56px;
       margin-bottom: 38px;
     }
 
-    .section-head > * { min-width: 0; }
+    .section-head > * {
+      min-width: 0;
+    }
 
     .section-head p {
-      margin: 2px 0 0;
       max-width: 760px;
+
+      margin: 2px 0 0;
+
       color: var(--muted);
       font-size: 1.04rem;
     }
+
+    /* Сетки и карточки */
 
     .grid {
       display: grid;
       gap: 18px;
     }
 
-    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
 
     .card {
       min-width: 0;
+
       padding: 25px;
+
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.018));
+
+      background:
+        linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.04),
+          rgba(255, 255, 255, 0.018)
+        );
     }
 
     .card .number {
       display: block;
+
       margin-bottom: 12px;
+
       color: var(--accent-soft);
+
       font-family: Georgia, "Times New Roman", serif;
-      font-size: .86rem;
-      letter-spacing: .14em;
+      font-size: 0.86rem;
+      letter-spacing: 0.14em;
     }
 
     .card p {
       margin: 0;
+
       color: var(--muted);
     }
 
     .plain-list {
       display: grid;
+
       gap: 13px;
+
       margin: 0;
       padding: 0;
+
       list-style: none;
     }
 
     .plain-list li {
-      padding-left: 18px;
       position: relative;
+
+      padding-left: 18px;
+
       color: var(--muted);
     }
 
     .plain-list li::before {
       content: "—";
+
       position: absolute;
       left: 0;
+
       color: var(--accent-soft);
     }
 
+    /* Правила */
+
     .rule-box {
       padding: 28px;
-      border: 1px solid rgba(230,196,143,.22);
+
+      border: 1px solid rgba(230, 196, 143, 0.22);
       border-radius: var(--radius);
+
       background:
-        linear-gradient(135deg, rgba(201,152,85,.08), rgba(111,165,170,.045)),
+        linear-gradient(
+          135deg,
+          rgba(201, 152, 85, 0.08),
+          rgba(111, 165, 170, 0.045)
+        ),
         var(--panel);
     }
 
-    .rule-box h3 { margin-bottom: 14px; }
+    .rule-box h3 {
+      margin-bottom: 14px;
+    }
 
     .rule-formula {
       margin: 14px 0;
       padding: 16px 18px;
+
       border-left: 3px solid var(--accent);
-      background: rgba(255,255,255,.025);
+
+      background: rgba(255, 255, 255, 0.025);
       color: #ddd6ca;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+      font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Consolas,
+        monospace;
+
       overflow-wrap: anywhere;
     }
 
     .result-grid {
       display: grid;
+
       grid-template-columns: repeat(5, minmax(0, 1fr));
+
       gap: 10px;
       margin-top: 18px;
     }
 
     .result {
       padding: 14px;
+
       border: 1px solid var(--line);
       border-radius: 14px;
-      background: rgba(255,255,255,.025);
+
+      background: rgba(255, 255, 255, 0.025);
     }
 
     .result strong {
       display: block;
+
       color: var(--accent-soft);
       font-size: 1.02rem;
     }
 
     .result span {
       display: block;
+
       margin-top: 4px;
+
       color: var(--muted);
-      font-size: .86rem;
+      font-size: 0.86rem;
     }
 
     .quote {
       padding: 30px;
+
       border-left: 3px solid var(--accent);
-      background: rgba(201,152,85,.055);
+
+      background: rgba(201, 152, 85, 0.055);
       color: #d8d1c5;
+
       font-family: Georgia, "Times New Roman", serif;
+
       font-size: clamp(1.15rem, 2.2vw, 1.7rem);
       line-height: 1.42;
     }
 
-    .cta {
-      padding: 38px;
-      border: 1px solid var(--line);
-      border-radius: calc(var(--radius) + 4px);
-      background: var(--panel-soft);
-    }
-
-    .cta h2 {
-      max-width: 16ch;
-      font-size: clamp(2rem, 4vw, 3.2rem);
-    }
-
-    .cta p {
-      max-width: 760px;
-      margin: 18px 0 0;
-      color: var(--muted);
-    }
-
+    /* Карусель классов */
 
     .class-carousel {
       position: relative;
+
       margin-top: 12px;
     }
 
     .class-viewport {
       overflow: hidden;
+
       border-radius: calc(var(--radius) + 2px);
     }
 
     .class-track {
       display: flex;
-      transition: transform .45s ease;
+
+      transition: transform 0.45s ease;
+
       will-change: transform;
     }
 
     .class-slide {
       min-width: 100%;
+
       padding: 1px;
     }
 
     .class-card {
       position: relative;
+
       min-height: 390px;
+
       display: grid;
-      grid-template-columns: minmax(220px, .72fr) minmax(0, 1.28fr);
-      gap: 34px;
+
+      grid-template-columns:
+        minmax(220px, 0.72fr)
+        minmax(0, 1.28fr);
+
       align-items: stretch;
+
+      gap: 34px;
       padding: 34px;
+
       overflow: hidden;
+
       border: 1px solid var(--line);
       border-radius: calc(var(--radius) + 2px);
+
       background:
-        linear-gradient(135deg, rgba(201,152,85,.10), rgba(111,165,170,.05)),
-        linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018));
+        linear-gradient(
+          135deg,
+          rgba(201, 152, 85, 0.1),
+          rgba(111, 165, 170, 0.05)
+        ),
+        linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.045),
+          rgba(255, 255, 255, 0.018)
+        );
     }
 
     .class-card::after {
       content: "";
+
       position: absolute;
-      width: 260px;
-      height: 260px;
       right: -90px;
       bottom: -120px;
-      border: 1px solid rgba(255,255,255,.07);
+
+      width: 260px;
+      height: 260px;
+
+      border: 1px solid rgba(255, 255, 255, 0.07);
       border-radius: 50%;
+
       box-shadow:
-        0 0 0 34px rgba(255,255,255,.015),
-        0 0 0 68px rgba(255,255,255,.01);
+        0 0 0 34px rgba(255, 255, 255, 0.015),
+        0 0 0 68px rgba(255, 255, 255, 0.01);
+
       pointer-events: none;
     }
 
     .class-mark {
       position: relative;
       z-index: 1;
+
       min-height: 260px;
+
       display: grid;
       place-items: center;
-      border: 1px solid rgba(230,196,143,.20);
-      border-radius: 18px;
-      background:
-        radial-gradient(circle at 50% 38%, rgba(230,196,143,.15), transparent 30%),
-        repeating-linear-gradient(135deg, transparent 0 18px, rgba(255,255,255,.025) 18px 19px),
-        rgba(255,255,255,.02);
-      text-align: center;
+
       padding: 24px;
+
+      border: 1px solid rgba(230, 196, 143, 0.2);
+      border-radius: 18px;
+
+      background:
+        radial-gradient(
+          circle at 50% 38%,
+          rgba(230, 196, 143, 0.15),
+          transparent 30%
+        ),
+        repeating-linear-gradient(
+          135deg,
+          transparent 0 18px,
+          rgba(255, 255, 255, 0.025) 18px 19px
+        ),
+        rgba(255, 255, 255, 0.02);
+
+      text-align: center;
     }
 
     .class-mark strong {
       display: block;
+
+      color: var(--accent-soft);
+
       font-family: Georgia, "Times New Roman", serif;
       font-size: clamp(3.6rem, 8vw, 6.8rem);
       line-height: 1;
-      color: var(--accent-soft);
-      opacity: .95;
+
+      opacity: 0.95;
     }
 
     .class-mark span {
       display: block;
+
       margin-top: 14px;
+
       color: var(--muted);
-      font-size: .74rem;
-      letter-spacing: .16em;
+
+      font-size: 0.74rem;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
     }
 
     .class-copy {
       position: relative;
       z-index: 1;
+
+      min-width: 0;
+
       display: flex;
       flex-direction: column;
       justify-content: center;
-      min-width: 0;
     }
 
     .class-copy h3 {
       margin: 0;
+
       font-size: clamp(2rem, 4.5vw, 3.5rem);
     }
 
     .class-role {
       margin: 10px 0 18px;
+
       color: var(--accent-soft);
       font-weight: 700;
     }
 
     .class-description {
-      margin: 0;
       max-width: 720px;
+
+      margin: 0;
+
       color: var(--muted);
       font-size: 1.03rem;
     }
@@ -496,23 +820,28 @@
     .class-tags {
       display: flex;
       flex-wrap: wrap;
+
       gap: 9px;
       margin-top: 24px;
     }
 
     .class-tags span {
       padding: 7px 11px;
+
       border: 1px solid var(--line);
       border-radius: 999px;
-      background: rgba(255,255,255,.025);
+
+      background: rgba(255, 255, 255, 0.025);
       color: #d6d0c5;
-      font-size: .84rem;
+
+      font-size: 0.84rem;
     }
 
     .class-controls {
       display: flex;
       align-items: center;
       justify-content: space-between;
+
       gap: 18px;
       margin-top: 18px;
     }
@@ -525,48 +854,162 @@
     .class-button {
       width: 46px;
       height: 46px;
+
       display: grid;
       place-items: center;
+
       border: 1px solid var(--line);
       border-radius: 50%;
-      background: rgba(255,255,255,.03);
+
+      background: rgba(255, 255, 255, 0.03);
       color: var(--text);
+
       font-size: 1.3rem;
+
       cursor: pointer;
     }
 
-    .class-button:hover {
-      background: rgba(255,255,255,.07);
+    .class-button:hover,
+    .class-button:focus-visible {
+      background: rgba(255, 255, 255, 0.07);
+      outline: none;
     }
 
     .class-dots {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
+
       gap: 8px;
     }
 
     .class-dot {
       width: 9px;
       height: 9px;
+
       padding: 0;
       border: 0;
       border-radius: 50%;
-      background: rgba(255,255,255,.22);
+
+      background: rgba(255, 255, 255, 0.22);
+
       cursor: pointer;
     }
 
     .class-dot.is-active {
       width: 26px;
+
       border-radius: 999px;
+
       background: var(--accent-soft);
     }
 
     .class-count {
       min-width: 64px;
+
       color: var(--muted);
+
       text-align: right;
       font-variant-numeric: tabular-nums;
+    }
+
+    /* Статус */
+
+    .cta {
+      padding: 38px;
+
+      border: 1px solid var(--line);
+      border-radius: calc(var(--radius) + 4px);
+
+      background: var(--panel-soft);
+    }
+
+    .cta h2 {
+      max-width: 16ch;
+
+      font-size: clamp(2rem, 4vw, 3.2rem);
+    }
+
+    .cta p {
+      max-width: 760px;
+
+      margin: 18px 0 0;
+
+      color: var(--muted);
+    }
+
+    /* Подвал */
+
+    footer {
+      padding: 32px 0 46px;
+
+      color: #918b82;
+      font-size: 0.9rem;
+    }
+
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+
+      gap: 24px;
+      padding-top: 24px;
+
+      border-top: 1px solid var(--line);
+    }
+
+    /* Адаптивность */
+
+    @media (max-width: 1040px) {
+      .nav {
+        gap: 16px;
+      }
+
+      .nav-links {
+        gap: 12px;
+      }
+
+      .nav-links a {
+        font-size: 0.84rem;
+      }
+
+      .secret-search {
+        width: min(220px, 24vw);
+      }
+    }
+
+    @media (max-width: 920px) {
+      .hero-grid,
+      .section-head {
+        grid-template-columns: 1fr;
+        gap: 34px;
+      }
+
+      h2 {
+        max-width: 18ch;
+      }
+
+      .sigil {
+        width: min(480px, 88vw);
+        margin-inline: auto;
+      }
+
+      .grid.three {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .result-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .nav {
+        flex-wrap: wrap;
+        padding: 14px 0;
+      }
+
+      .secret-search {
+        order: 3;
+        width: 100%;
+      }
     }
 
     @media (max-width: 760px) {
@@ -578,69 +1021,45 @@
       .class-mark {
         min-height: 180px;
       }
+    }
 
-      .class-controls {
-        align-items: center;
+    @media (max-width: 620px) {
+      .nav-links {
+        display: none;
+      }
+
+      .hero {
+        min-height: auto;
+        padding-top: 58px;
+      }
+
+      section {
+        padding: 64px 0;
+      }
+
+      .grid.two,
+      .grid.three,
+      .result-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .cta {
+        padding: 28px 22px;
+      }
+
+      .footer-row {
+        flex-direction: column;
       }
     }
 
     @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
       .class-track {
         transition: none;
       }
-    }
-
-    footer {
-      padding: 32px 0 46px;
-      color: #918b82;
-      font-size: .9rem;
-    }
-
-    .footer-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 24px;
-      padding-top: 24px;
-      border-top: 1px solid var(--line);
-    }
-
-    @media (max-width: 920px) {
-      .hero-grid,
-      .section-head {
-        grid-template-columns: 1fr;
-        gap: 34px;
-      }
-
-      h2 { max-width: 18ch; }
-
-      .sigil {
-        width: min(480px, 88vw);
-        margin-inline: auto;
-      }
-
-      .grid.three,
-      .grid.four {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .result-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 620px) {
-      .nav { padding: 17px 0; }
-      .nav-links { display: none; }
-      .hero { min-height: auto; padding-top: 58px; }
-      section { padding: 64px 0; }
-      .grid.two,
-      .grid.three,
-      .grid.four,
-      .result-grid {
-        grid-template-columns: 1fr;
-      }
-      .cta { padding: 28px 22px; }
-      .footer-row { flex-direction: column; }
     }
   </style>
 </head>
@@ -648,8 +1067,54 @@
 <body>
   <header class="site-header">
     <div class="container nav">
-      <a class="brand" href="#top">Mitrin<span>ium</span></a>
-      <nav class="nav-links" aria-label="Основная навигация">
+      <a class="brand" href="#top">
+        Mitrin<span>ium</span>
+      </a>
+
+      <form
+        class="secret-search"
+        id="secret-search"
+        autocomplete="off"
+      >
+        <label
+          class="visually-hidden"
+          for="secret-query"
+        >
+          Поиск
+        </label>
+
+        <input
+          id="secret-query"
+          name="query"
+          type="search"
+          placeholder="Поиск..."
+          aria-label="Поиск по сайту"
+          spellcheck="false"
+        />
+
+        <button
+          type="submit"
+          aria-label="Найти"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <circle
+              cx="11"
+              cy="11"
+              r="6.5"
+            ></circle>
+
+            <path d="M16 16l4 4"></path>
+          </svg>
+        </button>
+      </form>
+
+      <nav
+        class="nav-links"
+        aria-label="Основная навигация"
+      >
         <a href="#project">О проекте</a>
         <a href="#world">Мир</a>
         <a href="#game">Игра</a>
@@ -664,25 +1129,48 @@
     <section class="hero">
       <div class="container hero-grid">
         <div>
-          <p class="eyebrow">Разрабатываемая настольная ролевая игра</p>
+          <p class="eyebrow">
+            Разрабатываемая настольная ролевая игра
+          </p>
+
           <h1>Mitrinium</h1>
+
           <p class="hero-lead">
-            Мы создаём игру об индустриальном мире, который пережил большую катастрофу
-            и успел заново научиться жить. Здесь работают железные дороги и фабрики,
-            растут города, спорят учёные и чиновники, но за пределами привычных маршрутов
-            всё ещё остаются места, которые плохо подчиняются рациональной логике.
+            Мы создаём игру об индустриальном мире, который пережил
+            большую катастрофу и успел заново научиться жить. Здесь
+            работают железные дороги и фабрики, растут города, спорят
+            учёные и чиновники, но за пределами привычных маршрутов
+            всё ещё остаются места, которые плохо подчиняются
+            рациональной логике.
           </p>
+
           <p class="hero-note">
-            Этот сайт — краткое введение в замысел проекта. Термины, устройство мира
-            и правила ещё меняются по мере разработки и игровых тестов.
+            Этот сайт — краткое введение в замысел проекта. Термины,
+            устройство мира и правила ещё меняются по мере разработки
+            и игровых тестов.
           </p>
+
           <div class="hero-actions">
-            <a class="button primary" href="#project">О замысле</a>
-            <a class="button secondary" href="#rules">Кратко о правилах</a>
+            <a
+              class="button primary"
+              href="#project"
+            >
+              О замысле
+            </a>
+
+            <a
+              class="button secondary"
+              href="#rules"
+            >
+              Кратко о правилах
+            </a>
           </div>
         </div>
 
-        <div class="sigil" aria-label="Декоративный символ проекта">
+        <div
+          class="sigil"
+          aria-label="Декоративный символ проекта"
+        >
           <div class="sigil-text">
             <strong>Мир после катастрофы</strong>
             <span>Стимпанк и немного магии</span>
@@ -698,27 +1186,33 @@
             <p class="eyebrow">О проекте</p>
             <h2>Что мы пытаемся сделать</h2>
           </div>
+
           <p>
-            Mitrinium задуман как игра, где мир стоит на распутье. В этом мире
-            нет больше старых устоев. Общество изменилось раз и навсегда, но порядок
-            ещё не устоялся. Возможно, вам решать, что будет дальше.
+            Mitrinium задуман как игра, где мир стоит на распутье.
+            В этом мире нет больше старых устоев. Общество изменилось
+            раз и навсегда, но порядок ещё не устоялся. Возможно,
+            вам решать, что будет дальше.
           </p>
         </div>
 
         <div class="grid three">
           <article class="card">
             <span class="number">01</span>
+
             <h3>Мир полон надежд</h3>
+
             <p>
-              Это не пустошь после конца света. В мире кипит жизнь множества людей,
-              занятых вполне повседневными делами. Все они ждут, что прогресс
-              спасёт их от невзгод и тягот.
+              Это не пустошь после конца света. В мире кипит жизнь
+              множества людей, занятых вполне повседневными делами.
+              Все они ждут, что прогресс спасёт их от невзгод и тягот.
             </p>
           </article>
 
           <article class="card">
             <span class="number">02</span>
+
             <h3>Расплата за технологии</h3>
+
             <p>
               Техника движет общество вперёд, но делает жизнь людей
               сложнее и опаснее. Огнестрельное оружие уравняло рыцаря
@@ -728,10 +1222,12 @@
 
           <article class="card">
             <span class="number">03</span>
+
             <h3>Странное рядом с обычным</h3>
+
             <p>
-              Таинственные явления и необычные события
-              становятся частью быта простых жителей.
+              Таинственные явления и необычные события становятся
+              частью быта простых жителей.
             </p>
           </article>
         </div>
@@ -745,33 +1241,41 @@
             <p class="eyebrow">Мир</p>
             <h2>Общая атмосфера</h2>
           </div>
+
           <p>
-            Визуально и тематически проект соединяет технологии, магию и мистику. 
-            По улицам ездят механизированные экипажи, но, рядом с фабриками, маги в
-            своих алхимических кабинетах ищут разгадки таинственных явлений. Хаотические
-            потоки порождают жизнь там, где её не должно быть, меняют свойства предметов
-            и физические законы. 
+            Визуально и тематически проект соединяет технологии,
+            магию и мистику. По улицам ездят механизированные экипажи,
+            но рядом с фабриками маги в своих алхимических кабинетах
+            ищут разгадки таинственных явлений. Хаотические потоки
+            порождают жизнь там, где её не должно быть, меняют
+            свойства предметов и физические законы.
           </p>
         </div>
 
         <div class="grid two">
           <article class="card">
             <h3>Что здесь привычно</h3>
+
             <ul class="plain-list">
               <li>поезда, баржи, порталы и дирижабли;</li>
               <li>фабрики, шахты, мастерские и лаборатории;</li>
               <li>чиновники, профсоюзы, мафиози и бандиты;</li>
-              <li>врачи, инженеры, военные, торговцы и исследователи.</li>
+              <li>
+                врачи, инженеры, военные, торговцы и исследователи.
+              </li>
             </ul>
           </article>
 
           <article class="card">
             <h3>Что нарушает привычный порядок</h3>
+
             <ul class="plain-list">
               <li>опасные погодные и магические явления;</li>
               <li>техника, которая работает непредсказуемо;</li>
               <li>следы забытых проектов и исчезнувших обществ;</li>
-              <li>живые существа и пространства с необычными свойствами.</li>
+              <li>
+                живые существа и пространства с необычными свойствами.
+              </li>
             </ul>
           </article>
         </div>
@@ -785,25 +1289,29 @@
             <p class="eyebrow">Игра</p>
             <h2>Чем занимаются персонажи</h2>
           </div>
+
           <p>
-            Персонажи могут быть инженерами, врачами, стрелками, посредниками,
-            исследователями или специалистами по человеческой психике. Игра строится
-            вокруг совместного решения проблем: расследований, переговоров, работы с 
-            опасными веществами и прямых столкновений.
+            Персонажи могут быть инженерами, врачами, стрелками,
+            посредниками, исследователями или специалистами по
+            человеческой психике. Игра строится вокруг совместного
+            решения проблем: расследований, переговоров, работы
+            с опасными веществами и прямых столкновений.
           </p>
         </div>
 
         <div class="grid three">
           <article class="card">
             <h3>Поиск решения</h3>
+
             <p>
-              Задачи в Митриниуме могут рассматриваться и как
-              действия персонажей, и как проекты для всей группы.
+              Задачи в Митриниуме могут рассматриваться и как действия
+              персонажей, и как проекты для всей группы.
             </p>
           </article>
 
           <article class="card">
             <h3>Стратегия</h3>
+
             <p>
               Многие проблемы в Митриниуме не решаются одномоментно.
               Система побуждает игроков к планированию и стратегическому
@@ -812,19 +1320,21 @@
           </article>
 
           <article class="card">
-            <h3>Послдествия</h3>
+            <h3>Последствия</h3>
+
             <p>
-              Успех не всегда закрывает вопрос. Даже успешное
-              действие может иметь нарративные последствия.
+              Успех не всегда закрывает вопрос. Даже успешное действие
+              может иметь нарративные последствия.
             </p>
           </article>
         </div>
 
-        <div style="height:28px"></div>
+        <div style="height: 28px"></div>
 
         <div class="quote">
-          Мы стремимся сделать игру, в которой важны не только способности персонажа,
-          но и инструменты, время, положение в обществе, подготовка и цена ошибки.
+          Мы стремимся сделать игру, в которой важны не только
+          способности персонажа, но и инструменты, время, положение
+          в обществе, подготовка и цена ошибки.
         </div>
       </div>
     </section>
@@ -836,6 +1346,7 @@
             <p class="eyebrow">Краткая памятка</p>
             <h2>Самые основы правил</h2>
           </div>
+
           <p>
             Ниже приведена общая схема бросков Эффективности.
           </p>
@@ -844,11 +1355,17 @@
         <div class="grid two">
           <article class="rule-box">
             <h3>Основной бросок</h3>
+
             <p>
-              Для проверки собирается пул из кубов сцены, подходящего атрибута
-              и навыка. Атрибут и навык добавляют шестигранные кубы.
+              Для проверки собирается пул из кубов сцены, подходящего
+              атрибута и навыка. Атрибут и навык добавляют
+              шестигранные кубы.
             </p>
-            <div class="rule-formula">Кубы сцены + Атрибут + Навык</div>
+
+            <div class="rule-formula">
+              Кубы сцены + Атрибут + Навык
+            </div>
+
             <ul class="plain-list">
               <li>обычная ситуация: d4 + d6;</li>
               <li>помеха: 2d4;</li>
@@ -858,66 +1375,83 @@
 
           <article class="rule-box">
             <h3>Как получить результат</h3>
+
             <ul class="plain-list">
               <li>бросьте все кубы;</li>
               <li>сложите два наибольших результата;</li>
               <li>сложите два наименьших результата;</li>
               <li>вычтите нижнюю сумму из верхней.</li>
             </ul>
-            <div class="rule-formula">Эффективность = две лучшие кости − две худшие</div>
+
+            <div class="rule-formula">
+              Эффективность = две лучшие кости − две худшие
+            </div>
+
             <p>
-              Единицы считаются отдельно: успех может сопровождаться осложнением.
-              Высокие грани некоторых кубов могут дать дополнительный прорыв.
+              Единицы считаются отдельно: успех может сопровождаться
+              осложнением. Высокие грани некоторых кубов могут дать
+              дополнительный прорыв.
             </p>
           </article>
         </div>
 
-        <div class="result-grid" aria-label="Шкала эффективности">
+        <div
+          class="result-grid"
+          aria-label="Шкала эффективности"
+        >
           <div class="result">
             <strong>0–3</strong>
             <span>неудача</span>
           </div>
+
           <div class="result">
             <strong>4–5</strong>
             <span>минимальный результат</span>
           </div>
+
           <div class="result">
             <strong>6–7</strong>
             <span>обычный успех</span>
           </div>
+
           <div class="result">
             <strong>8</strong>
             <span>сильный успех</span>
           </div>
+
           <div class="result">
             <strong>9+</strong>
             <span>выдающийся результат</span>
           </div>
         </div>
 
-        <div style="height:28px"></div>
+        <div style="height: 28px"></div>
 
         <div class="grid three">
           <article class="card">
             <h3>Персонаж</h3>
+
             <p>
-              В текущей редакции используются пять широких атрибутов и связанные
-              с ними навыки. Биография персонажа также может один раз за встречу
-              помочь изменить неудачный результат.
+              В текущей редакции используются пять широких атрибутов
+              и связанные с ними навыки. Биография персонажа также
+              может один раз за встречу помочь изменить неудачный
+              результат.
             </p>
           </article>
 
           <article class="card">
             <h3>Бой</h3>
+
             <p>
-              Основной особенностью игры является сложная тактическая боёвка
-              и плавающий показатель защиты персонажей. Броня поглощает урон, 
-              но изнашивается при попадании.
+              Основной особенностью игры является сложная тактическая
+              боёвка и плавающий показатель защиты персонажей.
+              Броня поглощает урон, но изнашивается при попадании.
             </p>
           </article>
 
           <article class="card">
             <h3>Снаряжение</h3>
+
             <p>
               Каждый класс имеет уникальную кастомизацию снаряжения.
               Поломки и обслуживание являются частью игрового процесса.
@@ -927,7 +1461,6 @@
       </div>
     </section>
 
-
     <section id="classes">
       <div class="container">
         <div class="section-head">
@@ -935,18 +1468,23 @@
             <p class="eyebrow">Классы персонажей</p>
             <h2>Разные способы решать проблемы</h2>
           </div>
+
           <p>
-            Класс задаёт профессиональную основу персонажа, его сильные стороны
-            и типичные инструменты. Он не определяет характер или биографию:
-            два представителя одного класса могут занимать совершенно разное
-            место в обществе и по-разному относиться к своей работе.
+            Класс задаёт профессиональную основу персонажа, его сильные
+            стороны и типичные инструменты. Он не определяет характер
+            или биографию: два представителя одного класса могут
+            занимать совершенно разное место в обществе и по-разному
+            относиться к своей работе.
           </p>
         </div>
 
-        <div class="class-carousel" data-class-carousel>
+        <div
+          class="class-carousel"
+          data-class-carousel
+          tabindex="0"
+        >
           <div class="class-viewport">
             <div class="class-track">
-
               <article class="class-slide">
                 <div class="class-card">
                   <div class="class-mark">
@@ -955,17 +1493,27 @@
                       <span>опасные вещества</span>
                     </div>
                   </div>
+
                   <div class="class-copy">
                     <p class="eyebrow">Полевой химик</p>
+
                     <h3>Психопат</h3>
-                    <div class="class-role">Контроль, диверсия и работа с реагентами</div>
+
+                    <div class="class-role">
+                      Контроль, диверсия и работа с реагентами
+                    </div>
+
                     <p class="class-description">
-                      Практик, который разбирается в ядах, кислотах и пиротехнике.
-                      Он может быть крайне полезен как в открытом бою, так и в
-                      диверсии.
+                      Практик, который разбирается в ядах, кислотах
+                      и пиротехнике. Он может быть крайне полезен
+                      как в открытом бою, так и в диверсии.
                     </p>
+
                     <div class="class-tags">
-                      <span>Химия</span><span>Порох</span><span>Яды</span><span>Зоны</span>
+                      <span>Химия</span>
+                      <span>Порох</span>
+                      <span>Яды</span>
+                      <span>Зоны</span>
                     </div>
                   </div>
                 </div>
@@ -979,16 +1527,27 @@
                       <span>ремонт и конструкции</span>
                     </div>
                   </div>
+
                   <div class="class-copy">
                     <p class="eyebrow">Инженер-практик</p>
+
                     <h3>Кустарь</h3>
-                    <div class="class-role">Механизмы, защита и техническая поддержка</div>
+
+                    <div class="class-role">
+                      Механизмы, защита и техническая поддержка
+                    </div>
+
                     <p class="class-description">
-                      Кустарь - лицо эпохи. Он умеет собирать, чинить и проектировать технику.
-                      В его распоряжении механизированные помощники, турели и телекинез.
+                      Кустарь — лицо эпохи. Он умеет собирать, чинить
+                      и проектировать технику. В его распоряжении
+                      механизированные помощники, турели и телекинез.
                     </p>
+
                     <div class="class-tags">
-                      <span>Механизмы</span><span>Пар</span><span>Ремонт</span><span>Автоматоны</span>
+                      <span>Механизмы</span>
+                      <span>Пар</span>
+                      <span>Ремонт</span>
+                      <span>Автоматоны</span>
                     </div>
                   </div>
                 </div>
@@ -1002,17 +1561,31 @@
                       <span>связи и давление</span>
                     </div>
                   </div>
+
                   <div class="class-copy">
-                    <p class="eyebrow">Посредник и человек улицы</p>
-                    <h3>Воротила</h3>
-                    <div class="class-role">Переговоры, документы и неофициальные пути</div>
-                    <p class="class-description">
-                      Воротила всегда балансирует на грани. Он знает, как избежать наказания, 
-                      где найти нужных людей и как отыскать неожиданное решение проблемы. Воротила умеет 
-                      маскироваться и использовать окружение.
+                    <p class="eyebrow">
+                      Посредник и человек улицы
                     </p>
+
+                    <h3>Воротила</h3>
+
+                    <div class="class-role">
+                      Переговоры, документы и неофициальные пути
+                    </div>
+
+                    <p class="class-description">
+                      Воротила всегда балансирует на грани. Он знает,
+                      как избежать наказания, где найти нужных людей
+                      и как отыскать неожиданное решение проблемы.
+                      Воротила умеет маскироваться и использовать
+                      окружение.
+                    </p>
+
                     <div class="class-tags">
-                      <span>Убеждение</span><span>Улица</span><span>Документы</span><span>Контрабанда</span>
+                      <span>Убеждение</span>
+                      <span>Улица</span>
+                      <span>Документы</span>
+                      <span>Контрабанда</span>
                     </div>
                   </div>
                 </div>
@@ -1026,17 +1599,27 @@
                       <span>позиция и выстрел</span>
                     </div>
                   </div>
+
                   <div class="class-copy">
                     <p class="eyebrow">Боевой специалист</p>
+
                     <h3>Рекрут</h3>
-                    <div class="class-role">Стрельба, разведка и прямое столкновение</div>
+
+                    <div class="class-role">
+                      Стрельба, разведка и прямое столкновение
+                    </div>
+
                     <p class="class-description">
-                      Обучен действовать, когда разговор уже закончился. Рекрут умеет
-                      держать позицию, выбирать дистанцию, прикрывать отход и срывать
-                      действия противника.
+                      Обучен действовать, когда разговор уже закончился.
+                      Рекрут умеет держать позицию, выбирать дистанцию,
+                      прикрывать отход и срывать действия противника.
                     </p>
+
                     <div class="class-tags">
-                      <span>Стрельба</span><span>Тактика</span><span>Реакции</span><span>Проникновение</span>
+                      <span>Стрельба</span>
+                      <span>Тактика</span>
+                      <span>Реакции</span>
+                      <span>Проникновение</span>
                     </div>
                   </div>
                 </div>
@@ -1050,17 +1633,30 @@
                       <span>разум и внимание</span>
                     </div>
                   </div>
+
                   <div class="class-copy">
-                    <p class="eyebrow">Специалист по психике</p>
-                    <h3>Менталист</h3>
-                    <div class="class-role">Внушение, защита разума и чтение людей</div>
-                    <p class="class-description">
-                      Работает со страхом, вниманием, памятью и волей. Технологические
-                      фокусы усиливают его методы, но основой остаются наблюдение,
-                      разговор и понимание человеческого поведения. 
+                    <p class="eyebrow">
+                      Специалист по психике
                     </p>
+
+                    <h3>Менталист</h3>
+
+                    <div class="class-role">
+                      Внушение, защита разума и чтение людей
+                    </div>
+
+                    <p class="class-description">
+                      Работает со страхом, вниманием, памятью и волей.
+                      Технологические фокусы усиливают его методы,
+                      но основой остаются наблюдение, разговор
+                      и понимание человеческого поведения.
+                    </p>
+
                     <div class="class-tags">
-                      <span>Психо</span><span>Внушение</span><span>Нерв</span><span>Терапия</span>
+                      <span>Психо</span>
+                      <span>Внушение</span>
+                      <span>Нерв</span>
+                      <span>Терапия</span>
                     </div>
                   </div>
                 </div>
@@ -1074,33 +1670,70 @@
                       <span>жизнь и экспедиции</span>
                     </div>
                   </div>
+
                   <div class="class-copy">
-                    <p class="eyebrow">Врач и полевой исследователь</p>
-                    <h3>Натуралист</h3>
-                    <div class="class-role">Лечение, животные и работа вне города</div>
-                    <p class="class-description">
-                      Совмещает медицину, знание природы и опыт экспедиций. Натуралист
-                      лечит раненых, читает следы, работает с образцами и использует
-                      животных как помощников. 
+                    <p class="eyebrow">
+                      Врач и полевой исследователь
                     </p>
+
+                    <h3>Натуралист</h3>
+
+                    <div class="class-role">
+                      Лечение, животные и работа вне города
+                    </div>
+
+                    <p class="class-description">
+                      Совмещает медицину, знание природы и опыт
+                      экспедиций. Натуралист лечит раненых, читает
+                      следы, работает с образцами и использует
+                      животных как помощников.
+                    </p>
+
                     <div class="class-tags">
-                      <span>Медицина</span><span>Природа</span><span>Животные</span><span>Выживание</span>
+                      <span>Медицина</span>
+                      <span>Природа</span>
+                      <span>Животные</span>
+                      <span>Выживание</span>
                     </div>
                   </div>
                 </div>
               </article>
-
             </div>
           </div>
 
           <div class="class-controls">
             <div class="class-buttons">
-              <button class="class-button" type="button" data-class-prev aria-label="Предыдущий класс">←</button>
-              <button class="class-button" type="button" data-class-next aria-label="Следующий класс">→</button>
+              <button
+                class="class-button"
+                type="button"
+                data-class-prev
+                aria-label="Предыдущий класс"
+              >
+                ←
+              </button>
+
+              <button
+                class="class-button"
+                type="button"
+                data-class-next
+                aria-label="Следующий класс"
+              >
+                →
+              </button>
             </div>
 
-            <div class="class-dots" data-class-dots aria-label="Выбор класса"></div>
-            <div class="class-count" data-class-count>1 / 6</div>
+            <div
+              class="class-dots"
+              data-class-dots
+              aria-label="Выбор класса"
+            ></div>
+
+            <div
+              class="class-count"
+              data-class-count
+            >
+              1 / 6
+            </div>
           </div>
         </div>
       </div>
@@ -1110,16 +1743,24 @@
       <div class="container">
         <div class="cta">
           <p class="eyebrow">Текущий статус</p>
+
           <h2>Проект находится в разработке</h2>
+
           <p>
-            Сейчас мы уточняем базовые правила, классы, снаряжение и особенности приключений. Часть материалов уже существует в рабочем виде,
-            но ещё не считается окончательной. На сайте постепенно будут появляться
-            новые тексты, памятки и материалы.
+            Сейчас мы уточняем базовые правила, классы, снаряжение
+            и особенности приключений. Часть материалов уже существует
+            в рабочем виде, но ещё не считается окончательной.
+            На сайте постепенно будут появляться новые тексты,
+            памятки и материалы.
           </p>
+
           <div class="hero-actions">
-            <a class="button primary"
-               href="https://docs.google.com/document/d/1lrJRQbbYDmEap1faz7Fh2OEfor8c2XDOKNyRxb3jxPQ/edit?usp=sharing"
-               target="_blank" rel="noopener noreferrer">
+            <a
+              class="button primary"
+              href="https://docs.google.com/document/d/1lrJRQbbYDmEap1faz7Fh2OEfor8c2XDOKNyRxb3jxPQ/edit?usp=sharing"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               Рабочая редакция правил
             </a>
           </div>
@@ -1130,75 +1771,198 @@
 
   <footer>
     <div class="container footer-row">
-      <div>© <span id="year"></span> Mitrinium. Авторский проект.</div>
-      <div>Сайт-визитка · рабочая версия</div>
+      <div>
+        © <span id="year"></span> Mitrinium. Авторский проект.
+      </div>
+
+      <div>
+        Сайт-визитка · рабочая версия
+      </div>
     </div>
   </footer>
 
   <script>
-    document.getElementById("year").textContent = new Date().getFullYear();
+    document.getElementById("year").textContent =
+      new Date().getFullYear();
+
+    /*
+      Секретный поиск.
+
+      Точные команды:
+
+      редактор
+      калькулятор
+
+      Любой другой запрос просто очищает поле.
+    */
+
+    const secretSearch =
+      document.getElementById("secret-search");
+
+    const secretQuery =
+      document.getElementById("secret-query");
+
+    const secretDestinations = {
+      редактор:
+        "https://script.google.com/macros/s/AKfycby0EgJQy0c_L3IiFgwYbRC5HYR8tM_tJ4KM_idGHFW7rIqu1YZhPjCBYuBfDM0NU_Om/exec",
+
+      калькулятор:
+        "https://script.google.com/macros/s/AKfycbz-JrcSjmhLW3jr66SOlyqP0QGvkrDAw0zeTWjjuKzalfza4RZ--3XhibAnB95AWPcMsA/exec"
+    };
+
+    secretSearch.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const query = secretQuery.value
+        .trim()
+        .toLocaleLowerCase("ru-RU")
+        .replaceAll("ё", "е");
+
+      const destination =
+        secretDestinations[query];
+
+      if (destination) {
+        window.location.assign(destination);
+        return;
+      }
+
+      secretQuery.value = "";
+      secretQuery.blur();
+    });
+
+    /*
+      Карусель классов.
+    */
 
     (() => {
-      const root = document.querySelector("[data-class-carousel]");
-      if (!root) return;
+      const root =
+        document.querySelector("[data-class-carousel]");
 
-      const track = root.querySelector(".class-track");
-      const slides = [...root.querySelectorAll(".class-slide")];
-      const prev = root.querySelector("[data-class-prev]");
-      const next = root.querySelector("[data-class-next]");
-      const dotsWrap = root.querySelector("[data-class-dots]");
-      const count = root.querySelector("[data-class-count]");
-      let index = 0;
+      if (!root) {
+        return;
+      }
+
+      const track =
+        root.querySelector(".class-track");
+
+      const slides = [
+        ...root.querySelectorAll(".class-slide")
+      ];
+
+      const previousButton =
+        root.querySelector("[data-class-prev]");
+
+      const nextButton =
+        root.querySelector("[data-class-next]");
+
+      const dotsContainer =
+        root.querySelector("[data-class-dots]");
+
+      const counter =
+        root.querySelector("[data-class-count]");
+
+      let currentIndex = 0;
       let touchStartX = 0;
 
-      const dots = slides.map((_, i) => {
+      const dots = slides.map((slide, index) => {
         const dot = document.createElement("button");
+
         dot.type = "button";
         dot.className = "class-dot";
-        dot.setAttribute("aria-label", `Показать класс ${i + 1}`);
+
+        dot.setAttribute(
+          "aria-label",
+          `Показать класс ${index + 1}`
+        );
+
         dot.addEventListener("click", () => {
-          index = i;
-          update();
+          currentIndex = index;
+          updateCarousel();
         });
-        dotsWrap.appendChild(dot);
+
+        dotsContainer.appendChild(dot);
+
         return dot;
       });
 
-      function update() {
-        track.style.transform = `translateX(-${index * 100}%)`;
-        dots.forEach((dot, i) => dot.classList.toggle("is-active", i === index));
-        count.textContent = `${index + 1} / ${slides.length}`;
+      function updateCarousel() {
+        track.style.transform =
+          `translateX(-${currentIndex * 100}%)`;
+
+        dots.forEach((dot, index) => {
+          dot.classList.toggle(
+            "is-active",
+            index === currentIndex
+          );
+        });
+
+        counter.textContent =
+          `${currentIndex + 1} / ${slides.length}`;
       }
 
-      prev.addEventListener("click", () => {
-        index = (index - 1 + slides.length) % slides.length;
-        update();
+      previousButton.addEventListener("click", () => {
+        currentIndex =
+          (currentIndex - 1 + slides.length) %
+          slides.length;
+
+        updateCarousel();
       });
 
-      next.addEventListener("click", () => {
-        index = (index + 1) % slides.length;
-        update();
+      nextButton.addEventListener("click", () => {
+        currentIndex =
+          (currentIndex + 1) %
+          slides.length;
+
+        updateCarousel();
       });
 
       root.addEventListener("keydown", (event) => {
-        if (event.key === "ArrowLeft") prev.click();
-        if (event.key === "ArrowRight") next.click();
+        if (event.key === "ArrowLeft") {
+          previousButton.click();
+        }
+
+        if (event.key === "ArrowRight") {
+          nextButton.click();
+        }
       });
 
-      root.addEventListener("touchstart", (event) => {
-        touchStartX = event.changedTouches[0].clientX;
-      }, { passive: true });
+      root.addEventListener(
+        "touchstart",
+        (event) => {
+          touchStartX =
+            event.changedTouches[0].clientX;
+        },
+        {
+          passive: true
+        }
+      );
 
-      root.addEventListener("touchend", (event) => {
-        const distance = event.changedTouches[0].clientX - touchStartX;
-        if (Math.abs(distance) < 45) return;
-        if (distance < 0) next.click();
-        else prev.click();
-      }, { passive: true });
+      root.addEventListener(
+        "touchend",
+        (event) => {
+          const touchEndX =
+            event.changedTouches[0].clientX;
 
-      update();
+          const distance =
+            touchEndX - touchStartX;
+
+          if (Math.abs(distance) < 45) {
+            return;
+          }
+
+          if (distance < 0) {
+            nextButton.click();
+          } else {
+            previousButton.click();
+          }
+        },
+        {
+          passive: true
+        }
+      );
+
+      updateCarousel();
     })();
-
   </script>
 </body>
 </html>
