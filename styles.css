@@ -344,8 +344,8 @@ section {
 /* Большой логотип на главном экране */
 
 .hero-logo {
-  width: 105%;
-  max-width: 560px;
+  width: 115%;
+  max-width: 380px;
 }
 
 .hero-logo .eyebrow {
@@ -355,7 +355,7 @@ section {
 .hero-logo-image {
   display: block;
 
-  width: min(100%, 680px);
+  width: min(115%, 380px);
   height: auto;
 
   object-fit: contain;
@@ -374,9 +374,9 @@ section {
 }
 
 .hero-lead {
-  max-width: 720px;
+  max-width: 360px;
 
-  margin: 23px 0 0;
+  margin: 12px 0 0;
 
   color: #d3cdc2;
 
