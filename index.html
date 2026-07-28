@@ -3,12 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <meta
     name="description"
-    content="Mitrinium — настольная ролевая игра в стадии активной разработки об индустриальном мире после большой катастрофы."
+    content="Mitrinium — разрабатываемая настольная ролевая игра об индустриальном мире после большой катастрофы."
   />
-
   <meta name="theme-color" content="#12151a" />
 
   <title>Mitrinium — настольная ролевая игра</title>
@@ -35,6 +33,13 @@
     html {
       scroll-behavior: smooth;
       background: var(--bg);
+
+      /*
+        Не позволяет мобильным браузерам самостоятельно
+        увеличивать отдельные абзацы.
+      */
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
     }
 
     body {
@@ -85,7 +90,9 @@
       margin-inline: auto;
     }
 
-    /* Шапка */
+    /*
+      Шапка
+    */
 
     .site-header {
       position: sticky;
@@ -111,7 +118,6 @@
     .brand {
       flex: 0 0 auto;
 
-      color: var(--text);
       text-decoration: none;
 
       font-family: Georgia, "Times New Roman", serif;
@@ -136,6 +142,7 @@
 
     .nav-links a {
       color: var(--muted);
+
       text-decoration: none;
       font-size: 0.92rem;
     }
@@ -145,11 +152,13 @@
       color: var(--text);
     }
 
-    /* Секретный поиск */
+    /*
+      Секретный поиск
+    */
 
     .secret-search {
       width: min(250px, 26vw);
-      min-width: 150px;
+      min-width: 160px;
 
       display: flex;
       align-items: center;
@@ -168,7 +177,7 @@
 
     .secret-search:focus-within {
       border-color: rgba(230, 196, 143, 0.46);
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.055);
     }
 
     .secret-search input {
@@ -246,13 +255,16 @@
       border: 0;
     }
 
-    /* Общая типографика */
+    /*
+      Общая типографика
+    */
 
     h1,
     h2,
     h3 {
       font-family: Georgia, "Times New Roman", serif;
       line-height: 1.12;
+
       overflow-wrap: anywhere;
     }
 
@@ -273,6 +285,7 @@
 
     h3 {
       margin: 0 0 10px;
+
       font-size: 1.45rem;
     }
 
@@ -288,11 +301,32 @@
       font-weight: 750;
     }
 
+    /*
+      Браузер может использовать естественные переносы
+      ещё до перехода в мобильный режим.
+    */
+
+    .hero-lead,
+    .hero-note,
+    .section-head > p,
+    .card p,
+    .rule-box > p,
+    .quote,
+    .class-description,
+    .cta > p {
+      text-wrap: pretty;
+
+      hyphens: auto;
+      -webkit-hyphens: auto;
+    }
+
     section {
       padding: 82px 0;
     }
 
-    /* Главный экран */
+    /*
+      Главный экран
+    */
 
     .hero {
       min-height: 78vh;
@@ -311,6 +345,7 @@
         minmax(280px, 0.85fr);
 
       align-items: center;
+
       gap: 64px;
     }
 
@@ -455,7 +490,9 @@
       text-transform: uppercase;
     }
 
-    /* Заголовки разделов */
+    /*
+      Заголовки разделов
+    */
 
     .section-head {
       display: grid;
@@ -474,7 +511,7 @@
       min-width: 0;
     }
 
-    .section-head p {
+    .section-head > p {
       max-width: 760px;
 
       margin: 2px 0 0;
@@ -483,7 +520,9 @@
       font-size: 1.04rem;
     }
 
-    /* Сетки и карточки */
+    /*
+      Карточки и сетки
+    */
 
     .grid {
       display: grid;
@@ -496,6 +535,10 @@
 
     .grid.three {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid.four {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
     .card {
@@ -560,7 +603,9 @@
       color: var(--accent-soft);
     }
 
-    /* Правила */
+    /*
+      Правила
+    */
 
     .rule-box {
       padding: 28px;
@@ -648,7 +693,9 @@
       line-height: 1.42;
     }
 
-    /* Карусель классов */
+    /*
+      Карусель классов
+    */
 
     .class-carousel {
       position: relative;
@@ -913,7 +960,9 @@
       font-variant-numeric: tabular-nums;
     }
 
-    /* Статус */
+    /*
+      Статус разработки
+    */
 
     .cta {
       padding: 38px;
@@ -930,7 +979,7 @@
       font-size: clamp(2rem, 4vw, 3.2rem);
     }
 
-    .cta p {
+    .cta > p {
       max-width: 760px;
 
       margin: 18px 0 0;
@@ -938,7 +987,9 @@
       color: var(--muted);
     }
 
-    /* Подвал */
+    /*
+      Подвал
+    */
 
     footer {
       padding: 32px 0 46px;
@@ -957,30 +1008,27 @@
       border-top: 1px solid var(--line);
     }
 
-    /* Адаптивность */
+    /*
+      Планшеты и небольшие ноутбуки
+    */
 
-    @media (max-width: 1040px) {
+    @media (max-width: 920px) {
       .nav {
-        gap: 16px;
-      }
+        flex-wrap: wrap;
 
-      .nav-links {
-        gap: 12px;
-      }
-
-      .nav-links a {
-        font-size: 0.84rem;
+        gap: 14px;
+        padding: 13px 0;
       }
 
       .secret-search {
-        width: min(220px, 24vw);
+        order: 3;
+        width: 100%;
       }
-    }
 
-    @media (max-width: 920px) {
       .hero-grid,
       .section-head {
         grid-template-columns: 1fr;
+
         gap: 34px;
       }
 
@@ -993,54 +1041,154 @@
         margin-inline: auto;
       }
 
-      .grid.three {
+      .grid.three,
+      .grid.four {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .result-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
-
-      .nav {
-        flex-wrap: wrap;
-        padding: 14px 0;
-      }
-
-      .secret-search {
-        order: 3;
-        width: 100%;
-      }
     }
+
+    /*
+      Карусель на телефонах
+    */
 
     @media (max-width: 760px) {
       .class-card {
         grid-template-columns: 1fr;
+
         padding: 24px;
       }
 
       .class-mark {
         min-height: 180px;
       }
+
+      .class-controls {
+        align-items: center;
+      }
     }
 
+    /*
+      Мобильная типографика
+    */
+
     @media (max-width: 620px) {
+      .container {
+        /*
+          Чуть более широкие боковые поля не дают строкам
+          прилипать к краям экрана.
+        */
+        width: min(calc(100% - 40px), var(--max));
+      }
+
+      .nav {
+        padding: 14px 0;
+      }
+
       .nav-links {
         display: none;
       }
 
+      .secret-search {
+        min-width: 0;
+      }
+
       .hero {
         min-height: auto;
-        padding-top: 58px;
+
+        padding: 54px 0 58px;
       }
 
       section {
-        padding: 64px 0;
+        padding: 58px 0;
+      }
+
+      h1 {
+        font-size: clamp(3.15rem, 17vw, 4.7rem);
+        line-height: 0.98;
+      }
+
+      h2 {
+        max-width: 100%;
+
+        font-size: clamp(2rem, 10vw, 2.75rem);
+        line-height: 1.05;
+        letter-spacing: -0.025em;
+      }
+
+      h3 {
+        font-size: 1.32rem;
+      }
+
+      .section-head {
+        gap: 22px;
+        margin-bottom: 30px;
+      }
+
+      /*
+        На узких экранах длинные абзацы выравниваются
+        по ширине. Последняя строка остаётся слева,
+        чтобы не появлялись огромные пробелы.
+      */
+
+      .hero-lead,
+      .hero-note,
+      .section-head > p,
+      .card p,
+      .rule-box > p,
+      .quote,
+      .class-description,
+      .cta > p {
+        max-width: none;
+
+        text-align: justify;
+        text-align-last: left;
+        text-justify: inter-word;
+
+        hyphens: auto;
+        -webkit-hyphens: auto;
+
+        overflow-wrap: normal;
+        word-break: normal;
+
+        line-height: 1.62;
+      }
+
+      .section-head > p,
+      .card p,
+      .rule-box > p,
+      .class-description,
+      .cta > p {
+        font-size: 1rem;
+      }
+
+      .hero-lead {
+        font-size: 1.05rem;
+      }
+
+      .hero-note {
+        font-size: 0.94rem;
+      }
+
+      .quote {
+        padding: 24px 20px;
+
+        font-size: 1.13rem;
       }
 
       .grid.two,
       .grid.three,
+      .grid.four,
       .result-grid {
         grid-template-columns: 1fr;
+      }
+
+      .card,
+      .rule-box {
+        padding: 22px;
       }
 
       .cta {
@@ -1130,22 +1278,24 @@
       <div class="container hero-grid">
         <div>
           <p class="eyebrow">
-            Настольная ролевая игра
+            Разрабатываемая настольная ролевая игра
           </p>
 
           <h1>Mitrinium</h1>
 
           <p class="hero-lead">
-            Мы создаём сеттинг об индустриальном мире, который пережил
-            большую катастрофу и стремительно адаптируется к изменениям. 
-            Здесь работают железные дороги и фабрики, растут города,
-            спорят учёные и чиновники, но за пределами привычных маршрутов
-            всё ещё остаётся место приключениям и нерешённым тайнам.
+            Мы создаём игру об индустриальном мире, который пережил
+            большую катастрофу и успел заново научиться жить. Здесь
+            работают железные дороги и фабрики, растут города, спорят
+            учёные и чиновники, но за пределами привычных маршрутов
+            всё ещё остаются места, которые плохо подчиняются
+            рациональной логике.
           </p>
 
           <p class="hero-note">
-            Этот сайт — краткое введение в замысел проекта. Сеттинг и 
-            правила активно развиваются, поэтому детали могут измениться.
+            Этот сайт — краткое введение в замысел проекта. Термины,
+            устройство мира и правила ещё меняются по мере разработки
+            и игровых тестов.
           </p>
 
           <div class="hero-actions">
@@ -1755,7 +1905,7 @@
           <div class="hero-actions">
             <a
               class="button primary"
-              href="https://docs.google.com/document/d/1lrJRQbbYDmEap1faz7Fh2OEfor8c2XDOKNyRxb3jxPQ/edit?usp=sharing"
+              href="https://docs.google.com/document/d/1fvCaKlEvMlfLW6_7lZ3dwhFVEFIiq-5JIR8XabUg3KU/view?usp=sharing"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -1829,7 +1979,7 @@
     });
 
     /*
-      Карусель классов.
+      Карусель классов
     */
 
     (() => {
