@@ -321,49 +321,45 @@ section {
 /* Главный экран */
 
 .hero {
-  min-height: auto;
+  min-height: 78vh;
 
   display: grid;
-  align-items: start;
+  align-items: center;
 
-  padding: 40px 0 48px;
+  padding: 76px 0 68px;
 }
 
 .hero-grid {
   display: grid;
 
   grid-template-columns:
-    minmax(0, 1fr)
-    minmax(260px, 0.9fr);
+    minmax(0, 1.15fr)
+    minmax(280px, 0.85fr);
 
-  align-items: start;
+  align-items: center;
 
-  gap: 28px;
+  gap: 64px;
 }
 
 /* Большой логотип на главном экране */
 
 .hero-logo {
   width: 100%;
-  max-width: 640px;
+  max-width: 760px;
 }
 
 .hero-logo .eyebrow {
-  margin-bottom: 10px;
+  margin-bottom: 14px;
 }
 
 .hero-logo-image {
   display: block;
 
-  width: min(100%, 560px);
-  max-height: 250px;
+  width: min(100%, 680px);
   height: auto;
 
   object-fit: contain;
-  object-position: left top;
-
-  transform: scaleX(1.05) scaleY(0.92);
-  transform-origin: center top;
+  object-position: left center;
 }
 
 /*
@@ -380,7 +376,7 @@ section {
 .hero-lead {
   max-width: 720px;
 
-  margin: 10px 0 0;
+  margin: 23px 0 0;
 
   color: #d3cdc2;
 
