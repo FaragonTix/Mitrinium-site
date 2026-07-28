@@ -344,12 +344,12 @@ section {
 /* Большой логотип на главном экране */
 
 .hero-logo {
-  width: 100%;
-  max-width: 760px;
+  width: 105%;
+  max-width: 560px;
 }
 
 .hero-logo .eyebrow {
-  margin-bottom: 14px;
+  margin-bottom: 7px;
 }
 
 .hero-logo-image {
