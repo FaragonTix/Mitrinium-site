@@ -1,0 +1,9 @@
+node_modules/
+.tools/
+.dev.vars
+.wrangler/
+.wrangler-home/
+public/
+dist/
+apps-script-source/
+.clasp.json
