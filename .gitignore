@@ -6,4 +6,5 @@ node_modules/
 public/
 dist/
 apps-script-source/
+calculator-script-source/
 .clasp.json

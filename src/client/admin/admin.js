@@ -7,10 +7,12 @@ const elements = Object.fromEntries(
     "currentBody", "currentMainNerve", "currentBonusNerve", "currentArmor",
     "maxArmor", "gold", "farthings", "pekkels", "notes", "hidden",
     "characterJson",
+    "adminForm", "adminEmail", "adminList",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
 let characters = [];
+let admins = [];
 
 async function rpc(method, ...args) {
   const response = await fetch("/api/rpc", {
@@ -88,6 +90,24 @@ function render() {
     </article>`).join("");
 }
 
+function renderAdmins() {
+  elements.adminList.innerHTML = admins.map((item) => `
+    <div class="admin-item">
+      <div>
+        <strong>${escapeHtml(item.email)}</strong>
+        <div class="meta">
+          ${item.permanent
+            ? "Основной владелец"
+            : `Назначил: ${escapeHtml(item.createdBy)}`}
+        </div>
+      </div>
+      ${item.permanent
+        ? '<span class="badge">постоянный</span>'
+        : `<button class="button danger" type="button"
+             data-remove-admin="${escapeHtml(item.email)}">Снять права</button>`}
+    </div>`).join("");
+}
+
 function numberValue(element) {
   return element.value === "" ? 0 : Number(element.value);
 }
@@ -123,14 +143,17 @@ function openDialog(character = null) {
 
 async function loadCharacters() {
   showNotice("");
-  const [user, result] = await Promise.all([
+  const [user, result, adminResult] = await Promise.all([
     rpc("getCurrentUserInfo"),
     rpc("adminListCharacters"),
+    rpc("adminListAdmins"),
   ]);
   if (!user.isAdmin) throw new Error("У аккаунта нет прав администратора.");
   elements.identity.textContent = `Администратор: ${user.email}`;
   characters = result.characters;
+  admins = adminResult.admins;
   render();
+  renderAdmins();
 }
 
 elements.characterForm.addEventListener("submit", async (event) => {
@@ -198,6 +221,32 @@ elements.characterList.addEventListener("click", async (event) => {
       await loadCharacters();
       showNotice("Персонаж удалён.");
     }
+  } catch (error) {
+    showNotice(error.message, true);
+  }
+});
+
+elements.adminForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    await rpc("adminGrantAdmin", elements.adminEmail.value);
+    elements.adminForm.reset();
+    await loadCharacters();
+    showNotice("Пользователь назначен администратором.");
+  } catch (error) {
+    showNotice(error.message, true);
+  }
+});
+
+elements.adminList.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-remove-admin]");
+  if (!button) return;
+  const email = button.dataset.removeAdmin;
+  if (!window.confirm(`Снять права администратора с ${email}?`)) return;
+  try {
+    await rpc("adminRevokeAdmin", email);
+    await loadCharacters();
+    showNotice("Права администратора сняты.");
   } catch (error) {
     showNotice(error.message, true);
   }

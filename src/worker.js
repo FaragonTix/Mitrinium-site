@@ -5,6 +5,15 @@ import {
   getUser,
   sessionCookieHeader,
 } from "./auth.js";
+import { grantAdmin, listAdmins, revokeAdmin } from "./admins.js";
+import {
+  clearEncounter,
+  deleteEnemyTemplate,
+  getEnemyLibrary,
+  loadEncounter as loadCalculatorEncounter,
+  saveEncounter,
+  saveEnemyTemplate,
+} from "./calculator.js";
 import {
   adminDeleteCharacter,
   adminListCharacters,
@@ -74,6 +83,17 @@ async function dispatch(method, args, env, user) {
       adminSetCharacterVisibility(env.DB, user, args[0], args[1]),
     adminDeleteCharacter: () =>
       adminDeleteCharacter(env.DB, user, args[0]),
+    adminListAdmins: () => listAdmins(env.DB, env, user),
+    adminGrantAdmin: () => grantAdmin(env.DB, user, args[0]),
+    adminRevokeAdmin: () => revokeAdmin(env.DB, env, user, args[0]),
+    saveEncounter: () => saveEncounter(env.DB, user, args[0]),
+    loadEncounter: () => loadCalculatorEncounter(env.DB, user),
+    clearEncounter: () => clearEncounter(env.DB, user),
+    getEnemyLibrary: () => getEnemyLibrary(env.DB),
+    saveEnemyTemplate: () =>
+      saveEnemyTemplate(env.DB, user, args[0]),
+    deleteEnemyTemplate: () =>
+      deleteEnemyTemplate(env.DB, user, args[0]),
   };
 
   const handler = methods[method];

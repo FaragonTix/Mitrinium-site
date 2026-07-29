@@ -44,6 +44,9 @@ async function initialize() {
     callback: ({ credential }) =>
       finishLogin(credential).catch((error) => showStatus(error.message, true)),
   });
+  if (new URLSearchParams(location.search).has("switch")) {
+    google.accounts.id.disableAutoSelect();
+  }
   google.accounts.id.renderButton(buttonElement, {
     theme: "filled_black",
     size: "large",

@@ -60,4 +60,33 @@
       run: createRunner(),
     },
   };
+
+  window.mitriniumLogout = async () => {
+    const button = document.getElementById("logoutButton");
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Выходим…";
+    }
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      const returnTo = `${location.pathname}${location.search}`;
+      location.replace(
+        `/login/?return=${encodeURIComponent(returnTo)}&switch=1`,
+      );
+    }
+  };
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    try {
+      const response = await fetch("/api/auth/me");
+      const payload = await response.json();
+      const button = document.getElementById("dashboardButton");
+      if (button && response.ok && payload?.user?.isAdmin) {
+        button.hidden = false;
+      }
+    } catch {
+      // Остальной интерфейс сам обработает проблемы авторизации.
+    }
+  });
 })();

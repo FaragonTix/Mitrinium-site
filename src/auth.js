@@ -36,16 +36,24 @@ function readCookie(request, name) {
   return "";
 }
 
-function userFromEmail(email, env) {
+async function userFromEmail(email, env) {
   const normalized = normalizeEmail(email);
   if (!normalized) throw new Error("Google не передал email пользователя.");
+  let isAdmin = adminEmails(env).has(normalized);
+  if (!isAdmin && env.DB) {
+    const role = await env.DB
+      .prepare("SELECT email FROM admin_roles WHERE email = ?1")
+      .bind(normalized)
+      .first();
+    isAdmin = Boolean(role);
+  }
   return {
     email: normalized,
-    isAdmin: adminEmails(env).has(normalized),
+    isAdmin,
   };
 }
 
-function localUser(request, env) {
+async function localUser(request, env) {
   const hostname = new URL(request.url).hostname;
   if (hostname !== "localhost" && hostname !== "127.0.0.1") {
     return null;
@@ -98,7 +106,7 @@ export function clearSessionCookieHeader() {
 }
 
 export async function getUser(request, env) {
-  const local = localUser(request, env);
+  const local = await localUser(request, env);
   if (local) return local;
 
   const token = readCookie(request, sessionCookie);
@@ -109,7 +117,7 @@ export async function getUser(request, env) {
       issuer: sessionIssuer,
       audience: sessionAudience,
     });
-    return userFromEmail(payload.email || payload.sub, env);
+    return await userFromEmail(payload.email || payload.sub, env);
   } catch {
     throw new Error("Сессия истекла. Войдите через Google ещё раз.");
   }

@@ -58,6 +58,44 @@ h1, h2 { margin: 0; font: 500 clamp(30px, 5vw, 54px)/1.05 Georgia, serif; }
 h2 { font-size: 30px; }
 #identity { margin: 12px 0 0; color: var(--muted); }
 
+.admin-roles {
+  margin-top: 34px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgb(23 25 22 / 78%);
+}
+.admin-roles h2 { font-size: 28px; }
+.admin-roles-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+}
+.admin-add-form {
+  display: grid;
+  grid-template-columns: minmax(240px, 340px) auto;
+  align-items: end;
+  gap: 10px;
+}
+.admin-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+.admin-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #11130f;
+  overflow-wrap: anywhere;
+}
+
 .button {
   min-height: 42px; padding: 9px 16px; border: 1px solid var(--line);
   border-radius: 8px; color: var(--ink); background: var(--panel-2);
@@ -151,4 +189,6 @@ details p { color: var(--muted); }
   .character-card { grid-template-columns: 1fr; gap: 12px; }
   .card-actions { justify-content: start; }
   .form-grid, .state-grid { grid-template-columns: 1fr 1fr; }
+  .admin-roles-heading { align-items: stretch; flex-direction: column; }
+  .admin-add-form { width: 100%; grid-template-columns: 1fr; }
 }

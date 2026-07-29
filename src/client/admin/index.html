@@ -31,6 +31,24 @@
         </button>
       </section>
 
+      <section class="admin-roles" aria-labelledby="adminRolesTitle">
+        <div class="admin-roles-heading">
+          <div>
+            <p class="eyebrow">Доступ</p>
+            <h2 id="adminRolesTitle">Администраторы</h2>
+          </div>
+          <form id="adminForm" class="admin-add-form">
+            <label>
+              <span>Google email нового администратора</span>
+              <input id="adminEmail" type="email" required
+                placeholder="name@gmail.com">
+            </label>
+            <button class="button primary" type="submit">Назначить</button>
+          </form>
+        </div>
+        <div id="adminList" class="admin-list" aria-live="polite"></div>
+      </section>
+
       <section class="toolbar" aria-label="Фильтры">
         <label class="search">
           <span>Поиск</span>
