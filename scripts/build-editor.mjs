@@ -81,6 +81,11 @@ async function buildEditor() {
   </style>
   <script src="google-script-run.js"></script>
 </head>`,
+    )
+    .replace(
+      "</body>",
+      `  <script src="viewer-autosave.js"></script>
+</body>`,
     );
 
   await mkdir(editorDir, { recursive: true });
@@ -88,6 +93,10 @@ async function buildEditor() {
   await cp(
     path.join(root, "src", "client", "google-script-run.js"),
     path.join(editorDir, "google-script-run.js"),
+  );
+  await cp(
+    path.join(root, "src", "client", "viewer-autosave.js"),
+    path.join(editorDir, "viewer-autosave.js"),
   );
 }
 
@@ -129,20 +138,8 @@ async function buildCalculator() {
       `    <button
       type="button"
       class="small"
-      onclick="location.href='/'"
-    >Сайт</button>
-    <button
-      type="button"
-      class="small"
       onclick="location.href='/editor/'"
     >Редактор</button>
-    <button
-      type="button"
-      id="dashboardButton"
-      class="small"
-      onclick="location.href='/admin/'"
-      hidden
-    >Dashboard</button>
     <button
       type="button"
       id="logoutButton"
