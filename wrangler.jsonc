@@ -17,6 +17,7 @@
     }
   ],
   "vars": {
-    "ADMIN_EMAILS": "dacxxxx100@gmail.com"
+    "ADMIN_EMAILS": "dacxxxx100@gmail.com",
+    "GOOGLE_CLIENT_ID": "362510513602-02te9hq8nptji10ojlrctn0dmqb2lanl.apps.googleusercontent.com"
   }
 }

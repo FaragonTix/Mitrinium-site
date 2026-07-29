@@ -1,4 +1,10 @@
-import { getUser } from "./auth.js";
+import {
+  authenticateGoogle,
+  clearSessionCookieHeader,
+  createSession,
+  getUser,
+  sessionCookieHeader,
+} from "./auth.js";
 import {
   adminDeleteCharacter,
   adminListCharacters,
@@ -25,6 +31,17 @@ function json(payload, status = 200) {
     headers: {
       "cache-control": "no-store",
       "x-content-type-options": "nosniff",
+    },
+  });
+}
+
+function jsonWithHeaders(payload, status, headers = {}) {
+  return Response.json(payload, {
+    status,
+    headers: {
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+      ...headers,
     },
   });
 }
@@ -82,14 +99,61 @@ async function handleRpc(request, env) {
     const authError =
       message.includes("вход") ||
       message.includes("авторизац") ||
-      message.includes("Cloudflare Access");
+      message.includes("Сессия");
     return json({ ok: false, error: message }, authError ? 401 : 400);
+  }
+}
+
+async function handleGoogleLogin(request, env) {
+  if (request.method !== "POST") {
+    return json({ ok: false, error: "Метод не поддерживается." }, 405);
+  }
+  try {
+    const requestUrl = new URL(request.url);
+    if (request.headers.get("origin") !== requestUrl.origin) {
+      throw new Error("Недопустимый источник запроса.");
+    }
+    const body = await request.json();
+    const user = await authenticateGoogle(body?.credential, env);
+    const session = await createSession(user, env);
+    return jsonWithHeaders({ ok: true, user }, 200, {
+      "set-cookie": sessionCookieHeader(session),
+    });
+  } catch (error) {
+    return json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : "Ошибка входа через Google.",
+      },
+      401,
+    );
   }
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === "/api/auth/config") {
+      return json({ ok: true, clientId: env.GOOGLE_CLIENT_ID || "" });
+    }
+    if (url.pathname === "/api/auth/google") {
+      return handleGoogleLogin(request, env);
+    }
+    if (url.pathname === "/api/auth/logout") {
+      return jsonWithHeaders({ ok: true }, 200, {
+        "set-cookie": clearSessionCookieHeader(),
+      });
+    }
+    if (url.pathname === "/api/auth/me") {
+      try {
+        return json({ ok: true, user: await getUser(request, env) });
+      } catch (error) {
+        return json(
+          { ok: false, error: error instanceof Error ? error.message : "Требуется вход." },
+          401,
+        );
+      }
+    }
     if (url.pathname === "/api/rpc") {
       return handleRpc(request, env);
     }

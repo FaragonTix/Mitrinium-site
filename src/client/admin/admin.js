@@ -19,6 +19,11 @@ async function rpc(method, ...args) {
     body: JSON.stringify({ method, args }),
   });
   const payload = await response.json();
+  if (response.status === 401) {
+    const returnTo = `${location.pathname}${location.search}`;
+    location.assign(`/login/?return=${encodeURIComponent(returnTo)}`);
+    throw new Error("Переход на страницу входа…");
+  }
   if (!response.ok || !payload.ok) {
     throw new Error(payload.error || "Ошибка запроса.");
   }

@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,6 +7,7 @@ const sourceDir = path.join(root, "apps-script-source");
 const publicDir = path.join(root, "public");
 const editorDir = path.join(publicDir, "editor");
 const adminDir = path.join(publicDir, "admin");
+const loginDir = path.join(publicDir, "login");
 
 const includePattern = /<\?!=\s*include\(['"]([^'"]+)['"]\);\s*\?>/g;
 
@@ -62,7 +63,6 @@ async function buildLanding() {
   await writeFile(path.join(publicDir, "index.html"), landing, "utf8");
 }
 
-await rm(publicDir, { recursive: true, force: true });
 await mkdir(publicDir, { recursive: true });
 await Promise.all([
   buildLanding(),
@@ -70,6 +70,9 @@ await Promise.all([
   cp(path.join(root, "src", "client", "admin"), adminDir, {
     recursive: true,
   }),
+  cp(path.join(root, "src", "client", "login"), loginDir, {
+    recursive: true,
+  }),
 ]);
 
-console.log("Built public landing page, /editor and /admin applications.");
+console.log("Built public landing page, /editor, /admin and /login applications.");

@@ -25,6 +25,11 @@
             })
               .then(async (response) => {
                 const payload = await response.json().catch(() => null);
+                if (response.status === 401) {
+                  const returnTo = `${location.pathname}${location.search}`;
+                  location.assign(`/login/?return=${encodeURIComponent(returnTo)}`);
+                  throw new Error("Переход на страницу входа…");
+                }
                 if (!response.ok || !payload?.ok) {
                   throw new Error(
                     payload?.error || `Ошибка сервера (${response.status}).`,
