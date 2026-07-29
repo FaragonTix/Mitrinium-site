@@ -6,6 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceDir = path.join(root, "apps-script-source");
 const publicDir = path.join(root, "public");
 const editorDir = path.join(publicDir, "editor");
+const adminDir = path.join(publicDir, "admin");
 
 const includePattern = /<\?!=\s*include\(['"]([^'"]+)['"]\);\s*\?>/g;
 
@@ -63,7 +64,12 @@ async function buildLanding() {
 
 await rm(publicDir, { recursive: true, force: true });
 await mkdir(publicDir, { recursive: true });
-await Promise.all([buildLanding(), buildEditor()]);
+await Promise.all([
+  buildLanding(),
+  buildEditor(),
+  cp(path.join(root, "src", "client", "admin"), adminDir, {
+    recursive: true,
+  }),
+]);
 
-console.log("Built public landing page and /editor application.");
-
+console.log("Built public landing page, /editor and /admin applications.");

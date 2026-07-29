@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Митриниум — администрирование</title>
+    <link rel="stylesheet" href="admin.css">
+    <script src="admin.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/">
+        <span class="brand-mark">M</span>
+        <span><b>Митриниум</b><small>Управление персонажами</small></span>
+      </a>
+      <nav>
+        <a href="/editor/">Редактор игрока</a>
+        <button id="refreshButton" class="button ghost" type="button">Обновить</button>
+      </nav>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div>
+          <p class="eyebrow">Панель администратора</p>
+          <h1>Листы персонажей</h1>
+          <p id="identity">Проверяем права доступа…</p>
+        </div>
+        <button id="createButton" class="button primary" type="button">
+          + Добавить персонажа
+        </button>
+      </section>
+
+      <section class="toolbar" aria-label="Фильтры">
+        <label class="search">
+          <span>Поиск</span>
+          <input id="searchInput" type="search"
+            placeholder="Имя, игрок или email">
+        </label>
+        <label>
+          <span>Видимость</span>
+          <select id="visibilityFilter">
+            <option value="all">Все</option>
+            <option value="visible">Только активные</option>
+            <option value="hidden">Только скрытые</option>
+          </select>
+        </label>
+        <div class="summary" id="summary"></div>
+      </section>
+
+      <div id="notice" class="notice" hidden></div>
+      <section id="characterList" class="character-list"
+        aria-live="polite"></section>
+    </main>
+
+    <dialog id="characterDialog">
+      <form id="characterForm" method="dialog">
+        <header class="dialog-header">
+          <div>
+            <p class="eyebrow" id="dialogEyebrow">Новый лист</p>
+            <h2 id="dialogTitle">Добавить персонажа</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="Закрыть">×</button>
+        </header>
+
+        <input id="characterId" type="hidden">
+        <div class="form-grid">
+          <label><span>Имя персонажа *</span>
+            <input id="characterName" required maxlength="120">
+          </label>
+          <label><span>Игрок</span>
+            <input id="playerName" maxlength="120">
+          </label>
+          <label><span>Класс</span>
+            <select id="className">
+              <option>Рекрут</option><option>Психопат</option>
+              <option>Кустарь</option><option>Воротила</option>
+              <option>Менталист</option><option>Натуралист</option>
+            </select>
+          </label>
+          <label><span>Google email владельца *</span>
+            <input id="ownerEmail" type="email" required>
+          </label>
+        </div>
+
+        <fieldset>
+          <legend>Текущее состояние</legend>
+          <div class="state-grid">
+            <label><span>Тело</span><input id="currentBody" type="number" min="0"></label>
+            <label><span>Основной нерв</span><input id="currentMainNerve" type="number" min="0"></label>
+            <label><span>Бонусный нерв</span><input id="currentBonusNerve" type="number" min="0"></label>
+            <label><span>Броня</span><input id="currentArmor" type="number" min="0"></label>
+            <label><span>Макс. броня</span><input id="maxArmor" type="number" min="0"></label>
+            <label><span>Золото</span><input id="gold" type="number" min="0"></label>
+            <label><span>Фарантины</span><input id="farthings" type="number" min="0"></label>
+            <label><span>Пеккели</span><input id="pekkels" type="number" min="0"></label>
+          </div>
+          <label><span>Заметки</span>
+            <textarea id="notes" rows="3" maxlength="10000"></textarea>
+          </label>
+        </fieldset>
+
+        <label class="check">
+          <input id="hidden" type="checkbox">
+          <span>Скрыть персонажа от игрока</span>
+        </label>
+
+        <details>
+          <summary>Расширенные данные JSON</summary>
+          <p>Используйте для точечного исправления листа. Некорректный JSON не сохранится.</p>
+          <textarea id="characterJson" class="json" rows="12"
+            spellcheck="false"></textarea>
+        </details>
+
+        <footer class="dialog-actions">
+          <button class="button ghost" value="cancel" type="button"
+            id="cancelButton">Отмена</button>
+          <button class="button primary" type="submit">Сохранить</button>
+        </footer>
+      </form>
+    </dialog>
+  </body>
+</html>
