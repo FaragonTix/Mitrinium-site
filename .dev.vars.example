@@ -1,0 +1,5 @@
+# Скопируйте этот файл в .dev.vars для локальной разработки.
+# Файл .dev.vars исключён из Git.
+SESSION_SECRET=replace-with-a-long-random-string
+DEV_USER_EMAIL=developer@example.com
+

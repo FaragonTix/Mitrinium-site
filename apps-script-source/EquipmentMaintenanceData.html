@@ -1,0 +1,110 @@
+<script>
+  const equipmentMaintenanceById = {
+    // Броня
+    'plotnaya-odezhda': 5,
+    'rabochaya-kurtka': 5,
+    'polevoy-zhilet': 5,
+    'gorodskoe-palto': 5,
+    'legkaya-bronya': 15,
+    'skrytaya-kozhanaya-bronya': 20,
+    'latunny-rabochiy-zhilet': 20,
+    'legkaya-polevaya-bronya': 20,
+    'kirasa': 40,
+    'tyazhelaya-bronya': 80,
+    'eksperimentalnaya-bronya': 200,
+
+    // Оружие
+    'nozh': 0,
+    'dubinka': 0,
+    'utyazhelennaya-perchatka': 0,
+    'sablya-shpaga': 0,
+    'tesak': 0,
+    'gaechnyi-klyuch': 0,
+    'sapyornaya-lopatka': 0,
+    'iskrovoi-rezak': 20,
+    'tyazhely-mech': 0,
+    'bulava': 0,
+    'boevoy-molot': 0,
+    'pistol': 15,
+    'duelny-pistol': 20,
+    'korotkiy-revolver': 25,
+    'musket': 25,
+    'karabin': 25,
+    'ohotnichye-ruzhye': 30,
+    'mehanicheskiy-arbalet': 25,
+    'drotikovaya-trubka': 5,
+    'pruzhinny-gvozdomet': 15,
+    'himicheskiy-metatel': 20,
+    'pirotehnicheskiy-pistol': 15,
+    'nozh-kapelnik': 10,
+    'igla-dlya-trubki': 0,
+    'trost-kristall': 20,
+    'signalny-pistol': 15,
+
+    // Устройство
+    'perchatka-sinego-polya': 10,
+    'krasny-monokl': 10,
+    'krasny-kulon': 10,
+    'maly-siniy-kristall': 10,
+
+    // Оружие
+    'furma': 0,
+
+    // Набор
+    'maly-nabor-instrumentov': 15,
+    'bolshoy-nabor-instrumentov': 25,
+    'nabor-otmychek': 10,
+    'nabor-chistki-oruzhiya': 15,
+    'pismenny-nabor': 5,
+    'dorozhnaya-kancelyariya': 10,
+    'nabor-pechatey': 10,
+    'polevaya-aptechka': 15,
+    'hirurgicheskiy-nabor': 20,
+    'himicheskiy-futlyar': 20,
+    'yuvelirny-nabor': 20,
+    'polevoy-issledovatelskiy-nabor': 15,
+
+    // Вспомогательное
+    'verevka': 0,
+    'nabor-paykov': 0,
+    'kryuk': 0,
+    'fonar': 0,
+    'maslo-dlya-fonarya': 0,
+    'kompas': 0,
+    'palatka': 0,
+    'odeyalo': 0,
+    'kremen-i-trut': 0,
+    'maska-filtr': 0,
+    'smennyi-filtr': 0,
+    'zashitnye-ochki': 0,
+    'rabochie-perchatki': 0,
+    'himicheskie-perchatki': 0,
+    'prostye-karmannye-chasy': 0,
+    'gorodskaya-karta': 0,
+    'kristallicheskaya-linza': 0,
+    'mitrinovaya-plastina-malaya': 0,
+    'pentaplazma': 0,
+    'mehanicheskiy-assistent': 0,
+
+    // Расходник
+    'kislotnaya-sklyanka': 0,
+    'slabyy-yad': 0,
+    'slabyy-antidot': 0,
+    'uspokoitelnye-kapli': 0,
+    'somnol': 0,
+    'argentol': 0,
+    'fibrinat': 0,
+    'hvitlak': 0,
+    'serebryanka': 0,
+    'neytralizuyushiy-poroshok': 0,
+    'osobye-patrony': 0,
+  };
+
+  equipmentData.forEach(item => {
+    const maintenance = equipmentMaintenanceById[item.id];
+
+    item.maintenance = maintenance !== undefined
+      ? maintenance
+      : Number(item.maintenance || 0);
+  });
+</script>

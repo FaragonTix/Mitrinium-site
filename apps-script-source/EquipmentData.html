@@ -1,0 +1,821 @@
+<script>
+  const equipmentData = [
+    // Броня
+    {
+      id: 'plotnaya-odezhda',
+      name: 'Плотная одежда',
+      category: 'Броня',
+      price: 80,
+      armor: 2,
+      tags: ['Бытовая', 'карманы']
+    },
+    {
+      id: 'rabochaya-kurtka',
+      name: 'Рабочая куртка',
+      category: 'Броня',
+      price: 100,
+      armor: 2,
+      tags: ['рабочая', 'карманы']
+    },
+    {
+      id: 'polevoy-zhilet',
+      name: 'Полевой жилет',
+      category: 'Броня',
+      price: 100,
+      armor: 2,
+      tags: ['карманы', 'полевая']
+    },
+    {
+      id: 'gorodskoe-palto',
+      name: 'Городское пальто с подкладкой',
+      category: 'Броня',
+      price: 120,
+      armor: 2,
+      tags: ['Карманы', 'красивая']
+    },
+    {
+      id: 'legkaya-bronya',
+      name: 'Лёгкая броня',
+      category: 'Броня',
+      price: 250,
+      armor: 3,
+      tags: ['кожаная', 'карманы']
+    },
+    {
+      id: 'skrytaya-kozhanaya-bronya',
+      name: 'Скрытая кожаная броня',
+      category: 'Броня',
+      price: 300,
+      armor: 3,
+      tags: ['Беззвучный шаг']
+    },
+    {
+      id: 'latunny-rabochiy-zhilet',
+      name: 'Латунный рабочий жилет',
+      category: 'Броня',
+      price: 300,
+      armor: 3,
+      tags: ['красивая', 'карманы', '-1 к стелсу']
+    },
+    {
+      id: 'legkaya-polevaya-bronya',
+      name: 'Лёгкая полевая броня',
+      category: 'Броня',
+      price: 300,
+      armor: 3,
+      tags: ['боевая', 'карманы']
+    },
+    {
+      id: 'kirasa',
+      name: 'Кираса',
+      category: 'Броня',
+      price: 600,
+      armor: 4,
+      tags: ['-2 к стелсу', '-3 м к передвижению', 'уклонение невозможно']
+    },
+    {
+      id: 'tyazhelaya-bronya',
+      name: 'Тяжёлая броня',
+      category: 'Броня',
+      price: 1200,
+      armor: 5,
+      tags: ['-3 к стелсу', '-5 м к передвижению', 'уклонение невозможно']
+    },
+    {
+      id: 'eksperimentalnaya-bronya',
+      name: 'Экспериментальная броня',
+      category: 'Броня',
+      price: 3000,
+      priceText: 'от 3000 ф',
+      armor: 6,
+      tags: ['разрешение ведущего']
+    },
+    // Оружие
+    {
+      id: 'nozh',
+      name: 'Нож / складной нож',
+      category: 'Оружие',
+      price: 70,
+      pool: 'Напор + Фехтование или Сметка + Ловкость рук',
+      damage: 'd6',
+      tags: ['скрытный', 'инструмент']
+    },
+    {
+      id: 'dubinka',
+      name: 'Дубинка / тяжёлая трость',
+      category: 'Оружие',
+      price: 65,
+      pool: 'Напор + Фехтование',
+      damage: 'd6',
+      tags: ['простое', 'уличное']
+    },
+    {
+      id: 'utyazhelennaya-perchatka',
+      name: 'Утяжелённая перчатка',
+      category: 'Оружие',
+      price: 80,
+      pool: 'Напор + Драка',
+      damage: 'd6',
+      tags: ['скрытая', 'ближний бой']
+    },
+    {
+      id: 'sablya-shpaga',
+      name: 'Сабля / шпага',
+      category: 'Оружие',
+      price: 250,
+      pool: 'Напор + Фехтование',
+      damage: 'd8',
+      tags: ['военное', 'дуэльное']
+    },
+    {
+      id: 'tesak',
+      name: 'Топорик / тесак',
+      category: 'Оружие',
+      price: 100,
+      pool: 'Напор + Фехтование',
+      damage: 'd6',
+      tags: ['грубое', 'заметное']
+    },
+    {
+      id: 'gaechnyi-klyuch',
+      name: 'Гаечный ключ / малый молоток',
+      category: 'Оружие',
+      price: 60,
+      pool: 'Напор + Драка',
+      damage: 'd4+1',
+      tags: ['инструмент']
+    },
+    {
+      id: 'sapyornaya-lopatka',
+      name: 'Сапёрная лопатка',
+      category: 'Оружие',
+      price: 80,
+      pool: 'Напор + Драка',
+      damage: 'd4+1',
+      tags: ['полевая', 'инструмент']
+    },
+    {
+      id: 'iskrovoi-rezak',
+      name: 'Искровой резак',
+      category: 'Оружие',
+      price: 240,
+      pool: 'Сметка + Драка',
+      damage: 'd6+1',
+      durability: 2,
+      tags: ['устройство', 'Пар', 'хорошо против объектов']
+    },
+    {
+      id: 'tyazhely-mech',
+      name: 'Тяжёлый меч',
+      category: 'Оружие',
+      price: 600,
+      pool: 'Напор + Фехтование',
+      damage: 'd8+1',
+      tags: ['тяжёлое', 'военное', 'Напор 3+', 'особое разрешение']
+    },
+    {
+      id: 'bulava',
+      name: 'Булава',
+      category: 'Оружие',
+      price: 550,
+      pool: 'Напор + Фехтование',
+      damage: 'd8+1',
+      tags: ['тяжёлое', 'дробящее', 'Напор 3+', 'особое разрешение']
+    },
+    {
+      id: 'boevoy-molot',
+      name: 'Боевой молот',
+      category: 'Оружие',
+      price: 800,
+      pool: 'Напор + Фехтование',
+      damage: 'd10',
+      tags: ['тяжёлое', 'дробящее', 'Напор 3+', 'особое разрешение']
+    },
+    {
+      id: 'pistol',
+      name: 'Пистоль',
+      category: 'Оружие',
+      price: 220,
+      pool: 'Нюх + Стрельба',
+      distance: 'средняя',
+      damage: 'd6',
+      durability: 2,
+      tags: ['Порох', 'пистоль', 'громкий', 'Пробитие 1']
+    },
+    {
+      id: 'duelny-pistol',
+      name: 'Дуэльный пистоль',
+      category: 'Оружие',
+      price: 300,
+      pool: 'Нюх + Стрельба',
+      distance: 'средняя',
+      damage: 'd6',
+      durability: 3,
+      tags: ['Порох', 'пистоль', 'престижный', 'Пробитие 1']
+    },
+    {
+      id: 'korotkiy-revolver',
+      name: 'Короткий револьвер ранней конструкции',
+      category: 'Оружие',
+      price: 360,
+      pool: 'Нюх + Стрельба',
+      distance: 'средняя',
+      damage: 'd8',
+      durability: 2,
+      tags: ['Порох', 'пистоль', 'редкий', 'Пробитие 1']
+    },
+    {
+      id: 'musket',
+      name: 'Мушкет',
+      category: 'Оружие',
+      price: 500,
+      pool: 'Нюх + Стрельба',
+      distance: 'дальняя',
+      damage: 'd10',
+      durability: 2,
+      tags: ['Порох', 'крупнокалиберное', 'мощный', 'шумный', 'Пробитие 1']
+    },
+    {
+      id: 'karabin',
+      name: 'Карабин',
+      category: 'Оружие',
+      price: 450,
+      pool: 'Нюх + Стрельба',
+      distance: 'дальняя',
+      damage: 'd8',
+      durability: 3,
+      tags: ['Порох', 'крупнокалиберное', 'удобный', 'Пробитие 1']
+    },
+    {
+      id: 'ohotnichye-ruzhye',
+      name: 'Охотничье ружьё',
+      category: 'Оружие',
+      price: 550,
+      pool: 'Нюх + Стрельба',
+      distance: 'дальняя',
+      damage: 'd10',
+      durability: 3,
+      tags: ['Порох', 'крупнокалиберное', 'звери', 'дробь', 'Пробитие 1']
+    },
+    {
+      id: 'mehanicheskiy-arbalet',
+      name: 'Механический арбалет',
+      category: 'Оружие',
+      price: 400,
+      pool: 'Нюх + Стрельба',
+      distance: 'средняя',
+      damage: 'd8',
+      durability: 2,
+      tags: ['тихий']
+    },
+    {
+      id: 'drotikovaya-trubka',
+      name: 'Дротиковая трубка',
+      category: 'Оружие',
+      price: 80,
+      pool: 'Нюх + Стрельба',
+      distance: 'средняя',
+      damage: 'нет',
+      durability: 2,
+      tags: ['доставка препарата']
+    },
+    {
+      id: 'pruzhinny-gvozdomet',
+      name: 'Пружинный гвоздомёт',
+      category: 'Оружие',
+      price: 220,
+      pool: 'Сметка + Стрельба или Нюх + Стрельба',
+      distance: 'средняя',
+      damage: 'd6',
+      durability: 2,
+      tags: ['устройство', 'Пар']
+    },
+    {
+      id: 'himicheskiy-metatel',
+      name: 'Химический метатель',
+      category: 'Оружие',
+      price: 240,
+      pool: 'Жила + Химия',
+      damage: 'd6',
+      durability: 3,
+      tags: ['Реагенты', 'зона', 'устройство']
+    },
+    {
+      id: 'pirotehnicheskiy-pistol',
+      name: 'Пиротехнический пистоль',
+      category: 'Оружие',
+      price: 220,
+      pool: 'Жила + Химия или Нюх + Стрельба',
+      damage: 'd6',
+      durability: 2,
+      tags: ['Порох', 'пистоль', 'сигнал', 'вспышка', 'Пробитие 1']
+    },
+    {
+      id: 'nozh-kapelnik',
+      name: 'Нож-капельник',
+      category: 'Оружие',
+      price: 100,
+      pool: 'Сметка + Ловкость рук или Напор + Фехтование',
+      damage: 'd6',
+      tags: ['яд', 'скрытный']
+    },
+    {
+      id: 'igla-dlya-trubki',
+      name: 'Игла для трубки',
+      category: 'Оружие',
+      price: 10,
+      pool: 'Жила + Медицина или Жила + Химия',
+      damage: 'нет',
+      durability: 1,
+      tags: ['препарат', 'медицина']
+    },
+    {
+      id: 'trost-kristall',
+      name: 'Трость с кристаллическим навершием',
+      category: 'Оружие',
+      price: 300,
+      pool: 'Напор + Фехтование',
+      damage: 'd6',
+      durability: 3,
+      tags: ['Кристаллы', 'КК', 'СК', 'статус']
+    },
+    {
+      id: 'signalny-pistol',
+      name: 'Сигнальный пистоль',
+      category: 'Оружие',
+      price: 220,
+      pool: 'Нюх + Стрельба',
+      damage: 'd6',
+      durability: 2,
+      tags: ['Порох', 'пистоль', 'сигнал', 'Пробитие 1']
+    },
+    // Устройство
+    {
+      id: 'perchatka-sinego-polya',
+      name: 'Перчатка синего поля',
+      category: 'Устройство',
+      price: 140,
+      pool: 'Зависит от способности',
+      damage: 'Зависит от способности',
+      durability: 2,
+      tags: ['СК']
+    },
+    {
+      id: 'krasny-monokl',
+      name: 'Красный резонансный монокль',
+      category: 'Устройство',
+      price: 140,
+      pool: 'Зависит от способности',
+      damage: 'Зависит от способности',
+      durability: 2,
+      tags: ['КК']
+    },
+    {
+      id: 'krasny-kulon',
+      name: 'Красный резонансный кулон',
+      category: 'Устройство',
+      price: 120,
+      pool: 'Зависит от способности',
+      damage: 'Зависит от способности',
+      durability: 2,
+      tags: ['КК']
+    },
+    {
+      id: 'maly-siniy-kristall',
+      name: 'Малый синий кристалл настройки',
+      category: 'Устройство',
+      price: 120,
+      pool: 'Зависит от способности',
+      damage: 'Зависит от способности',
+      durability: 2,
+      tags: ['СК']
+    },
+    // Оружие
+    {
+      id: 'furma',
+      name: 'Фурма',
+      category: 'Оружие',
+      price: 1200,
+      pool: 'Зависит от режима давления',
+      damage: '1 / d4 / d6 / d8 / d10 / d12',
+      purpose: 'Тяжёлое паровое оружие с режимами давления. Не требует регулярного обслуживания.',
+      tags: ['Пар', 'тяжёлое', 'режимы давления']
+    },
+    // Набор
+    {
+      id: 'maly-nabor-instrumentov',
+      name: 'Малый набор инструментов',
+      category: 'Набор',
+      price: 180,
+      purpose: 'Простые ремонты, замки, механизмы, Пар',
+      reliability: 'Нормальная'
+    },
+    {
+      id: 'bolshoy-nabor-instrumentov',
+      name: 'Большой набор инструментов',
+      category: 'Набор',
+      price: 300,
+      purpose: 'Полноценный ремонт, сборка, сложные механизмы, Пар',
+      reliability: 'Нормальная'
+    },
+    {
+      id: 'nabor-otmychek',
+      name: 'Набор отмычек',
+      category: 'Набор',
+      price: 120,
+      purpose: 'Замки, Ловкость рук, скрытое проникновение',
+      reliability: 'Нормальная'
+    },
+    {
+      id: 'nabor-chistki-oruzhiya',
+      name: 'Оружейный набор',
+      category: 'Набор',
+      price: 200,
+      purpose: 'Сложный ремонт огнестрела, особые патроны, Порох',
+      reliability: 'Нормальная'
+    },
+    {
+      id: 'pismenny-nabor',
+      name: 'Письменный набор',
+      category: 'Набор',
+      price: 60,
+      purpose: 'Письма, записи, документы',
+      reliability: 'Нормальная'
+    },
+    {
+      id: 'dorozhnaya-kancelyariya',
+      name: 'Дорожная канцелярия',
+      category: 'Набор',
+      price: 120,
+      purpose: 'Расписки, бланки, печати, подделки низкого уровня',
+      reliability: 'Нормальная'
+    },
+    {
+      id: 'nabor-pechatey',
+      name: 'Набор печатей',
+      category: 'Набор',
+      price: 160,
+      purpose: 'Пломбы, печати, документы, Закон, Этикет',
+      reliability: 'Нормальная'
+    },
+    {
+      id: 'polevaya-aptechka',
+      name: 'Полевая аптечка',
+      category: 'Набор',
+      price: 160,
+      purpose: 'Перевязки, первая помощь, простое лечение',
+      reliability: 'Нормальная'
+    },
+    {
+      id: 'hirurgicheskiy-nabor',
+      name: 'Хирургический набор',
+      category: 'Набор',
+      price: 260,
+      purpose: 'Операции, пули, Травмы, Медицина',
+      reliability: 'Нормальная'
+    },
+    {
+      id: 'himicheskiy-futlyar',
+      name: 'Химический футляр',
+      category: 'Набор',
+      price: 220,
+      purpose: 'Полевые реагенты, яды, кислоты, Реагенты',
+      reliability: 'Нормальная'
+    },
+    {
+      id: 'yuvelirny-nabor',
+      name: 'Ювелирный набор',
+      category: 'Набор',
+      price: 220,
+      purpose: 'Кристаллы, фокус, линзы, настройка, Кристаллы',
+      reliability: 'Нормальная'
+    },
+    {
+      id: 'polevoy-issledovatelskiy-nabor',
+      name: 'Полевой исследовательский набор',
+      category: 'Набор',
+      price: 180,
+      purpose: 'Следы, растения, образцы, натуралистика',
+      reliability: 'Нормальная'
+    },
+    // Вспомогательное
+    {
+      id: 'verevka',
+      name: 'Верёвка 15 м',
+      category: 'Вспомогательное',
+      price: 15,
+      purpose: 'Лазание, спуск, перенос груза'
+    },
+    {
+      id: 'nabor-paykov',
+      name: 'Набор пайков',
+      category: 'Вспомогательное',
+      price: 130,
+      purpose: 'На три дня'
+    },
+    {
+      id: 'kryuk',
+      name: 'Крюк',
+      category: 'Вспомогательное',
+      price: 20,
+      purpose: 'Зацеп, фиксация'
+    },
+    {
+      id: 'fonar',
+      name: 'Фонарь масляный',
+      category: 'Вспомогательное',
+      price: 25,
+      purpose: 'Свет, сигнал, работа в темноте'
+    },
+    {
+      id: 'maslo-dlya-fonarya',
+      name: 'Масло для фонаря',
+      category: 'Вспомогательное',
+      price: 0.5,
+      priceText: '5 п.',
+      purpose: 'Расходник'
+    },
+    {
+      id: 'kompas',
+      name: 'Компас',
+      category: 'Вспомогательное',
+      price: 50,
+      purpose: 'Навигация'
+    },
+    {
+      id: 'palatka',
+      name: 'Палатка',
+      category: 'Вспомогательное',
+      price: 70,
+      purpose: 'двуместная'
+    },
+    {
+      id: 'odeyalo',
+      name: 'Одеяло',
+      category: 'Вспомогательное',
+      price: 20,
+      purpose: 'Сон, перенос раненого, маскировка'
+    },
+    {
+      id: 'kremen-i-trut',
+      name: 'Кремень и трут',
+      category: 'Вспомогательное',
+      price: 10,
+      purpose: 'Огонь'
+    },
+    {
+      id: 'maska-filtr',
+      name: 'Маска-фильтр',
+      category: 'Вспомогательное',
+      price: 40,
+      purpose: 'Слабый газ, дым, испарения'
+    },
+    {
+      id: 'smennyi-filtr',
+      name: 'Сменный фильтр',
+      category: 'Вспомогательное',
+      price: 30,
+      purpose: 'Расходник для маски'
+    },
+    {
+      id: 'zashitnye-ochki',
+      name: 'Защитные очки',
+      category: 'Вспомогательное',
+      price: 30,
+      purpose: 'Искры, кислота, пар, стекло'
+    },
+    {
+      id: 'rabochie-perchatki',
+      name: 'Рабочие перчатки',
+      category: 'Вспомогательное',
+      price: 20,
+      purpose: 'Механизмы, грязь, острые предметы'
+    },
+    {
+      id: 'himicheskie-perchatki',
+      name: 'Химические перчатки',
+      category: 'Вспомогательное',
+      price: 15,
+      purpose: 'Кислоты, реагенты, яды'
+    },
+    {
+      id: 'prostye-karmannye-chasy',
+      name: 'Простые карманные часы',
+      category: 'Вспомогательное',
+      price: 200,
+      purpose: 'Синхронизация, расписания, статус'
+    },
+    {
+      id: 'gorodskaya-karta',
+      name: 'Подробная городская карта',
+      category: 'Вспомогательное',
+      price: 40,
+      purpose: 'Дворы, склады, посты, каналы'
+    },
+    {
+      id: 'kristallicheskaya-linza',
+      name: 'Кристаллическая линза',
+      category: 'Вспомогательное',
+      price: 600,
+      purpose: 'Резонаторы, оптика, чувствительные приборы'
+    },
+    {
+      id: 'mitrinovaya-plastina-malaya',
+      name: 'Митриновая пластина малая',
+      category: 'Вспомогательное',
+      price: 4000,
+      priceText: 'от 4000 ф',
+      purpose: 'Экспериментальная техника'
+    },
+    {
+      id: 'pentaplazma',
+      name: 'Пентаплазма',
+      category: 'Вспомогательное',
+      price: 1000,
+      priceText: 'от 1000 ф',
+      purpose: 'Роботы, механизмы'
+    },
+    {
+      id: 'mehanicheskiy-assistent',
+      name: 'Механический ассистент',
+      category: 'Вспомогательное',
+      price: 0,
+      purpose: 'Бесплатный стартовый помощник Кустаря, если разрешён выбранной веткой'
+    },
+    // Расходник
+    {
+      id: 'kislotnaya-sklyanka',
+      name: 'Кислотная склянка',
+      category: 'Расходник',
+      price: 20,
+      purpose: 'Одноразовая атака или разъедание малого неживого элемента'
+    },
+    {
+      id: 'slabyy-yad',
+      name: 'Слабый яд',
+      category: 'Расходник',
+      price: 15,
+      purpose: 'Требует доставки'
+    },
+    {
+      id: 'slabyy-antidot',
+      name: 'Слабый антидот',
+      category: 'Расходник',
+      price: 20,
+      purpose: 'Помогает против простых ядов'
+    },
+    {
+      id: 'uspokoitelnye-kapli',
+      name: 'Успокоительные капли',
+      category: 'Расходник',
+      price: 20,
+      purpose: 'Сон, тревога, паника, бессонница'
+    },
+    {
+      id: 'somnol',
+      name: 'Сомнол',
+      category: 'Расходник',
+      price: 35,
+      purpose: 'Откладывает d6 урона Телу до конца сцены. Раз в день'
+    },
+    {
+      id: 'argentol',
+      name: 'Аргентол',
+      category: 'Расходник',
+      price: 60,
+      purpose: 'Откладывает d4+2 урона Телу до конца сцены. Полулегально. Раз в день'
+    },
+    {
+      id: 'fibrinat',
+      name: 'Фибринат',
+      category: 'Расходник',
+      price: 100,
+      purpose: 'За 15 минут восстанавливает d6 урона Телу. Безопасно до двух раз в день. Полулегален'
+    },
+    {
+      id: 'hvitlak',
+      name: 'Хвитлэк',
+      category: 'Расходник',
+      price: 50,
+      purpose: 'Легальное лекарство от простуды'
+    },
+    {
+      id: 'serebryanka',
+      name: 'Серебрянка',
+      category: 'Расходник',
+      price: 50,
+      purpose: 'Наркотический стимулятор, восстанавливает 1 Нерва на час. Рекомендуется не чаще раза в день. Вызывает привыкание'
+    },
+    {
+      id: 'neytralizuyushiy-poroshok',
+      name: 'Нейтрализующий порошок',
+      category: 'Расходник',
+      price: 25,
+      purpose: 'Слабая защита от кислот и едких веществ'
+    },
+    {
+      id: 'osobye-patrony',
+      name: 'Особые патроны или редкие заряды',
+      category: 'Расходник',
+      price: 40,
+      priceText: '40–120 ф',
+      purpose: 'Дым, свет, звук, особая дробь'
+    }
+  ];
+
+  const classRecommendedEquipment = {
+    'Психопат': [
+      'plotnaya-odezhda',
+      'rabochaya-kurtka',
+      'himicheskiy-metatel',
+      'pirotehnicheskiy-pistol',
+      'tesak',
+      'himicheskiy-futlyar',
+      'nabor-chistki-oruzhiya',
+      'maska-filtr',
+      'himicheskie-perchatki',
+      'zashitnye-ochki',
+      'kislotnaya-sklyanka',
+      'neytralizuyushiy-poroshok'
+    ],
+    'Кустарь': [
+      'rabochaya-kurtka',
+      'latunny-rabochiy-zhilet',
+      'legkaya-bronya',
+      'pruzhinny-gvozdomet',
+      'iskrovoi-rezak',
+      'gaechnyi-klyuch',
+      'bolshoy-nabor-instrumentov',
+      'maly-nabor-instrumentov',
+      'perchatka-sinego-polya',
+      'maly-siniy-kristall',
+      'mehanicheskiy-assistent',
+      'rabochie-perchatki',
+      'zashitnye-ochki'
+    ],
+    'Воротила': [
+      'gorodskoe-palto',
+      'skrytaya-kozhanaya-bronya',
+      'pistol',
+      'dubinka',
+      'korotkiy-revolver',
+      'utyazhelennaya-perchatka',
+      'nabor-chistki-oruzhiya',
+      'dorozhnaya-kancelyariya',
+      'nabor-pechatey',
+      'pismenny-nabor',
+      'nabor-otmychek',
+      'krasny-kulon',
+      'krasny-monokl'
+    ],
+    'Рекрут': [
+      'polevoy-zhilet',
+      'legkaya-polevaya-bronya',
+      'kirasa',
+      'pistol',
+      'sablya-shpaga',
+      'karabin',
+      'musket',
+      'nozh',
+      'sapyornaya-lopatka',
+      'nabor-chistki-oruzhiya',
+      'maly-nabor-instrumentov',
+      'verevka',
+      'kryuk',
+      'fonar'
+    ],
+    'Менталист': [
+      'gorodskoe-palto',
+      'skrytaya-kozhanaya-bronya',
+      'legkaya-bronya',
+      'trost-kristall',
+      'igla-dlya-trubki',
+      'duelny-pistol',
+      'nozh',
+      'krasny-kulon',
+      'krasny-monokl',
+      'yuvelirny-nabor',
+      'pismenny-nabor',
+      'uspokoitelnye-kapli'
+    ],
+    'Натуралист': [
+      'plotnaya-odezhda',
+      'polevoy-zhilet',
+      'legkaya-polevaya-bronya',
+      'drotikovaya-trubka',
+      'nozh',
+      'tesak',
+      'ohotnichye-ruzhye',
+      'polevaya-aptechka',
+      'hirurgicheskiy-nabor',
+      'himicheskiy-futlyar',
+      'krasny-kulon',
+      'krasny-monokl',
+      'perchatka-sinego-polya',
+      'maly-siniy-kristall',
+      'polevoy-issledovatelskiy-nabor',
+      'kompas',
+      'maska-filtr'
+    ]
+  };
+</script>

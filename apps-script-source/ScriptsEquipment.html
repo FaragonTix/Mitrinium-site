@@ -1,0 +1,214 @@
+<script>
+  // Снаряжение, рекомендации, стоимость, обслуживание и броня.
+
+  function getEquipmentById(equipmentId) {
+    return equipmentData.find(item => item.id === equipmentId);
+  }
+
+  function getSelectedEquipmentTotal() {
+    return selectedEquipment.reduce((sum, equipmentId) => {
+      const item = getEquipmentById(equipmentId);
+      return sum + (item ? Number(item.price || 0) : 0);
+    }, 0);
+  }
+
+  function getEquipmentMaintenance(item) {
+    return Number(item.maintenance || 0);
+  }
+
+  function getEquipmentMaintenanceText(item) {
+    const maintenance = getEquipmentMaintenance(item);
+    return maintenance > 0 ? `Обслуживание: ${maintenance} ф` : '';
+  }
+
+  function getSelectedEquipmentMaintenanceTotal() {
+    return selectedEquipment.reduce((sum, equipmentId) => {
+      const item = getEquipmentById(equipmentId);
+      return sum + (item ? getEquipmentMaintenance(item) : 0);
+    }, 0);
+  }
+
+  function isEquipmentSelected(equipmentId) {
+    return selectedEquipment.includes(equipmentId);
+  }
+
+  function addEquipment(equipmentId) {
+    if (isEquipmentSelected(equipmentId)) return;
+    selectedEquipment.push(equipmentId);
+    renderEquipment();
+    refreshViewerIfOpen();
+  }
+
+  function removeEquipment(equipmentId) {
+    const index = selectedEquipment.indexOf(equipmentId);
+    if (index === -1) return;
+    selectedEquipment.splice(index, 1);
+    renderEquipment();
+    refreshViewerIfOpen();
+  }
+
+  function getEquipmentDetails(item) {
+    const details = [];
+    if (item.armor) details.push(`Броня: ${item.armor}`);
+    if (item.pool) details.push(`Пул: ${item.pool}`);
+    if (item.damage) details.push(`Урон: ${item.damage}`);
+    if (item.durability) details.push(`Прочность: ${item.durability}`);
+    if (getEquipmentMaintenanceText(item)) details.push(getEquipmentMaintenanceText(item));
+    if (item.purpose) details.push(item.purpose);
+    if (item.tags && item.tags.length) details.push(`Теги: ${item.tags.join(', ')}`);
+    return details.join(' · ');
+  }
+
+  function getEquipmentSearchText(item) {
+    return [
+      item.name, item.category, item.price, item.priceText, item.maintenance,
+      item.pool, item.damage, item.armor, item.durability, item.purpose,
+      item.reliability, item.tags ? item.tags.join(' ') : ''
+    ].filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function renderEquipmentCard(item, isRecommended) {
+    const price = item.priceText || `${item.price} ф`;
+    const selected = isEquipmentSelected(item.id);
+    const details = getEquipmentDetails(item);
+
+    return `
+      <div class="equipment-card ${isRecommended ? 'recommended' : ''}">
+        <div class="equipment-card-main">
+          <div>
+            <div class="equipment-name">${item.name}</div>
+            <div class="equipment-meta">${item.category} · ${price}</div>
+            <div class="equipment-details">${details}</div>
+          </div>
+          <button type="button" class="equipment-button" onclick="${selected ? `removeEquipment('${item.id}')` : `addEquipment('${item.id}')`}">
+            ${selected ? '-' : '+'}
+          </button>
+        </div>
+      </div>`;
+  }
+
+  function renderSelectedEquipment() {
+    const container = document.getElementById('selectedEquipmentList');
+    if (!container) return;
+
+    if (selectedEquipment.length === 0) {
+      container.innerHTML = '<p class="empty-note">Пока ничего не выбрано.</p>';
+      return;
+    }
+
+    container.innerHTML = selectedEquipment.map(equipmentId => {
+      const item = getEquipmentById(equipmentId);
+      if (!item) return '';
+      const details = getEquipmentDetails(item);
+      return `
+        <div class="selected-equipment-item selected-equipment-item-detailed">
+          <div>
+            <div class="selected-equipment-name">${item.name}</div>
+            <div class="selected-equipment-details">${details || item.category}</div>
+          </div>
+          <strong>${item.priceText || `${item.price} ф`}</strong>
+          <button type="button" onclick="removeEquipment('${item.id}')">×</button>
+        </div>`;
+    }).join('');
+  }
+
+  function renderEquipmentSummary() {
+    const spent = getSelectedEquipmentTotal();
+    const maintenance = getSelectedEquipmentMaintenanceTotal();
+    const left = startingMoney - spent;
+
+    const spentElement = document.getElementById('equipmentSpent');
+    const leftElement = document.getElementById('equipmentLeft');
+    const maintenanceElement = document.getElementById('equipmentMaintenance');
+    const warning = document.getElementById('equipmentWarning');
+
+    if (spentElement) spentElement.textContent = `${spent} ф`;
+    if (leftElement) leftElement.textContent = `${left} ф`;
+    if (maintenanceElement) maintenanceElement.textContent = `${maintenance} ф`;
+
+    if (!warning) return;
+
+    if (left < 0) {
+      warning.classList.remove('hidden');
+      warning.textContent = `Бюджет превышен на ${Math.abs(left)} ф.`;
+    } else {
+      warning.classList.add('hidden');
+      warning.textContent = '';
+    }
+  }
+
+  function renderEquipment() {
+    const recommendedList = document.getElementById('recommendedEquipmentList');
+    const otherList = document.getElementById('otherEquipmentList');
+    if (!recommendedList || !otherList) return;
+
+    const className = getSelectedClassName();
+    const recommendedIds = classRecommendedEquipment[className] || [];
+    const searchInput = document.getElementById('equipmentSearch');
+    const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+    let recommendedItems = recommendedIds.map(getEquipmentById).filter(Boolean);
+    let otherItems = equipmentData
+      .filter(item => !recommendedIds.includes(item.id))
+      .sort((a, b) => {
+        if (a.category === b.category) return Number(a.price || 0) - Number(b.price || 0);
+        return a.category.localeCompare(b.category);
+      });
+
+    if (searchQuery) {
+      recommendedItems = recommendedItems.filter(item => getEquipmentSearchText(item).includes(searchQuery));
+      otherItems = otherItems.filter(item => getEquipmentSearchText(item).includes(searchQuery));
+    }
+
+    recommendedList.innerHTML = recommendedItems.length
+      ? recommendedItems.map(item => renderEquipmentCard(item, true)).join('')
+      : searchQuery
+        ? '<p class="empty-note">В рекомендациях ничего не найдено.</p>'
+        : '<p class="empty-note">Выберите класс, чтобы увидеть рекомендации.</p>';
+
+    otherList.innerHTML = otherItems.length
+      ? otherItems.map(item => renderEquipmentCard(item, false)).join('')
+      : '<p class="empty-note">В общем списке ничего не найдено.</p>';
+
+    renderSelectedEquipment();
+    renderEquipmentSummary();
+  }
+
+  function getEquipmentArmor(item) {
+  if (!item || item.armor === null || item.armor === undefined) {
+    return 0;
+  }
+
+  if (typeof item.armor === 'number') {
+    return Math.max(0, item.armor);
+  }
+
+  const match = String(item.armor).match(/\d+/);
+
+  return match ? Math.max(0, Number(match[0])) : 0;
+}
+
+function getSelectedArmorTotal() {
+  return selectedEquipment.reduce((total, equipmentId) => {
+    const item = getEquipmentById(equipmentId);
+
+    return total + getEquipmentArmor(item);
+  }, 0);
+}
+
+function syncViewerArmorWithEquipment() {
+  if (!viewerState || typeof getSelectedArmorTotal !== 'function') {
+    return;
+  }
+
+  const maxArmor = getSelectedArmorTotal();
+
+  if (viewerState.currentArmor === undefined) {
+    viewerState.currentArmor = maxArmor;
+  }
+
+  if (viewerState.currentArmor > maxArmor) {
+    viewerState.currentArmor = maxArmor;
+  }
+}
+</script>

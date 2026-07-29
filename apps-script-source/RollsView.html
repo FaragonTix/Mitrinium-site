@@ -1,0 +1,600 @@
+<section class="card">
+  <div class="section-heading">
+    <div>
+      <h2>Броски</h2>
+
+      <p class="helper-note">
+        В режиме «Списки» используются обычные поля.
+        В режиме «Конструктор» сцена, компоненты,
+        Методика Контроля и тип случайного куба
+        выбираются кнопками.
+      </p>
+    </div>
+  </div>
+
+  <div class="rolls-layout">
+    <div class="roll-panel">
+      <!-- =========================
+           Бросок Эффективности
+      ========================== -->
+
+      <section class="roll-subpanel">
+        <div class="roll-subpanel-heading">
+          <h3>Бросок Эффективности</h3>
+
+          <div
+            class="roll-interface-switch"
+            role="group"
+            aria-label="Режим настройки броска"
+          >
+            <button
+              type="button"
+              id="rollInterfaceSelectButton"
+              class="active"
+              aria-pressed="true"
+              onclick="setRollEditorMode('select')"
+            >
+              Списки
+            </button>
+
+            <button
+              type="button"
+              id="rollInterfaceBuilderButton"
+              aria-pressed="false"
+              onclick="setRollEditorMode('builder')"
+            >
+              Конструктор
+            </button>
+          </div>
+        </div>
+
+        <label class="field roll-form-full">
+          <span>Название броска</span>
+
+          <input
+            id="rollTitle"
+            type="text"
+            maxlength="160"
+            autocomplete="off"
+            placeholder="Например: скрытно открыть замок"
+          >
+        </label>
+
+        <!-- =========================
+             Режим выпадающих списков
+        ========================== -->
+
+        <div
+          id="rollSelectEditor"
+          class="roll-editor-panel roll-select-only"
+        >
+          <div class="roll-form-grid">
+            <label class="field">
+              <span>Кубы сцены</span>
+
+              <select
+                id="rollSceneDice"
+                onchange="syncRollBuilderControls()"
+              >
+                <option value="hindrance">
+                  Помеха — 2d4
+                </option>
+
+                <option
+                  value="normal"
+                  selected
+                >
+                  Обычная сцена — d4 + d6
+                </option>
+
+                <option value="advantage">
+                  Преимущество — 2d6
+                </option>
+
+                <option value="exceptional">
+                  Исключительное преимущество — 2d8
+                </option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Первый компонент</span>
+
+              <select
+                id="rollFirstComponent"
+                onchange="syncRollBuilderSelectionFromSelects()"
+              ></select>
+            </label>
+
+            <label class="field">
+              <span>Второй компонент</span>
+
+              <select
+                id="rollSecondComponent"
+                onchange="syncRollBuilderSelectionFromSelects()"
+              ></select>
+            </label>
+          </div>
+        </div>
+
+        <!-- =========================
+             Режим конструктора
+        ========================== -->
+
+        <div
+          id="rollBuilderEditor"
+          class="roll-editor-panel roll-builder-only hidden"
+        >
+          <div class="roll-builder-section">
+            <h4>Кубы сцены</h4>
+
+            <div
+              id="rollSceneButtons"
+              class="roll-scene-buttons"
+              role="group"
+              aria-label="Кубы сцены"
+            >
+              <button
+                type="button"
+                data-scene-key="hindrance"
+                aria-pressed="false"
+                onclick="selectRollScene('hindrance')"
+              >
+                <strong>Помеха</strong>
+                <span>2d4</span>
+              </button>
+
+              <button
+                type="button"
+                data-scene-key="normal"
+                aria-pressed="true"
+                onclick="selectRollScene('normal')"
+              >
+                <strong>Обычная</strong>
+                <span>d4 + d6</span>
+              </button>
+
+              <button
+                type="button"
+                data-scene-key="advantage"
+                aria-pressed="false"
+                onclick="selectRollScene('advantage')"
+              >
+                <strong>Преимущество</strong>
+                <span>2d6</span>
+              </button>
+
+              <button
+                type="button"
+                data-scene-key="exceptional"
+                aria-pressed="false"
+                onclick="selectRollScene('exceptional')"
+              >
+                <strong>Исключительная</strong>
+                <span>2d8</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="roll-builder-section">
+            <div class="roll-component-table-heading">
+              <h4>Компоненты броска</h4>
+
+              <div
+                id="rollBuilderSelectionStatus"
+                class="roll-builder-selection-status"
+                aria-live="polite"
+              >
+                Выберите два компонента.
+              </div>
+            </div>
+
+            <p class="helper-note">
+              Можно выбрать не более двух компонентов
+              из любой таблицы: два Атрибута,
+              два Навыка или Атрибут и Навык.
+            </p>
+
+            <div class="roll-component-table">
+              <h5>Атрибуты</h5>
+
+              <div
+                id="rollAttributeComponentTable"
+                class="roll-component-table-grid"
+                role="group"
+                aria-label="Атрибуты броска"
+              ></div>
+            </div>
+
+            <div class="roll-component-table">
+              <h5>Навыки</h5>
+
+              <div
+                id="rollSkillComponentTable"
+                class="roll-component-table-grid roll-skill-table-grid"
+                role="group"
+                aria-label="Навыки броска"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- =========================
+             Контроль
+        ========================== -->
+
+        <div class="roll-checkboxes">
+          <label class="checkbox-line">
+            <input
+              id="rollControlEnabled"
+              type="checkbox"
+              onchange="toggleRollControlFields()"
+            >
+
+            <span>
+              Одновременно бросить Контроль
+            </span>
+          </label>
+        </div>
+
+        <div
+          id="rollControlFields"
+          class="roll-subpanel roll-control-panel hidden"
+        >
+          <h3>Контроль</h3>
+
+          <div class="roll-form-grid">
+            <!-- Методика в режиме списков -->
+
+            <label class="field roll-select-only">
+              <span>Куб Методики</span>
+
+              <select
+                id="rollControlMethod"
+                onchange="syncRollBuilderControls()"
+              >
+                <option value="fixed1">
+                  I — фиксированный +1
+                </option>
+
+                <option value="d4">
+                  II — d4
+                </option>
+
+                <option value="d6">
+                  III — d6
+                </option>
+
+                <option value="d8">
+                  IV — d8
+                </option>
+
+                <option value="d10">
+                  V — d10
+                </option>
+              </select>
+            </label>
+
+            <!-- Методика в режиме конструктора -->
+
+            <div class="field roll-builder-only hidden">
+              <span>Куб Методики</span>
+
+              <div
+                id="rollControlMethodButtons"
+                class="roll-choice-button-grid"
+                role="group"
+                aria-label="Куб Методики"
+              >
+                <button
+                  type="button"
+                  data-control-method="fixed1"
+                  aria-pressed="true"
+                  onclick="selectRollControlMethod('fixed1')"
+                >
+                  <strong>I</strong>
+                  <span>+1</span>
+                </button>
+
+                <button
+                  type="button"
+                  data-control-method="d4"
+                  aria-pressed="false"
+                  onclick="selectRollControlMethod('d4')"
+                >
+                  <strong>II</strong>
+                  <span>d4</span>
+                </button>
+
+                <button
+                  type="button"
+                  data-control-method="d6"
+                  aria-pressed="false"
+                  onclick="selectRollControlMethod('d6')"
+                >
+                  <strong>III</strong>
+                  <span>d6</span>
+                </button>
+
+                <button
+                  type="button"
+                  data-control-method="d8"
+                  aria-pressed="false"
+                  onclick="selectRollControlMethod('d8')"
+                >
+                  <strong>IV</strong>
+                  <span>d8</span>
+                </button>
+
+                <button
+                  type="button"
+                  data-control-method="d10"
+                  aria-pressed="false"
+                  onclick="selectRollControlMethod('d10')"
+                >
+                  <strong>V</strong>
+                  <span>d10</span>
+                </button>
+              </div>
+            </div>
+
+            <label class="field">
+              <span>Плоский бонус</span>
+
+              <input
+                id="rollControlFlatBonus"
+                type="number"
+                min="-20"
+                max="20"
+                value="0"
+              >
+            </label>
+
+            <label class="field">
+              <span>Сложность</span>
+
+              <input
+                id="rollControlDifficulty"
+                type="number"
+                min="1"
+                max="50"
+                value="12"
+              >
+            </label>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button
+            type="button"
+            class="primary-button"
+            onclick="rollEfficiencyNow()"
+          >
+            Бросить Эффективность
+          </button>
+        </div>
+
+        <div
+          id="efficiencyRollStatus"
+          class="save-status"
+          aria-live="polite"
+        ></div>
+
+        <div
+          id="efficiencyRollResult"
+          class="roll-result empty"
+        >
+          Результат появится здесь.
+
+          После броска станет доступна
+          оптимальная замена одного значения на 4.
+        </div>
+      </section>
+
+      <!-- =========================
+           Случайный бросок
+      ========================== -->
+
+      <section class="roll-subpanel">
+        <h3>Случайный бросок / атака</h3>
+
+        <div class="roll-form-grid">
+          <label class="field roll-form-full">
+            <span>Название броска</span>
+
+            <input
+              id="randomRollTitle"
+              type="text"
+              maxlength="160"
+              autocomplete="off"
+              placeholder="Например: урон из мушкета"
+            >
+          </label>
+
+          <label class="field">
+            <span>Количество кубов</span>
+
+            <input
+              id="randomRollCount"
+              type="number"
+              min="1"
+              max="20"
+              value="1"
+            >
+          </label>
+
+          <!-- Тип куба в режиме списков -->
+
+          <label class="field roll-select-only">
+            <span>Тип куба</span>
+
+            <select
+              id="randomRollSides"
+              onchange="syncRollBuilderControls()"
+            >
+              <option value="2">d2</option>
+              <option value="4">d4</option>
+
+              <option
+                value="6"
+                selected
+              >
+                d6
+              </option>
+
+              <option value="8">d8</option>
+              <option value="10">d10</option>
+              <option value="12">d12</option>
+            </select>
+          </label>
+
+          <!-- Тип куба в режиме конструктора -->
+
+          <div class="field roll-builder-only hidden">
+            <span>Тип куба</span>
+
+            <div
+              id="randomRollSideButtons"
+              class="roll-choice-button-grid roll-die-choice-grid"
+              role="group"
+              aria-label="Тип случайного куба"
+            >
+              <button
+                type="button"
+                data-random-sides="2"
+                aria-pressed="false"
+                onclick="selectRandomRollSides(2)"
+              >
+                d2
+              </button>
+
+              <button
+                type="button"
+                data-random-sides="4"
+                aria-pressed="false"
+                onclick="selectRandomRollSides(4)"
+              >
+                d4
+              </button>
+
+              <button
+                type="button"
+                data-random-sides="6"
+                aria-pressed="true"
+                onclick="selectRandomRollSides(6)"
+              >
+                d6
+              </button>
+
+              <button
+                type="button"
+                data-random-sides="8"
+                aria-pressed="false"
+                onclick="selectRandomRollSides(8)"
+              >
+                d8
+              </button>
+
+              <button
+                type="button"
+                data-random-sides="10"
+                aria-pressed="false"
+                onclick="selectRandomRollSides(10)"
+              >
+                d10
+              </button>
+
+              <button
+                type="button"
+                data-random-sides="12"
+                aria-pressed="false"
+                onclick="selectRandomRollSides(12)"
+              >
+                d12
+              </button>
+            </div>
+          </div>
+
+          <label class="field">
+            <span>Модификатор</span>
+
+            <input
+              id="randomRollModifier"
+              type="number"
+              min="-1000"
+              max="1000"
+              value="0"
+            >
+          </label>
+        </div>
+
+        <div class="action-row">
+          <button
+            type="button"
+            class="primary-button"
+            onclick="rollRandomNow()"
+          >
+            Бросить кубы
+          </button>
+        </div>
+
+        <div
+          id="randomRollStatus"
+          class="save-status"
+          aria-live="polite"
+        ></div>
+
+        <div
+          id="randomRollResult"
+          class="roll-result empty"
+        >
+          Результат броска появится здесь.
+        </div>
+      </section>
+    </div>
+
+    <!-- =========================
+         Общий лог
+    ========================== -->
+
+    <aside class="roll-log-panel roll-subpanel">
+      <div class="roll-log-toolbar">
+        <h3>Общий лог</h3>
+
+        <div class="saved-character-actions">
+          <button
+            type="button"
+            class="secondary-button"
+            onclick="refreshRollLog(false)"
+          >
+            Обновить
+          </button>
+
+          <button
+            type="button"
+            id="clearRollLogButton"
+            class="secondary-button saved-character-hide-button hidden"
+            onclick="clearRollLogFromApp()"
+          >
+            Очистить лог
+          </button>
+        </div>
+      </div>
+
+      <div
+        id="rollLogStatus"
+        class="save-status"
+        aria-live="polite"
+      ></div>
+
+      <div
+        id="rollLogList"
+        class="roll-log-list"
+      >
+        <p class="empty-note">
+          Лог ещё не загружен.
+        </p>
+      </div>
+    </aside>
+  </div>
+</section>

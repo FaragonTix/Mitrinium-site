@@ -1,0 +1,1887 @@
+<script>
+  let rollLogIsAdmin = false;
+  let rollLogTimer = null;
+
+  let rollEditorMode = 'select';
+  let latestEfficiencyRoll = null;
+
+  // Один общий выбор для обеих таблиц:
+  // максимум два компонента.
+  let rollBuilderSelectedKeys = [];
+
+  /* =========================
+     Утилиты
+  ========================= */
+
+  function rollEscapeHtml(value) {
+    return String(
+      value === null ||
+      value === undefined
+        ? ''
+        : value
+    )
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function rollEscapeJs(value) {
+    return String(value || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'");
+  }
+
+  function rollNumber(value, fallback) {
+    const number = Number(value);
+
+    return Number.isFinite(number)
+      ? number
+      : Number(fallback || 0);
+  }
+
+  function getRollCharacterContext() {
+    let character = {};
+
+    if (
+      typeof collectCharacterForSave ===
+      'function'
+    ) {
+      character =
+        collectCharacterForSave() || {};
+    }
+
+    return {
+      characterId:
+        currentCharacterId ||
+        character.id ||
+        '',
+
+      characterName:
+        character.name ||
+        'Без имени',
+
+      className:
+        character.className ||
+        ''
+    };
+  }
+
+  /* =========================
+     Компоненты
+  ========================= */
+
+  function getRollComponentDefinitions() {
+    const definitions = [];
+
+    const attributeSource =
+      typeof attributes !== 'undefined'
+        ? attributes
+        : {};
+
+    const skillSource =
+      typeof skills !== 'undefined'
+        ? skills
+        : {};
+
+    Object.entries(
+      attributeSource
+    ).forEach(function (entry) {
+      definitions.push({
+        key:
+          'attribute:' +
+          entry[0],
+
+        group: 'attributes',
+
+        label:
+          entry[1].name,
+
+        value: Math.max(
+          1,
+          Math.min(
+            3,
+            rollNumber(
+              entry[1].value,
+              1
+            )
+          )
+        )
+      });
+    });
+
+    Object.entries(
+      skillSource
+    ).forEach(function (groupEntry) {
+      const groupKey =
+        groupEntry[0];
+
+      const group =
+        groupEntry[1];
+
+      Object.entries(
+        group.items || {}
+      ).forEach(function (skillEntry) {
+        definitions.push({
+          key:
+            'skill:' +
+            groupKey +
+            ':' +
+            skillEntry[0],
+
+          group: 'skills',
+
+          attributeName:
+            group.attributeName,
+
+          label:
+            skillEntry[1].name,
+
+          value: Math.max(
+            1,
+            Math.min(
+              3,
+              rollNumber(
+                skillEntry[1].value,
+                1
+              )
+            )
+          )
+        });
+      });
+    });
+
+    return definitions;
+  }
+
+  function renderRollComponentOptions() {
+    const firstSelect =
+      document.getElementById(
+        'rollFirstComponent'
+      );
+
+    const secondSelect =
+      document.getElementById(
+        'rollSecondComponent'
+      );
+
+    if (
+      !firstSelect ||
+      !secondSelect
+    ) {
+      return;
+    }
+
+    const definitions =
+      getRollComponentDefinitions();
+
+    if (definitions.length === 0) {
+      firstSelect.innerHTML = '';
+      secondSelect.innerHTML = '';
+
+      return;
+    }
+
+    const firstPrevious =
+      firstSelect.value;
+
+    const secondPrevious =
+      secondSelect.value;
+
+    const attributeOptions =
+      definitions
+        .filter(function (item) {
+          return (
+            item.group ===
+            'attributes'
+          );
+        })
+        .map(renderRollOption)
+        .join('');
+
+    const skillOptions =
+      definitions
+        .filter(function (item) {
+          return (
+            item.group ===
+            'skills'
+          );
+        })
+        .map(renderRollOption)
+        .join('');
+
+    const html = `
+      <optgroup label="Атрибуты">
+        ${attributeOptions}
+      </optgroup>
+
+      <optgroup label="Навыки">
+        ${skillOptions}
+      </optgroup>
+    `;
+
+    firstSelect.innerHTML = html;
+    secondSelect.innerHTML = html;
+
+    const validKeys =
+      definitions.map(function (item) {
+        return item.key;
+      });
+
+    const firstDefault =
+      validKeys.indexOf(firstPrevious) !== -1
+        ? firstPrevious
+        : definitions[0].key;
+
+    const firstSkill =
+      definitions.find(function (item) {
+        return item.group === 'skills';
+      });
+
+    let secondDefault =
+      validKeys.indexOf(secondPrevious) !== -1
+        ? secondPrevious
+        : (
+          firstSkill
+            ? firstSkill.key
+            : definitions[
+                Math.min(
+                  1,
+                  definitions.length - 1
+                )
+              ].key
+        );
+
+    if (
+      secondDefault === firstDefault &&
+      definitions.length > 1
+    ) {
+      secondDefault =
+        definitions.find(function (item) {
+          return item.key !== firstDefault;
+        }).key;
+    }
+
+    firstSelect.value = firstDefault;
+    secondSelect.value = secondDefault;
+
+    ensureRollBuilderSelection();
+    renderRollComponentTables();
+    syncRollBuilderControls();
+  }
+
+  function renderRollOption(definition) {
+    return `
+      <option
+        value="${rollEscapeHtml(
+          definition.key
+        )}"
+      >
+        ${rollEscapeHtml(
+          definition.label
+        )}
+        — ${definition.value}d6
+      </option>
+    `;
+  }
+
+  function ensureRollBuilderSelection() {
+    const definitions =
+      getRollComponentDefinitions();
+
+    const validKeys =
+      definitions.map(function (item) {
+        return item.key;
+      });
+
+    rollBuilderSelectedKeys =
+      rollBuilderSelectedKeys
+        .filter(function (key) {
+          return (
+            validKeys.indexOf(key) !== -1
+          );
+        })
+        .slice(0, 2);
+
+    const firstValue =
+      document.getElementById(
+        'rollFirstComponent'
+      )?.value || '';
+
+    const secondValue =
+      document.getElementById(
+        'rollSecondComponent'
+      )?.value || '';
+
+    if (
+      rollBuilderSelectedKeys.length === 0 &&
+      validKeys.indexOf(firstValue) !== -1
+    ) {
+      rollBuilderSelectedKeys.push(
+        firstValue
+      );
+    }
+
+    if (
+      rollBuilderSelectedKeys.length < 2 &&
+      validKeys.indexOf(secondValue) !== -1 &&
+      rollBuilderSelectedKeys.indexOf(
+        secondValue
+      ) === -1
+    ) {
+      rollBuilderSelectedKeys.push(
+        secondValue
+      );
+    }
+  }
+
+  function syncRollBuilderSelectionFromSelects() {
+    const firstValue =
+      document.getElementById(
+        'rollFirstComponent'
+      )?.value || '';
+
+    const secondValue =
+      document.getElementById(
+        'rollSecondComponent'
+      )?.value || '';
+
+    rollBuilderSelectedKeys = [];
+
+    if (firstValue) {
+      rollBuilderSelectedKeys.push(
+        firstValue
+      );
+    }
+
+    if (
+      secondValue &&
+      secondValue !== firstValue
+    ) {
+      rollBuilderSelectedKeys.push(
+        secondValue
+      );
+    }
+
+    renderRollComponentTables();
+    syncRollBuilderControls();
+  }
+
+  function renderRollComponentTables() {
+    const attributeTable =
+      document.getElementById(
+        'rollAttributeComponentTable'
+      );
+
+    const skillTable =
+      document.getElementById(
+        'rollSkillComponentTable'
+      );
+
+    if (
+      !attributeTable ||
+      !skillTable
+    ) {
+      return;
+    }
+
+    const definitions =
+      getRollComponentDefinitions();
+
+    attributeTable.innerHTML =
+      definitions
+        .filter(function (item) {
+          return (
+            item.group ===
+            'attributes'
+          );
+        })
+        .map(renderRollComponentSquare)
+        .join('');
+
+    skillTable.innerHTML =
+      definitions
+        .filter(function (item) {
+          return (
+            item.group ===
+            'skills'
+          );
+        })
+        .map(renderRollComponentSquare)
+        .join('');
+  }
+
+  function renderRollComponentSquare(
+    definition
+  ) {
+    return `
+      <button
+        type="button"
+        class="roll-component-square"
+        data-component-key="${rollEscapeHtml(
+          definition.key
+        )}"
+        onclick="toggleRollBuilderComponent(
+          '${rollEscapeJs(
+            definition.key
+          )}'
+        )"
+      >
+        <span
+          class="roll-component-square-name"
+        >
+          ${rollEscapeHtml(
+            definition.label
+          )}
+        </span>
+
+        <strong>
+          ${definition.value}d6
+        </strong>
+      </button>
+    `;
+  }
+
+  function toggleRollBuilderComponent(
+    componentKey
+  ) {
+    const selectedIndex =
+      rollBuilderSelectedKeys.indexOf(
+        componentKey
+      );
+
+    if (selectedIndex !== -1) {
+      rollBuilderSelectedKeys.splice(
+        selectedIndex,
+        1
+      );
+
+      syncRollSelectsFromBuilder();
+      syncRollBuilderControls();
+
+      return;
+    }
+
+    if (
+      rollBuilderSelectedKeys.length >= 2
+    ) {
+      updateRollBuilderSelectionStatus(
+        'Можно выбрать только два компонента. ' +
+        'Сначала снимите один из выбранных.',
+        true
+      );
+
+      return;
+    }
+
+    rollBuilderSelectedKeys.push(
+      componentKey
+    );
+
+    syncRollSelectsFromBuilder();
+    syncRollBuilderControls();
+  }
+
+  function syncRollSelectsFromBuilder() {
+    if (
+      rollBuilderSelectedKeys.length !== 2
+    ) {
+      return;
+    }
+
+    const firstSelect =
+      document.getElementById(
+        'rollFirstComponent'
+      );
+
+    const secondSelect =
+      document.getElementById(
+        'rollSecondComponent'
+      );
+
+    if (firstSelect) {
+      firstSelect.value =
+        rollBuilderSelectedKeys[0];
+    }
+
+    if (secondSelect) {
+      secondSelect.value =
+        rollBuilderSelectedKeys[1];
+    }
+  }
+
+  function updateRollBuilderSelectionStatus(
+    customMessage,
+    isError
+  ) {
+    const status =
+      document.getElementById(
+        'rollBuilderSelectionStatus'
+      );
+
+    if (!status) {
+      return;
+    }
+
+    if (customMessage) {
+      status.textContent =
+        customMessage;
+
+      status.classList.toggle(
+        'error',
+        Boolean(isError)
+      );
+
+      return;
+    }
+
+    const count =
+      rollBuilderSelectedKeys.length;
+
+    status.classList.remove('error');
+
+    if (count === 0) {
+      status.textContent =
+        'Выберите два компонента.';
+    } else if (count === 1) {
+      status.textContent =
+        'Выбран один компонент. ' +
+        'Выберите ещё один.';
+    } else {
+      status.textContent =
+        'Выбрано компонентов: 2 из 2.';
+    }
+  }
+
+  function getRollComponentByKey(
+    componentKey
+  ) {
+    return getRollComponentDefinitions()
+      .find(function (item) {
+        return (
+          item.key ===
+          componentKey
+        );
+      }) || null;
+  }
+
+  function getEfficiencyComponentsForRequest() {
+    if (rollEditorMode === 'builder') {
+      if (
+        rollBuilderSelectedKeys.length !== 2
+      ) {
+        throw new Error(
+          'В конструкторе необходимо выбрать ' +
+          'ровно два компонента.'
+        );
+      }
+
+      const first =
+        getRollComponentByKey(
+          rollBuilderSelectedKeys[0]
+        );
+
+      const second =
+        getRollComponentByKey(
+          rollBuilderSelectedKeys[1]
+        );
+
+      if (!first || !second) {
+        throw new Error(
+          'Не удалось получить выбранные компоненты.'
+        );
+      }
+
+      return [
+        first,
+        second
+      ];
+    }
+
+    const first =
+      getRollComponentByKey(
+        document.getElementById(
+          'rollFirstComponent'
+        )?.value || ''
+      );
+
+    const second =
+      getRollComponentByKey(
+        document.getElementById(
+          'rollSecondComponent'
+        )?.value || ''
+      );
+
+    if (!first || !second) {
+      throw new Error(
+        'Выберите два компонента броска.'
+      );
+    }
+
+    return [
+      first,
+      second
+    ];
+  }
+
+  /* =========================
+     Режим интерфейса
+  ========================= */
+
+  function setRollEditorMode(mode) {
+    rollEditorMode =
+      mode === 'builder'
+        ? 'builder'
+        : 'select';
+
+    const selectButton =
+      document.getElementById(
+        'rollInterfaceSelectButton'
+      );
+
+    const builderButton =
+      document.getElementById(
+        'rollInterfaceBuilderButton'
+      );
+
+    if (selectButton) {
+      selectButton.classList.toggle(
+        'active',
+        rollEditorMode === 'select'
+      );
+    }
+
+    if (builderButton) {
+      builderButton.classList.toggle(
+        'active',
+        rollEditorMode === 'builder'
+      );
+    }
+
+    document
+      .querySelectorAll(
+        '.roll-select-only'
+      )
+      .forEach(function (element) {
+        element.classList.toggle(
+          'hidden',
+          rollEditorMode !== 'select'
+        );
+      });
+
+    document
+      .querySelectorAll(
+        '.roll-builder-only'
+      )
+      .forEach(function (element) {
+        element.classList.toggle(
+          'hidden',
+          rollEditorMode !== 'builder'
+        );
+      });
+
+    if (rollEditorMode === 'builder') {
+      ensureRollBuilderSelection();
+      renderRollComponentTables();
+    } else {
+      syncRollSelectsFromBuilder();
+    }
+
+    syncRollBuilderControls();
+    toggleRollControlFields();
+  }
+
+  function selectRollScene(sceneKey) {
+    const select =
+      document.getElementById(
+        'rollSceneDice'
+      );
+
+    if (!select) {
+      return;
+    }
+
+    select.value = sceneKey;
+    syncRollBuilderControls();
+  }
+
+  function selectRollControlMethod(
+    methodKey
+  ) {
+    const select =
+      document.getElementById(
+        'rollControlMethod'
+      );
+
+    if (!select) {
+      return;
+    }
+
+    select.value = methodKey;
+    syncRollBuilderControls();
+  }
+
+  function selectRandomRollSides(
+    sides
+  ) {
+    const select =
+      document.getElementById(
+        'randomRollSides'
+      );
+
+    if (!select) {
+      return;
+    }
+
+    select.value = String(sides);
+    syncRollBuilderControls();
+  }
+
+  function syncRollBuilderControls() {
+    const sceneValue =
+      document.getElementById(
+        'rollSceneDice'
+      )?.value || 'normal';
+
+    const controlMethod =
+      document.getElementById(
+        'rollControlMethod'
+      )?.value || 'fixed1';
+
+    const randomSides =
+      document.getElementById(
+        'randomRollSides'
+      )?.value || '6';
+
+    document
+      .querySelectorAll(
+        '#rollSceneButtons ' +
+        '[data-scene-key]'
+      )
+      .forEach(function (button) {
+        const selected =
+          button.dataset.sceneKey ===
+          sceneValue;
+
+        button.classList.toggle(
+          'selected',
+          selected
+        );
+
+        button.setAttribute(
+          'aria-pressed',
+          selected ? 'true' : 'false'
+        );
+      });
+
+    document
+      .querySelectorAll(
+        '.roll-component-square'
+      )
+      .forEach(function (button) {
+        const index =
+          rollBuilderSelectedKeys.indexOf(
+            button.dataset.componentKey
+          );
+
+        const selected =
+          index !== -1;
+
+        button.classList.toggle(
+          'selected',
+          selected
+        );
+
+        button.setAttribute(
+          'aria-pressed',
+          selected ? 'true' : 'false'
+        );
+
+        if (selected) {
+          button.dataset.selectionOrder =
+            String(index + 1);
+        } else {
+          delete button.dataset.selectionOrder;
+        }
+      });
+
+    document
+      .querySelectorAll(
+        '#rollControlMethodButtons ' +
+        '[data-control-method]'
+      )
+      .forEach(function (button) {
+        const selected =
+          button.dataset.controlMethod ===
+          controlMethod;
+
+        button.classList.toggle(
+          'selected',
+          selected
+        );
+
+        button.setAttribute(
+          'aria-pressed',
+          selected ? 'true' : 'false'
+        );
+      });
+
+    document
+      .querySelectorAll(
+        '#randomRollSideButtons ' +
+        '[data-random-sides]'
+      )
+      .forEach(function (button) {
+        const selected =
+          button.dataset.randomSides ===
+          randomSides;
+
+        button.classList.toggle(
+          'selected',
+          selected
+        );
+
+        button.setAttribute(
+          'aria-pressed',
+          selected ? 'true' : 'false'
+        );
+      });
+
+    updateRollBuilderSelectionStatus();
+  }
+
+  function toggleRollControlFields() {
+    const enabled =
+      Boolean(
+        document.getElementById(
+          'rollControlEnabled'
+        )?.checked
+      );
+
+    const fields =
+      document.getElementById(
+        'rollControlFields'
+      );
+
+    if (fields) {
+      fields.classList.toggle(
+        'hidden',
+        !enabled
+      );
+    }
+
+    if (enabled) {
+      document
+        .querySelectorAll(
+          '#rollControlFields ' +
+          '.roll-select-only'
+        )
+        .forEach(function (element) {
+          element.classList.toggle(
+            'hidden',
+            rollEditorMode !== 'select'
+          );
+        });
+
+      document
+        .querySelectorAll(
+          '#rollControlFields ' +
+          '.roll-builder-only'
+        )
+        .forEach(function (element) {
+          element.classList.toggle(
+            'hidden',
+            rollEditorMode !== 'builder'
+          );
+        });
+    }
+  }
+
+  /* =========================
+     Бросок Эффективности
+  ========================= */
+
+  function setRollStatus(
+    elementId,
+    message,
+    isError
+  ) {
+    const status =
+      document.getElementById(
+        elementId
+      );
+
+    if (!status) {
+      return;
+    }
+
+    status.textContent =
+      message || '';
+
+    status.className = isError
+      ? 'save-status error'
+      : 'save-status success';
+  }
+
+  function rollEfficiencyNow() {
+    let components;
+
+    try {
+      components =
+        getEfficiencyComponentsForRequest();
+    } catch (error) {
+      setRollStatus(
+        'efficiencyRollStatus',
+        error.message,
+        true
+      );
+
+      return;
+    }
+
+    const context =
+      getRollCharacterContext();
+
+    const controlEnabled =
+      Boolean(
+        document.getElementById(
+          'rollControlEnabled'
+        )?.checked
+      );
+
+    const request = {
+      title:
+        document.getElementById(
+          'rollTitle'
+        )?.value.trim() || '',
+
+      sceneKey:
+        document.getElementById(
+          'rollSceneDice'
+        )?.value || 'normal',
+
+      firstComponent:
+        components[0],
+
+      secondComponent:
+        components[1],
+
+      characterId:
+        context.characterId,
+
+      characterName:
+        context.characterName,
+
+      className:
+        context.className,
+
+      control: {
+        enabled:
+          controlEnabled,
+
+        methodKey:
+          document.getElementById(
+            'rollControlMethod'
+          )?.value || 'fixed1',
+
+        flatBonus:
+          rollNumber(
+            document.getElementById(
+              'rollControlFlatBonus'
+            )?.value,
+            0
+          ),
+
+        difficulty:
+          rollNumber(
+            document.getElementById(
+              'rollControlDifficulty'
+            )?.value,
+            12
+          )
+      }
+    };
+
+    latestEfficiencyRoll = null;
+
+    setRollStatus(
+      'efficiencyRollStatus',
+      'Бросаю кубы...',
+      false
+    );
+
+    google.script.run
+      .withSuccessHandler(
+        function (result) {
+          latestEfficiencyRoll =
+            result;
+
+          setRollStatus(
+            'efficiencyRollStatus',
+            'Бросок выполнен. ' +
+            'Теперь можно применить замену на 4.',
+            false
+          );
+
+          renderEfficiencyRollResult(
+            result
+          );
+
+          refreshRollLog(true);
+        }
+      )
+      .withFailureHandler(
+        function (error) {
+          setRollStatus(
+            'efficiencyRollStatus',
+            error.message ||
+              'Ошибка броска.',
+            true
+          );
+        }
+      )
+      .mitriniumRollEfficiency(
+        request
+      );
+  }
+
+  function applyOptimalFourAfterRoll() {
+    if (!latestEfficiencyRoll) {
+      setRollStatus(
+        'efficiencyRollStatus',
+        'Сначала выполните бросок.',
+        true
+      );
+
+      return;
+    }
+
+    setRollStatus(
+      'efficiencyRollStatus',
+      'Подбираю оптимальную замену...',
+      false
+    );
+
+    google.script.run
+      .withSuccessHandler(
+        function (result) {
+          latestEfficiencyRoll =
+            result;
+
+          setRollStatus(
+            'efficiencyRollStatus',
+            result.replacement
+              ? 'Замена применена без переброса остальных кубов.'
+              : 'Подходящего значения для замены нет.',
+            false
+          );
+
+          renderEfficiencyRollResult(
+            result
+          );
+
+          refreshRollLog(true);
+        }
+      )
+      .withFailureHandler(
+        function (error) {
+          setRollStatus(
+            'efficiencyRollStatus',
+            error.message ||
+              'Ошибка применения замены.',
+            true
+          );
+        }
+      )
+      .mitriniumApplyOptimalFour(
+        latestEfficiencyRoll
+      );
+  }
+
+  /* =========================
+     Случайный бросок
+  ========================= */
+
+  function rollRandomNow() {
+    const context =
+      getRollCharacterContext();
+
+    const request = {
+      title:
+        document.getElementById(
+          'randomRollTitle'
+        )?.value.trim() || '',
+
+      count:
+        rollNumber(
+          document.getElementById(
+            'randomRollCount'
+          )?.value,
+          1
+        ),
+
+      sides:
+        rollNumber(
+          document.getElementById(
+            'randomRollSides'
+          )?.value,
+          6
+        ),
+
+      modifier:
+        rollNumber(
+          document.getElementById(
+            'randomRollModifier'
+          )?.value,
+          0
+        ),
+
+      characterId:
+        context.characterId,
+
+      characterName:
+        context.characterName,
+
+      className:
+        context.className
+    };
+
+    setRollStatus(
+      'randomRollStatus',
+      'Бросаю кубы...',
+      false
+    );
+
+    google.script.run
+      .withSuccessHandler(
+        function (result) {
+          setRollStatus(
+            'randomRollStatus',
+            'Бросок выполнен.',
+            false
+          );
+
+          renderRandomRollResult(
+            result
+          );
+
+          refreshRollLog(true);
+        }
+      )
+      .withFailureHandler(
+        function (error) {
+          setRollStatus(
+            'randomRollStatus',
+            error.message ||
+              'Ошибка броска.',
+            true
+          );
+        }
+      )
+      .mitriniumRollRandom(
+        request
+      );
+  }
+
+  /* =========================
+     Вывод результатов
+  ========================= */
+
+  function renderRollDice(dice) {
+    if (
+      !Array.isArray(dice) ||
+      dice.length === 0
+    ) {
+      return `
+        <span class="empty-note">
+          Кубов нет.
+        </span>
+      `;
+    }
+
+    return dice
+      .map(function (die) {
+        const replaced =
+          die.originalValue !==
+          undefined;
+
+        const details =
+          replaced
+            ? `
+              <small>
+                ${rollEscapeHtml(
+                  die.originalValue
+                )}
+                → 4
+              </small>
+            `
+            : `
+              <small>
+                ${rollEscapeHtml(
+                  die.source ||
+                  (
+                    'd' +
+                    die.sides
+                  )
+                )}
+              </small>
+            `;
+
+        return `
+          <span
+            class="roll-die${
+              replaced
+                ? ' replaced'
+                : ''
+            }"
+          >
+            <strong>
+              ${rollEscapeHtml(
+                die.value
+              )}
+            </strong>
+
+            ${details}
+          </span>
+        `;
+      })
+      .join('');
+  }
+
+  function renderRollSummaryItem(
+    label,
+    value
+  ) {
+    return `
+      <div class="roll-summary-item">
+        <span>
+          ${rollEscapeHtml(label)}
+        </span>
+
+        <strong>
+          ${rollEscapeHtml(value)}
+        </strong>
+      </div>
+    `;
+  }
+
+  function renderEfficiencyRollResult(
+    result
+  ) {
+    const container =
+      document.getElementById(
+        'efficiencyRollResult'
+      );
+
+    if (!container || !result) {
+      return;
+    }
+
+    const replacement =
+      result.replacement
+        ? `
+          <p class="roll-replacement-note">
+            <strong>Замена на 4:</strong>
+
+            ${rollEscapeHtml(
+              result.replacement.source
+            )},
+
+            ${rollEscapeHtml(
+              result.replacement.from
+            )}
+            → 4.
+          </p>
+        `
+        : '';
+
+    const replacementAction =
+      result.replacement
+        ? `
+          <div class="roll-result-action-note">
+            Оптимальная замена уже применена.
+          </div>
+        `
+        : `
+          <div class="roll-result-actions">
+            <button
+              type="button"
+              class="secondary-button roll-four-button"
+              onclick="applyOptimalFourAfterRoll()"
+            >
+              Оптимально заменить одно значение на 4
+            </button>
+
+            <p class="helper-note">
+              Остальные выпавшие значения
+              не перебрасываются.
+            </p>
+          </div>
+        `;
+
+    const control =
+      result.control
+        ? renderControlResult(
+            result.control,
+            result.efBonusFromControl
+          )
+        : '';
+
+    container.className =
+      'roll-result';
+
+    container.innerHTML = `
+      <div class="roll-result-heading">
+        <div>
+          <strong>
+            ${rollEscapeHtml(
+              result.title
+            )}
+          </strong>
+
+          <div class="roll-status-line">
+            ${rollEscapeHtml(
+              result.components[0].label
+            )}
+            +
+            ${rollEscapeHtml(
+              result.components[1].label
+            )}
+          </div>
+        </div>
+
+        <div class="roll-result-number">
+          ЭФ
+          ${rollEscapeHtml(
+            result.finalEf
+          )}
+        </div>
+      </div>
+
+      <div class="roll-dice">
+        ${renderRollDice(
+          result.dice
+        )}
+      </div>
+
+      ${replacement}
+
+      <div class="roll-summary-grid">
+        ${renderRollSummaryItem(
+          'Итог',
+          result.outcome
+        )}
+
+        ${renderRollSummaryItem(
+          'Осложнение',
+          result.complication
+        )}
+
+        ${renderRollSummaryItem(
+          'Прорыв',
+          result.breakthrough
+        )}
+
+        ${renderRollSummaryItem(
+          'Формула ЭФ',
+          result.topValues.join(' + ') +
+          ' − ' +
+          result.bottomValues.join(' + ')
+        )}
+      </div>
+
+      ${control}
+      ${replacementAction}
+    `;
+  }
+
+  function renderRandomRollResult(
+    result
+  ) {
+    const container =
+      document.getElementById(
+        'randomRollResult'
+      );
+
+    if (!container || !result) {
+      return;
+    }
+
+    const modifierText =
+      result.modifier >= 0
+        ? '+' + result.modifier
+        : String(result.modifier);
+
+    container.className =
+      'roll-result';
+
+    container.innerHTML = `
+      <div class="roll-result-heading">
+        <div>
+          <strong>
+            ${rollEscapeHtml(
+              result.title
+            )}
+          </strong>
+
+          <div class="roll-status-line">
+            ${rollEscapeHtml(
+              result.count
+            )}d${rollEscapeHtml(
+              result.sides
+            )}
+
+            ${rollEscapeHtml(
+              modifierText
+            )}
+          </div>
+        </div>
+
+        <div class="roll-result-number">
+          ${rollEscapeHtml(
+            result.total
+          )}
+        </div>
+      </div>
+
+      <div class="roll-dice">
+        ${renderRollDice(
+          result.dice
+        )}
+      </div>
+
+      <div class="roll-summary-grid">
+        ${renderRollSummaryItem(
+          'Сумма кубов',
+          result.diceSum
+        )}
+
+        ${renderRollSummaryItem(
+          'Модификатор',
+          modifierText
+        )}
+      </div>
+    `;
+  }
+
+  function renderControlResult(
+    control,
+    efBonus
+  ) {
+    const methodText =
+      control.methodSides
+        ? (
+          'd' +
+          control.methodSides +
+          ': ' +
+          control.methodValue
+        )
+        : 'фиксированный +1';
+
+    let naturalText = '';
+
+    if (control.natural20) {
+      naturalText =
+        'Натуральная 20: ' +
+        'идеальный Контроль и +1 ЭФ.';
+    } else if (control.natural1) {
+      naturalText =
+        'Натуральная 1: ' +
+        'возможна потеря прочности.';
+    }
+
+    return `
+      <div class="roll-control-result">
+        <strong>
+          Контроль:
+          ${rollEscapeHtml(
+            control.total
+          )}
+          против
+          ${rollEscapeHtml(
+            control.difficulty
+          )}
+          —
+          ${
+            control.success
+              ? 'успех'
+              : 'провал'
+          }.
+        </strong>
+
+        <div class="roll-status-line">
+          d20:
+          ${rollEscapeHtml(
+            control.d20
+          )};
+
+          Методика:
+          ${rollEscapeHtml(
+            methodText
+          )};
+
+          бонус:
+          ${rollEscapeHtml(
+            control.flatBonus
+          )}.
+
+          ${rollEscapeHtml(
+            naturalText
+          )}
+
+          ${
+            efBonus
+              ? (
+                'Бонус к ЭФ: +' +
+                rollEscapeHtml(
+                  efBonus
+                ) +
+                '.'
+              )
+              : ''
+          }
+        </div>
+      </div>
+    `;
+  }
+
+  /* =========================
+     Лог
+  ========================= */
+
+  function refreshRollLog(silent) {
+    const list =
+      document.getElementById(
+        'rollLogList'
+      );
+
+    if (!list) {
+      return;
+    }
+
+    if (!silent) {
+      setRollStatus(
+        'rollLogStatus',
+        'Загружаю лог...',
+        false
+      );
+    }
+
+    google.script.run
+      .withSuccessHandler(
+        function (result) {
+          rollLogIsAdmin =
+            Boolean(
+              result &&
+              result.isAdmin
+            );
+
+          renderRollLog(
+            result &&
+            result.entries
+              ? result.entries
+              : []
+          );
+
+          updateClearRollLogButton();
+
+          setRollStatus(
+            'rollLogStatus',
+            '',
+            false
+          );
+        }
+      )
+      .withFailureHandler(
+        function (error) {
+          setRollStatus(
+            'rollLogStatus',
+            error.message ||
+              'Ошибка загрузки лога.',
+            true
+          );
+        }
+      )
+      .mitriniumGetRollLog(100);
+  }
+
+  function renderRollLog(entries) {
+  const list =
+    document.getElementById(
+      'rollLogList'
+    );
+
+  if (!list) {
+    return;
+  }
+
+  if (
+    !Array.isArray(entries) ||
+    entries.length === 0
+  ) {
+    list.innerHTML = `
+      <p class="empty-note">
+        Лог бросков пуст.
+      </p>
+    `;
+
+    return;
+  }
+
+  list.innerHTML =
+    entries
+      .map(function (entry) {
+        const icon =
+          entry.classIcon
+            ? `
+              <span
+                class="class-icon-inline"
+                aria-hidden="true"
+              >
+                ${rollEscapeHtml(
+                  entry.classIcon
+                )}
+              </span>
+            `
+            : '';
+
+        const resultText =
+          entry.type ===
+          'efficiency'
+            ? (
+                'ЭФ ' +
+                rollEscapeHtml(
+                  entry.ef
+                )
+              )
+            : (
+                'Итог ' +
+                rollEscapeHtml(
+                  entry.finalResult
+                )
+              );
+
+        const controlHtml =
+          entry.type ===
+            'efficiency' &&
+          entry.control
+            ? renderControlResult(
+                entry.control,
+                entry.control.natural20
+                  ? 1
+                  : 0
+              )
+            : '';
+
+        return `
+          <article class="roll-log-entry">
+            <div class="roll-log-entry-heading">
+              <div class="roll-log-entry-title">
+                ${icon}
+
+                ${rollEscapeHtml(
+                  entry.characterName ||
+                  'Без имени'
+                )}
+              </div>
+
+              <time class="roll-log-entry-time">
+                ${rollEscapeHtml(
+                  formatRollLogTime(
+                    entry.timestamp
+                  )
+                )}
+              </time>
+            </div>
+
+            <div class="roll-log-entry-meta">
+              ${rollEscapeHtml(
+                entry.title ||
+                'Бросок'
+              )}
+
+              · <strong>
+                ${resultText}
+              </strong>
+            </div>
+
+            <div class="roll-dice">
+              ${renderRollDice(
+                entry.dice || []
+              )}
+            </div>
+
+            ${controlHtml}
+          </article>
+        `;
+      })
+      .join('');
+}
+
+  function formatRollLogTime(value) {
+    const date =
+      new Date(value);
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return String(value || '');
+    }
+
+    return date.toLocaleString(
+      'ru-RU',
+      {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }
+    );
+  }
+
+  function updateClearRollLogButton() {
+    const button =
+      document.getElementById(
+        'clearRollLogButton'
+      );
+
+    if (button) {
+      button.classList.toggle(
+        'hidden',
+        !rollLogIsAdmin
+      );
+    }
+  }
+
+  function clearRollLogFromApp() {
+    if (!rollLogIsAdmin) {
+      return;
+    }
+
+    setRollStatus(
+      'rollLogStatus',
+      'Очищаю лог...',
+      false
+    );
+
+    google.script.run
+      .withSuccessHandler(
+        function () {
+          setRollStatus(
+            'rollLogStatus',
+            'Лог очищен.',
+            false
+          );
+
+          refreshRollLog(true);
+        }
+      )
+      .withFailureHandler(
+        function (error) {
+          setRollStatus(
+            'rollLogStatus',
+            error.message ||
+              'Ошибка очистки лога.',
+            true
+          );
+        }
+      )
+      .mitriniumClearRollLog();
+  }
+
+  function startRollLogPolling() {
+    if (rollLogTimer) {
+      return;
+    }
+
+    rollLogTimer =
+      window.setInterval(
+        function () {
+          if (
+            typeof appMode !==
+            'undefined' &&
+            appMode === 'rolls'
+          ) {
+            refreshRollLog(true);
+          }
+        },
+        12000
+      );
+  }
+
+  /* =========================
+     Скрытие без browser confirm
+  ========================= */
+
+  function hideCharacterWithoutNativeDialog(
+    characterId
+  ) {
+    if (!characterId) {
+      return;
+    }
+
+    if (
+      typeof setLoadStatus ===
+      'function'
+    ) {
+      setLoadStatus(
+        'Скрываю персонажа...',
+        false
+      );
+    }
+
+    google.script.run
+      .withSuccessHandler(
+        function () {
+          if (
+            typeof loadSavedCharactersList ===
+            'function'
+          ) {
+            loadSavedCharactersList();
+          }
+        }
+      )
+      .withFailureHandler(
+        function (error) {
+          if (
+            typeof setLoadStatus ===
+            'function'
+          ) {
+            setLoadStatus(
+              error.message ||
+                'Ошибка скрытия персонажа.',
+              true
+            );
+          }
+        }
+      )
+      .mitriniumHideCharacter(
+        characterId
+      );
+  }
+
+  // Перекрываем обе версии старого имени функции.
+  window.hideCharacterFromOwnerList =
+    hideCharacterWithoutNativeDialog;
+
+  window.hideCharacterFromList =
+    hideCharacterWithoutNativeDialog;
+
+  /* =========================
+     Запуск
+  ========================= */
+
+  document.addEventListener(
+    'DOMContentLoaded',
+    function () {
+      renderRollComponentOptions();
+      toggleRollControlFields();
+      setRollEditorMode('select');
+      startRollLogPolling();
+    }
+  );
+</script>

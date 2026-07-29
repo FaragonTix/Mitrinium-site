@@ -1,0 +1,1121 @@
+<script>
+  let viewerState = null;
+  let viewerStateCharacterId = null;
+  let viewerStateDirty = false;
+
+  /* =========================
+     Утилиты
+  ========================= */
+
+  function NumberOrDefault(value, fallback = 0) {
+    if (value === null || value === undefined || value === '') {
+      return Number(fallback) || 0;
+    }
+
+    const number = Number(value);
+
+    return Number.isFinite(number)
+      ? number
+      : Number(fallback) || 0;
+  }
+
+  function clampViewerNumber(value, minimum, maximum) {
+    const number = NumberOrDefault(value, minimum);
+
+    if (number < minimum) return minimum;
+    if (number > maximum) return maximum;
+
+    return number;
+  }
+
+  function escapeViewerHtml(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function getViewerCharacter() {
+    if (typeof collectCharacterForSave !== 'function') {
+      return null;
+    }
+
+    const character = collectCharacterForSave();
+
+    character.id = currentCharacterId || character.id || null;
+    character.state = viewerState || character.state || {};
+
+    return character;
+  }
+
+  /* =========================
+     Состояние персонажа
+  ========================= */
+
+  function normalizeViewerState(character) {
+    character = character || {};
+
+    const resources = character.resources || {};
+    const savedState = character.state || {};
+    const savedMoney = savedState.money || {};
+
+    const maxBody = Math.max(
+      0,
+      NumberOrDefault(resources.body, 0)
+    );
+
+    const maxMainNerve = Math.max(
+      0,
+      NumberOrDefault(resources.mainNerve, 0)
+    );
+
+    const maxBonusNerve = Math.max(
+      0,
+      NumberOrDefault(resources.bonusNerve, 0)
+    );
+
+    const maxArmor = Math.max(
+      0,
+      NumberOrDefault(savedState.maxArmor, 0)
+    );
+
+    return {
+      currentBody: clampViewerNumber(
+        savedState.currentBody,
+        0,
+        maxBody
+      ),
+
+      currentArmor: clampViewerNumber(
+        savedState.currentArmor,
+        0,
+        maxArmor
+      ),
+
+      maxArmor,
+
+      currentMainNerve: clampViewerNumber(
+        savedState.currentMainNerve,
+        0,
+        maxMainNerve
+      ),
+
+      currentBonusNerve: clampViewerNumber(
+        savedState.currentBonusNerve,
+        0,
+        maxBonusNerve
+      ),
+
+      money: {
+        gold: Math.max(
+          0,
+          NumberOrDefault(savedMoney.gold, 0)
+        ),
+
+        farthings: Math.max(
+          0,
+          NumberOrDefault(savedMoney.farthings, 0)
+        ),
+
+        pekkels: Math.max(
+          0,
+          NumberOrDefault(savedMoney.pekkels, 0)
+        )
+      },
+
+      notes: String(savedState.notes || '')
+    };
+  }
+
+  function setViewerStateFromCharacter(character) {
+    character = character || {};
+
+    viewerStateCharacterId =
+      character.id ||
+      currentCharacterId ||
+      null;
+
+    viewerState = normalizeViewerState(character);
+    viewerStateDirty = false;
+
+    renderCharacterViewer();
+  }
+
+  function ensureViewerState(character) {
+    const characterId =
+      character?.id ||
+      currentCharacterId ||
+      null;
+
+    if (
+      !viewerState ||
+      viewerStateCharacterId !== characterId
+    ) {
+      viewerStateCharacterId = characterId;
+      viewerState = normalizeViewerState(character || {});
+      viewerStateDirty = false;
+    }
+
+    return viewerState;
+  }
+
+  /* =========================
+     Главный просмотрщик
+  ========================= */
+
+  function renderCharacterViewer() {
+    const container = document.getElementById('viewerContent');
+
+    if (!container) return;
+
+    const character = getViewerCharacter();
+
+    if (!character) {
+      container.innerHTML = `
+        <p class="empty-note">
+          Не удалось получить данные персонажа.
+        </p>
+      `;
+
+      return;
+    }
+
+    ensureViewerState(character);
+
+    const resources = character.resources || {};
+    const characterName = character.name || 'Без имени';
+    const className = character.className || 'Класс не выбран';
+    const classIcon = typeof getClassIcon === 'function' ? getClassIcon(className) : '';
+    const playerName = character.player || '';
+    const concept = character.concept || '';
+
+    container.innerHTML = `
+      <section class="viewer-hero">
+        <div>
+          <h2>${escapeViewerHtml(characterName)}</h2>
+
+          <p>
+            ${classIcon ? `<span class="class-icon-inline">${escapeViewerHtml(classIcon)}</span>` : ''}
+            ${escapeViewerHtml(className)}
+            ${
+              playerName
+                ? ` · игрок: ${escapeViewerHtml(playerName)}`
+                : ''
+            }
+          </p>
+        </div>
+
+        <div class="saved-character-actions">
+          <button type="button" class="equipment-button print-character-button" onclick="printCharacterSheet()">Печать листа</button>
+          <button type="button" class="equipment-button" onclick="setAppMode('edit')">К редактору</button>
+        </div>
+      </section>
+
+      ${
+        concept
+          ? `
+            <section class="viewer-card">
+              <h3>Концепт</h3>
+              <p>${escapeViewerHtml(concept)}</p>
+            </section>
+          `
+          : ''
+      }
+
+      <section class="viewer-card">
+        <h3>Биографические черты</h3>
+        ${renderViewerBiography(character.biography || {})}
+      </section>
+
+      <section class="viewer-card">
+        <h3>Состояние</h3>
+
+        <div class="viewer-state-grid">
+          ${renderStateCounter(
+            'Тело',
+            'currentBody',
+            viewerState.currentBody,
+            NumberOrDefault(resources.body, 0)
+          )}
+
+          ${renderArmorCounter()}
+
+          ${renderStateCounter(
+            'Основной Нерв',
+            'currentMainNerve',
+            viewerState.currentMainNerve,
+            NumberOrDefault(resources.mainNerve, 0)
+          )}
+
+          ${renderStateCounter(
+            'Бонусный Нерв',
+            'currentBonusNerve',
+            viewerState.currentBonusNerve,
+            NumberOrDefault(resources.bonusNerve, 0)
+          )}
+        </div>
+      </section>
+
+      <section class="viewer-card">
+        <h3>Атрибуты</h3>
+        ${renderViewerAttributes(character.attributes || {})}
+      </section>
+
+      <section class="viewer-card">
+        <h3>Навыки</h3>
+        ${renderViewerSkills(character.skills || {})}
+      </section>
+
+      <section class="viewer-card">
+        <h3>Способности</h3>
+        ${renderViewerAbilities(character.abilities || [])}
+      </section>
+
+      <section class="viewer-card">
+        <h3>Снаряжение</h3>
+
+        <div class="viewer-maintenance-summary">
+          Обслуживание:
+          ${NumberOrDefault(
+            character.equipmentMaintenance,
+            getViewerEquipmentMaintenanceTotal(
+              character.equipment || []
+            )
+          )} ф
+        </div>
+
+        ${renderViewerEquipment(character.equipment || [])}
+      </section>
+
+      <section class="viewer-card">
+        <h3>Деньги</h3>
+
+        <div class="viewer-money-grid">
+          ${renderMoneyCounter(
+            'Золото',
+            'gold',
+            viewerState.money.gold
+          )}
+
+          ${renderMoneyCounter(
+            'Фаранты',
+            'farthings',
+            viewerState.money.farthings
+          )}
+
+          ${renderMoneyCounter(
+            'Пеккели',
+            'pekkels',
+            viewerState.money.pekkels
+          )}
+        </div>
+      </section>
+
+      <section class="viewer-card">
+        <h3>Заметки</h3>
+
+        <textarea
+          id="viewerNotes"
+          class="viewer-notes"
+          placeholder="Состояния, эффекты, события и другие заметки"
+          oninput="setViewerNotes(this.value)"
+        >${escapeViewerHtml(viewerState.notes)}</textarea>
+      </section>
+
+      <section class="viewer-card">
+        <div class="action-row">
+          <button
+            type="button"
+            class="primary-button"
+            onclick="saveViewerState()"
+          >
+            Сохранить состояние
+          </button>
+        </div>
+
+        <div
+          id="viewerSaveStatus"
+          class="save-status"
+          aria-live="polite"
+        ></div>
+      </section>
+    `;
+
+    updateViewerSaveStatus();
+  }
+
+  /* =========================
+     Тело и Нерв
+  ========================= */
+
+  function renderStateCounter(
+    label,
+    key,
+    currentValue,
+    maxValue
+  ) {
+    const safeMaximum = Math.max(
+      0,
+      NumberOrDefault(maxValue, 0)
+    );
+
+    const safeCurrent = clampViewerNumber(
+      currentValue,
+      0,
+      safeMaximum
+    );
+
+    return `
+      <div class="viewer-state-counter">
+        <div class="viewer-state-label">
+          ${escapeViewerHtml(label)}
+        </div>
+
+        <div class="viewer-state-value">
+          <button
+            type="button"
+            onclick="changeViewerStateValue('${key}', -5)"
+          >
+            −5
+          </button>
+
+          <button
+            type="button"
+            onclick="changeViewerStateValue('${key}', -1)"
+          >
+            −
+          </button>
+
+          <input
+            id="viewer-state-${key}"
+            type="number"
+            min="0"
+            max="${safeMaximum}"
+            value="${safeCurrent}"
+            onchange="setViewerStateValue('${key}', this.value)"
+          >
+
+          <span>/ ${safeMaximum}</span>
+
+          <button
+            type="button"
+            onclick="changeViewerStateValue('${key}', 1)"
+          >
+            +
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  function getViewerStateMaximum(key, character) {
+    const resources = character?.resources || {};
+
+    const maximums = {
+      currentBody: NumberOrDefault(
+        resources.body,
+        0
+      ),
+
+      currentMainNerve: NumberOrDefault(
+        resources.mainNerve,
+        0
+      ),
+
+      currentBonusNerve: NumberOrDefault(
+        resources.bonusNerve,
+        0
+      )
+    };
+
+    return Math.max(
+      0,
+      NumberOrDefault(maximums[key], 0)
+    );
+  }
+
+  function setViewerStateValue(key, value) {
+    const character = getViewerCharacter();
+
+    if (!viewerState || !character) return;
+
+    const maximum = getViewerStateMaximum(
+      key,
+      character
+    );
+
+    viewerState[key] = clampViewerNumber(
+      value,
+      0,
+      maximum
+    );
+
+    updateViewerStateInput(key, maximum);
+    markViewerStateUnsaved();
+  }
+
+  function changeViewerStateValue(key, delta) {
+    if (!viewerState) return;
+
+    setViewerStateValue(
+      key,
+      NumberOrDefault(viewerState[key], 0) +
+        NumberOrDefault(delta, 0)
+    );
+  }
+
+  function updateViewerStateInput(key, maximum) {
+    const input = document.getElementById(
+      `viewer-state-${key}`
+    );
+
+    if (!input) return;
+
+    input.value = viewerState[key];
+    input.max = maximum;
+  }
+
+  /* =========================
+     Броня
+  ========================= */
+
+  function renderArmorCounter() {
+    return `
+      <div class="viewer-state-counter">
+        <div class="viewer-state-label">Броня</div>
+
+        <div class="viewer-armor-values">
+          <label>
+            <span>Текущая</span>
+
+            <input
+              id="viewer-state-currentArmor"
+              type="number"
+              min="0"
+              value="${viewerState.currentArmor}"
+              onchange="setViewerArmorCurrent(this.value)"
+            >
+          </label>
+
+          <span class="viewer-armor-divider">/</span>
+
+          <label>
+            <span>Максимальная</span>
+
+            <input
+              id="viewer-state-maxArmor"
+              type="number"
+              min="0"
+              value="${viewerState.maxArmor}"
+              onchange="setViewerArmorMaximum(this.value)"
+            >
+          </label>
+        </div>
+
+        <div class="viewer-armor-buttons">
+          <button
+            type="button"
+            onclick="changeViewerArmor(-1)"
+          >
+            −
+          </button>
+
+          <button
+            type="button"
+            onclick="changeViewerArmor(1)"
+          >
+            +
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  function setViewerArmorMaximum(value) {
+    if (!viewerState) return;
+
+    viewerState.maxArmor = Math.max(
+      0,
+      NumberOrDefault(value, 0)
+    );
+
+    if (
+      viewerState.currentArmor >
+      viewerState.maxArmor
+    ) {
+      viewerState.currentArmor =
+        viewerState.maxArmor;
+    }
+
+    updateViewerArmorInputs();
+    markViewerStateUnsaved();
+  }
+
+  function setViewerArmorCurrent(value) {
+    if (!viewerState) return;
+
+    viewerState.currentArmor = clampViewerNumber(
+      value,
+      0,
+      viewerState.maxArmor
+    );
+
+    updateViewerArmorInputs();
+    markViewerStateUnsaved();
+  }
+
+  function changeViewerArmor(delta) {
+    if (!viewerState) return;
+
+    setViewerArmorCurrent(
+      NumberOrDefault(
+        viewerState.currentArmor,
+        0
+      ) + NumberOrDefault(delta, 0)
+    );
+  }
+
+  function updateViewerArmorInputs() {
+    const currentInput = document.getElementById(
+      'viewer-state-currentArmor'
+    );
+
+    const maxInput = document.getElementById(
+      'viewer-state-maxArmor'
+    );
+
+    if (currentInput) {
+      currentInput.value =
+        viewerState.currentArmor;
+
+      currentInput.max =
+        viewerState.maxArmor;
+    }
+
+    if (maxInput) {
+      maxInput.value =
+        viewerState.maxArmor;
+    }
+  }
+
+  /* =========================
+     Деньги
+  ========================= */
+
+  function renderMoneyCounter(label, key, value) {
+    return `
+      <div class="viewer-money-counter">
+        <div class="viewer-state-label">
+          ${escapeViewerHtml(label)}
+        </div>
+
+        <div class="viewer-money-controls">
+          <button
+            type="button"
+            onclick="changeViewerMoney('${key}', -10)"
+          >
+            −10
+          </button>
+
+          <button
+            type="button"
+            onclick="changeViewerMoney('${key}', -1)"
+          >
+            −
+          </button>
+
+          <input
+            id="viewer-money-${key}"
+            type="number"
+            min="0"
+            value="${Math.max(
+              0,
+              NumberOrDefault(value, 0)
+            )}"
+            onchange="setViewerMoney('${key}', this.value)"
+          >
+
+          <button
+            type="button"
+            onclick="changeViewerMoney('${key}', 1)"
+          >
+            +
+          </button>
+
+          <button
+            type="button"
+            onclick="changeViewerMoney('${key}', 10)"
+          >
+            +10
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  function setViewerMoney(key, value) {
+    if (!viewerState || !viewerState.money) return;
+
+    viewerState.money[key] = Math.max(
+      0,
+      NumberOrDefault(value, 0)
+    );
+
+    updateViewerMoneyInput(key);
+    markViewerStateUnsaved();
+  }
+
+  function changeViewerMoney(key, delta) {
+    if (!viewerState || !viewerState.money) return;
+
+    setViewerMoney(
+      key,
+      NumberOrDefault(
+        viewerState.money[key],
+        0
+      ) + NumberOrDefault(delta, 0)
+    );
+  }
+
+  function updateViewerMoneyInput(key) {
+    const input = document.getElementById(
+      `viewer-money-${key}`
+    );
+
+    if (input) {
+      input.value = viewerState.money[key];
+    }
+  }
+
+  /* =========================
+     Заметки
+  ========================= */
+
+  function setViewerNotes(value) {
+    if (!viewerState) return;
+
+    viewerState.notes = String(value || '');
+    markViewerStateUnsaved();
+  }
+
+
+
+  /* =========================
+     Биографические черты
+  ========================= */
+
+  function renderViewerBiography(savedBiography) {
+    if (
+      typeof biographyData === 'undefined' ||
+      typeof normalizeBiography !== 'function' ||
+      typeof getBiographyCard !== 'function'
+    ) {
+      return `
+        <p class="empty-note">
+          Данные биографических черт не подключены.
+        </p>
+      `;
+    }
+
+    const biography = normalizeBiography(savedBiography);
+    const cards = biographyData.sections.map(function(section) {
+      const selection = biography[section.id];
+      const card = getBiographyCard(
+        section.id,
+        selection ? selection.cardId : ''
+      );
+
+      if (!card) {
+        return '';
+      }
+
+      const detail = selection && selection.detail
+        ? `
+          <div class="viewer-biography-detail">
+            ${escapeViewerHtml(selection.detail)}
+          </div>
+        `
+        : '';
+
+      const note = card.note
+        ? `
+          <p class="viewer-biography-note">
+            ${escapeViewerHtml(card.note)}
+          </p>
+        `
+        : '';
+
+      const traits = (card.traits || []).map(function(trait) {
+        return `
+          <article class="viewer-biography-trait">
+            <strong>${escapeViewerHtml(trait.name)}</strong>
+            <p>${escapeViewerHtml(trait.description)}</p>
+          </article>
+        `;
+      }).join('');
+
+      return `
+        <article class="viewer-biography-card">
+          <div class="viewer-biography-section-title">
+            ${escapeViewerHtml(section.title)}
+          </div>
+
+          <h4>${escapeViewerHtml(card.name)}</h4>
+
+          ${detail}
+
+          <p class="viewer-biography-description">
+            ${escapeViewerHtml(card.description || '')}
+          </p>
+
+          ${note}
+
+          <div class="viewer-biography-traits">
+            ${traits}
+          </div>
+        </article>
+      `;
+    }).filter(Boolean);
+
+    if (cards.length === 0) {
+      return `
+        <p class="empty-note">
+          Биографические карточки пока не выбраны.
+        </p>
+      `;
+    }
+
+    return `
+      <div class="viewer-biography-grid">
+        ${cards.join('')}
+      </div>
+    `;
+  }
+
+
+  /* =========================
+     Атрибуты
+  ========================= */
+
+  function renderViewerAttributes(savedAttributes) {
+    const items = Object.entries(attributes).map(
+      ([key, attribute]) => {
+        const value = NumberOrDefault(
+          savedAttributes[key],
+          attribute.value
+        );
+
+        return `
+          <div class="viewer-stat">
+            <span>
+              ${escapeViewerHtml(attribute.name)}
+            </span>
+
+            <strong>${value}</strong>
+          </div>
+        `;
+      }
+    );
+
+    return `
+      <div class="viewer-grid">
+        ${items.join('')}
+      </div>
+    `;
+  }
+
+  /* =========================
+     Навыки
+  ========================= */
+
+  function renderViewerSkills(savedSkills) {
+    return `
+      <div class="viewer-skills-grid">
+        ${Object.entries(skills)
+          .map(function(groupEntry) {
+            const groupKey = groupEntry[0];
+            const group = groupEntry[1];
+            const savedGroup = savedSkills[groupKey] || {};
+
+            const skillItems = Object.entries(group.items)
+              .map(function(skillEntry) {
+                const skillKey = skillEntry[0];
+                const skill = skillEntry[1];
+                const value = NumberOrDefault(
+                  savedGroup[skillKey],
+                  skill.value
+                );
+
+                return `
+                  <div class="viewer-skill-row">
+                    <span class="viewer-skill-name">
+                      ${escapeViewerHtml(skill.name)}
+                    </span>
+
+                    <span class="viewer-skill-value">
+                      ${value}
+                    </span>
+                  </div>
+                `;
+              })
+              .join('');
+
+            return `
+              <div class="viewer-skill-card">
+                <h4>${escapeViewerHtml(group.attributeName)}</h4>
+
+                <div class="viewer-skill-card-list">
+                  ${skillItems}
+                </div>
+              </div>
+            `;
+          })
+          .join('')}
+      </div>
+    `;
+  }
+
+  /* =========================
+     Способности
+  ========================= */
+
+  function renderViewerAbilities(abilityIds) {
+    if (!abilityIds || abilityIds.length === 0) {
+      return `
+        <p class="empty-note">
+          Способности не выбраны.
+        </p>
+      `;
+    }
+
+    return abilityIds
+      .map(abilityId =>
+        getAbilityById(abilityId)
+      )
+      .filter(Boolean)
+      .map(ability => `
+        <details class="viewer-ability">
+          <summary>
+            <strong>
+              ${escapeViewerHtml(ability.name)}
+            </strong>
+
+            <span>
+              ${escapeViewerHtml(
+                getAbilityShortMeta(ability)
+              )}
+            </span>
+          </summary>
+
+          ${
+            ability.pool
+              ? `
+                <p>
+                  <strong>Пул:</strong>
+                  ${escapeViewerHtml(ability.pool)}
+                </p>
+              `
+              : ''
+          }
+
+          ${
+            ability.effect
+              ? `
+                <p>
+                  <strong>Эффект:</strong>
+                  ${escapeViewerHtml(ability.effect)}
+                </p>
+              `
+              : ''
+          }
+
+          ${
+            ability.breakthrough
+              ? `
+                <p>
+                  <strong>Прорыв:</strong>
+                  ${escapeViewerHtml(
+                    ability.breakthrough
+                  )}
+                </p>
+              `
+              : ''
+          }
+
+          ${
+            ability.complications
+              ? `
+                <p>
+                  <strong>Осложнения:</strong>
+                  ${escapeViewerHtml(
+                    ability.complications
+                  )}
+                </p>
+              `
+              : ''
+          }
+        </details>
+      `)
+      .join('');
+  }
+
+  /* =========================
+     Снаряжение
+  ========================= */
+
+  function getViewerEquipmentMaintenanceTotal(
+    equipmentIds
+  ) {
+    return (equipmentIds || []).reduce(
+      (sum, equipmentId) => {
+        const item = getEquipmentById(
+          equipmentId
+        );
+
+        return sum + (
+          item
+            ? NumberOrDefault(
+                item.maintenance,
+                0
+              )
+            : 0
+        );
+      },
+      0
+    );
+  }
+
+  function renderViewerEquipment(equipmentIds) {
+    if (
+      !equipmentIds ||
+      equipmentIds.length === 0
+    ) {
+      return `
+        <p class="empty-note">
+          Снаряжение не выбрано.
+        </p>
+      `;
+    }
+
+    return equipmentIds
+      .map(equipmentId =>
+        getEquipmentById(equipmentId)
+      )
+      .filter(Boolean)
+      .map(item => `
+        <div class="viewer-equipment-item">
+          <strong>
+            ${escapeViewerHtml(item.name)}
+          </strong>
+
+          <span>
+            ${escapeViewerHtml(
+              getEquipmentDetails(item) ||
+              item.category ||
+              ''
+            )}
+          </span>
+        </div>
+      `)
+      .join('');
+  }
+
+  /* =========================
+     Сохранение состояния
+  ========================= */
+
+  function markViewerStateUnsaved() {
+    viewerStateDirty = true;
+    updateViewerSaveStatus();
+  }
+
+  function updateViewerSaveStatus(
+    message = '',
+    isError = false
+  ) {
+    const status = document.getElementById(
+      'viewerSaveStatus'
+    );
+
+    if (!status) return;
+
+    if (message) {
+      status.textContent = message;
+
+      status.className = isError
+        ? 'save-status error'
+        : 'save-status success';
+
+      return;
+    }
+
+    status.textContent = viewerStateDirty
+      ? 'Есть несохранённые изменения.'
+      : '';
+
+    status.className = 'save-status';
+  }
+
+  function saveViewerState() {
+    if (!currentCharacterId) {
+      updateViewerSaveStatus(
+        'Сначала сохраните персонажа в редакторе.',
+        true
+      );
+
+      return;
+    }
+
+    if (!viewerState) {
+      updateViewerSaveStatus(
+        'Нет состояния для сохранения.',
+        true
+      );
+
+      return;
+    }
+
+    updateViewerSaveStatus(
+      'Сохраняю...',
+      false
+    );
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        viewerState =
+          result?.state ||
+          viewerState;
+
+        viewerStateDirty = false;
+
+        updateViewerArmorInputs();
+
+        updateViewerSaveStatus(
+          'Состояние сохранено.',
+          false
+        );
+      })
+      .withFailureHandler(function (error) {
+        updateViewerSaveStatus(
+          error?.message ||
+            'Ошибка сохранения состояния.',
+          true
+        );
+      })
+      .saveCharacterState(
+        currentCharacterId,
+        viewerState
+      );
+  }
+
+  function printCharacterSheet() {
+    setAppMode('view');
+    window.setTimeout(function() {
+      renderCharacterViewer();
+      window.setTimeout(function() { window.print(); }, 50);
+    }, 50);
+  }
+
+</script>

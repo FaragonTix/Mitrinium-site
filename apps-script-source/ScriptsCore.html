@@ -1,0 +1,945 @@
+<script>
+  // Общее состояние приложения, режимы и запуск интерфейса.
+
+  const attributes = {
+    napor: {
+      name: 'Напор',
+      value: 1
+    },
+
+    smetka: {
+      name: 'Сметка',
+      value: 1
+    },
+
+    nyuh: {
+      name: 'Нюх',
+      value: 1
+    },
+
+    zhila: {
+      name: 'Жила',
+      value: 1
+    },
+
+    losk: {
+      name: 'Лоск',
+      value: 1
+    }
+  };
+
+  const skills = {
+    napor: {
+      attributeName: 'Напор',
+
+      items: {
+        ugrozy: {
+          name: 'Угрозы',
+          value: 1
+        },
+
+        draka: {
+          name: 'Фехтование',
+          value: 1
+        },
+
+        stoikost: {
+          name: 'Стойкость',
+          value: 1
+        },
+
+        liderstvo: {
+          name: 'Лидерство',
+          value: 1
+        },
+
+        sila: {
+          name: 'Драка',
+          value: 1
+        }
+      }
+    },
+
+    smetka: {
+      attributeName: 'Сметка',
+
+      items: {
+        obman: {
+          name: 'Обман',
+          value: 1
+        },
+
+        skrytnost: {
+          name: 'Скрытность',
+          value: 1
+        },
+
+        mehanizmy: {
+          name: 'Механизмы',
+          value: 1
+        },
+
+        lovkostRuk: {
+          name: 'Ловкость рук',
+          value: 1
+        },
+
+        uklonenie: {
+          name: 'Уклонение',
+          value: 1
+        }
+      }
+    },
+
+    nyuh: {
+      attributeName: 'Нюх',
+
+      items: {
+        priroda: {
+          name: 'Природа',
+          value: 1
+        },
+
+        vnimatelnost: {
+          name: 'Внимат.',
+          value: 1
+        },
+
+        strelba: {
+          name: 'Стрельба',
+          value: 1
+        },
+
+        zakon: {
+          name: 'Закон',
+          value: 1
+        },
+
+        znanieUlits: {
+          name: 'Знание улиц',
+          value: 1
+        }
+      }
+    },
+
+    zhila: {
+      attributeName: 'Жила',
+
+      items: {
+        ekonomika: {
+          name: 'Экономика',
+          value: 1
+        },
+
+        himiya: {
+          name: 'Химия',
+          value: 1
+        },
+
+        atletika: {
+          name: 'Атлетика',
+          value: 1
+        },
+
+        disciplina: {
+          name: 'Дисциплина',
+          value: 1
+        },
+
+        medicina: {
+          name: 'Медицина',
+          value: 1
+        }
+      }
+    },
+
+    losk: {
+      attributeName: 'Лоск',
+
+      items: {
+        vnushenie: {
+          name: 'Внушение',
+          value: 1
+        },
+
+        ubezhdenie: {
+          name: 'Убеждение',
+          value: 1
+        },
+
+        psiho: {
+          name: 'Психо',
+          value: 1
+        },
+
+        scena: {
+          name: 'Сцена',
+          value: 1
+        },
+
+        etiket: {
+          name: 'Этикет',
+          value: 1
+        }
+      }
+    }
+  };
+
+  const maxAttributeValue = 3;
+  const totalExtraAttributePoints = 4;
+
+  const maxSkillValue = 2;
+  const totalExtraSkillPoints = 6;
+
+  const startingMoney = 1000;
+  const maxStartingAbilities = 3;
+
+  const maxAdvancedAttributeValue = 3;
+  const maxAdvancedSkillValue = 3;
+
+  const classIcons = {
+    'Психопат': '⚗',
+    'Кустарь': '⚙',
+    'Воротила': '⚿',
+    'Рекрут': '⌖',
+    'Менталист': 'Ψ',
+    'Натуралист': '◉'
+  };
+
+  const selectedEquipment = [];
+  const selectedAbilities = [];
+
+  let activeAbilityId = null;
+  let currentCharacterId = null;
+  let appMode = 'edit';
+  let advancedEditMode = false;
+  let savedCharactersCache = [];
+
+  function getClassIcon(className) {
+    return classIcons[
+      String(className || '')
+    ] || '';
+  }
+
+  /* =========================
+     Режимы приложения
+  ========================= */
+
+  function setAppMode(requestedMode) {
+    const allowedModes = [
+      'edit',
+      'view',
+      'rolls'
+    ];
+
+    const mode =
+      allowedModes.includes(requestedMode)
+        ? requestedMode
+        : 'edit';
+
+    appMode = mode;
+
+    const modeElements = {
+      edit:
+        document.getElementById(
+          'editMode'
+        ),
+
+      view:
+        document.getElementById(
+          'viewMode'
+        ),
+
+      rolls:
+        document.getElementById(
+          'rollsMode'
+        )
+    };
+
+    const modeButtons = {
+      edit:
+        document.getElementById(
+          'editModeButton'
+        ),
+
+      view:
+        document.getElementById(
+          'viewModeButton'
+        ),
+
+      rolls:
+        document.getElementById(
+          'rollsModeButton'
+        )
+    };
+
+    Object.entries(
+      modeElements
+    ).forEach(function (entry) {
+      const key = entry[0];
+      const element = entry[1];
+
+      if (!element) {
+        return;
+      }
+
+      const active =
+        key === mode;
+
+      element.hidden = !active;
+
+      element.classList.toggle(
+        'hidden',
+        !active
+      );
+
+      element.setAttribute(
+        'aria-hidden',
+        active
+          ? 'false'
+          : 'true'
+      );
+    });
+
+    Object.entries(
+      modeButtons
+    ).forEach(function (entry) {
+      const key = entry[0];
+      const button = entry[1];
+
+      if (!button) {
+        return;
+      }
+
+      const active =
+        key === mode;
+
+      button.classList.toggle(
+        'active',
+        active
+      );
+
+      button.setAttribute(
+        'aria-pressed',
+        active
+          ? 'true'
+          : 'false'
+      );
+    });
+
+    if (
+      mode === 'view' &&
+      typeof renderCharacterViewer ===
+        'function'
+    ) {
+      renderCharacterViewer();
+    }
+
+    if (mode === 'rolls') {
+      if (
+        typeof renderRollComponentOptions ===
+        'function'
+      ) {
+        renderRollComponentOptions();
+      }
+
+      if (
+        typeof syncRollBuilderControls ===
+        'function'
+      ) {
+        syncRollBuilderControls();
+      }
+
+      if (
+        typeof toggleRollControlFields ===
+        'function'
+      ) {
+        toggleRollControlFields();
+      }
+
+      if (
+        typeof refreshRollLog ===
+        'function'
+      ) {
+        refreshRollLog(false);
+      }
+    }
+  }
+
+  /* =========================
+     Режим развития
+  ========================= */
+
+  function toggleAdvancedEditMode(
+    isEnabled
+  ) {
+    setAdvancedEditMode(
+      isEnabled
+    );
+  }
+
+  function setAdvancedEditMode(
+    isEnabled
+  ) {
+    advancedEditMode =
+      Boolean(isEnabled);
+
+    const checkbox =
+      document.getElementById(
+        'advancedEditMode'
+      );
+
+    if (checkbox) {
+      checkbox.checked =
+        advancedEditMode;
+    }
+
+    if (
+      typeof renderAttributes ===
+      'function'
+    ) {
+      renderAttributes();
+    }
+
+    if (
+      typeof renderSkills ===
+      'function'
+    ) {
+      renderSkills();
+    }
+
+    if (
+      typeof renderAbilities ===
+      'function'
+    ) {
+      renderAbilities();
+    }
+
+    if (
+      typeof renderRollComponentOptions ===
+      'function'
+    ) {
+      renderRollComponentOptions();
+    }
+
+    refreshViewerIfOpen();
+  }
+
+  function refreshViewerIfOpen() {
+    if (
+      appMode === 'view' &&
+      typeof renderCharacterViewer ===
+        'function'
+    ) {
+      renderCharacterViewer();
+    }
+  }
+
+  /* =========================
+     Кнопки выбора класса
+  ========================= */
+
+  function ensureClassPickerStyles() {
+    if (
+      document.getElementById(
+        'mitriniumClassPickerStyles'
+      )
+    ) {
+      return;
+    }
+
+    const style =
+      document.createElement(
+        'style'
+      );
+
+    style.id =
+      'mitriniumClassPickerStyles';
+
+    style.textContent = `
+      .class-select-field {
+        grid-column: 1 / -1;
+      }
+
+      .class-icon-picker {
+        display: grid !important;
+        grid-template-columns: repeat(6, 48px);
+        justify-content: center;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .class-icon-button {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        min-height: 48px;
+        border: 2px solid var(--border, #8a6638);
+        border-radius: 50%;
+        background: var(--button-bg, #ead4aa);
+        color: var(--text, #2a1b0f);
+        padding: 0;
+        font-size: 25px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .class-icon-button-symbol {
+        display: block;
+        line-height: 1;
+        pointer-events: none;
+      }
+
+      .class-icon-button-check {
+        position: absolute;
+        right: 1px;
+        bottom: 0;
+        display: none;
+        place-items: center;
+        width: 17px;
+        height: 17px;
+        border: 1px solid var(--border, #8a6638);
+        border-radius: 50%;
+        background: var(--panel-light, #fffaf0);
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1;
+        pointer-events: none;
+      }
+
+      .class-icon-button:hover,
+      .class-icon-button.selected {
+        background: var(--panel-accent, #fff0c8);
+        box-shadow:
+          0 0 0 3px
+          rgba(138, 102, 56, 0.28);
+      }
+
+      .class-icon-button.selected
+      .class-icon-button-check {
+        display: grid;
+      }
+
+      .class-icon-label {
+        min-height: 24px;
+        margin-top: 9px;
+        text-align: center;
+        font-weight: bold;
+      }
+
+      @media (max-width: 390px) {
+        .class-icon-picker {
+          grid-template-columns:
+            repeat(3, 48px);
+        }
+      }
+    `;
+
+    document.head.appendChild(
+      style
+    );
+  }
+
+  function initializeClassIconPicker() {
+    ensureClassPickerStyles();
+
+    const select =
+      document.getElementById(
+        'className'
+      );
+
+    if (!select) {
+      return;
+    }
+
+    const field =
+      select.closest('.field') ||
+      select.parentElement;
+
+    if (field) {
+      field.classList.add(
+        'class-select-field'
+      );
+    }
+
+    let picker =
+      document.getElementById(
+        'classIconPicker'
+      );
+
+    if (!picker) {
+      picker =
+        document.createElement(
+          'div'
+        );
+
+      picker.id =
+        'classIconPicker';
+
+      picker.className =
+        'class-icon-picker';
+
+      picker.setAttribute(
+        'role',
+        'group'
+      );
+
+      picker.setAttribute(
+        'aria-label',
+        'Выбор класса'
+      );
+
+      select.insertAdjacentElement(
+        'afterend',
+        picker
+      );
+    }
+
+    /*
+      Перестраиваем содержимое, чтобы старые кнопки
+      без галочки не оставались в DOM.
+    */
+    picker.innerHTML = '';
+
+    Object.entries(
+      classIcons
+    ).forEach(function (entry) {
+      const className = entry[0];
+      const iconValue = entry[1];
+
+      const button =
+        document.createElement(
+          'button'
+        );
+
+      button.type = 'button';
+
+      button.className =
+        'class-icon-button';
+
+      button.dataset.className =
+        className;
+
+      button.title = className;
+
+      button.setAttribute(
+        'aria-label',
+        className
+      );
+
+      button.setAttribute(
+        'aria-pressed',
+        'false'
+      );
+
+      const symbol =
+        document.createElement(
+          'span'
+        );
+
+      symbol.className =
+        'class-icon-button-symbol';
+
+      symbol.setAttribute(
+        'aria-hidden',
+        'true'
+      );
+
+      symbol.textContent =
+        iconValue;
+
+      const check =
+        document.createElement(
+          'span'
+        );
+
+      check.className =
+        'class-icon-button-check';
+
+      check.setAttribute(
+        'aria-hidden',
+        'true'
+      );
+
+      check.textContent = '✓';
+
+      button.appendChild(symbol);
+      button.appendChild(check);
+
+      button.addEventListener(
+        'click',
+        function () {
+          selectClassFromIcon(
+            className
+          );
+        }
+      );
+
+      picker.appendChild(
+        button
+      );
+    });
+
+    let label =
+      document.getElementById(
+        'selectedClassIconLabel'
+      );
+
+    if (!label) {
+      label =
+        document.createElement(
+          'div'
+        );
+
+      label.id =
+        'selectedClassIconLabel';
+
+      label.className =
+        'class-icon-label';
+
+      picker.insertAdjacentElement(
+        'afterend',
+        label
+      );
+    }
+
+    syncClassIconPicker();
+  }
+
+  function selectClassFromIcon(
+    className
+  ) {
+    const select =
+      document.getElementById(
+        'className'
+      );
+
+    if (!select) {
+      return;
+    }
+
+    if (
+      !Object.prototype
+        .hasOwnProperty.call(
+          classIcons,
+          className
+        )
+    ) {
+      return;
+    }
+
+    select.value = className;
+
+    select.dispatchEvent(
+      new Event(
+        'change',
+        {
+          bubbles: true
+        }
+      )
+    );
+
+    syncClassIconPicker();
+  }
+
+  function syncClassIconPicker() {
+    const select =
+      document.getElementById(
+        'className'
+      );
+
+    const label =
+      document.getElementById(
+        'selectedClassIconLabel'
+      );
+
+    const selectedClass =
+      select
+        ? String(
+            select.value || ''
+          )
+        : '';
+
+    document
+      .querySelectorAll(
+        '.class-icon-button'
+      )
+      .forEach(function (button) {
+        const selected =
+          button.dataset.className ===
+          selectedClass;
+
+        button.classList.toggle(
+          'selected',
+          selected
+        );
+
+        button.setAttribute(
+          'aria-pressed',
+          selected
+            ? 'true'
+            : 'false'
+        );
+      });
+
+    if (label) {
+      label.textContent =
+        selectedClass
+          ? (
+            getClassIcon(
+              selectedClass
+            ) +
+            ' ' +
+            selectedClass
+          )
+          : 'Класс не выбран';
+    }
+  }
+
+  function handleClassChange() {
+    const select =
+      document.getElementById(
+        'className'
+      );
+
+    if (!select) {
+      return;
+    }
+
+    const selectedClass =
+      select.value;
+
+    selectedAbilities.length = 0;
+    activeAbilityId = null;
+
+    if (
+      typeof renderAbilities ===
+      'function'
+    ) {
+      renderAbilities();
+    }
+
+    if (
+      typeof renderEquipment ===
+      'function'
+    ) {
+      renderEquipment();
+    }
+
+    /*
+      Защита от функций перерисовки,
+      которые могли поменять select.
+    */
+    select.value =
+      selectedClass;
+
+    syncClassIconPicker();
+
+    if (
+      typeof renderRollComponentOptions ===
+      'function'
+    ) {
+      renderRollComponentOptions();
+    }
+
+    refreshViewerIfOpen();
+  }
+
+  /* =========================
+     Запуск интерфейса
+  ========================= */
+
+  document.addEventListener(
+    'DOMContentLoaded',
+    function () {
+      if (
+        typeof renderAttributes ===
+        'function'
+      ) {
+        renderAttributes();
+      }
+
+      if (
+        typeof renderSkills ===
+        'function'
+      ) {
+        renderSkills();
+      }
+
+      if (
+        typeof renderAbilities ===
+        'function'
+      ) {
+        renderAbilities();
+      }
+
+      if (
+        typeof renderEquipment ===
+        'function'
+      ) {
+        renderEquipment();
+      }
+
+      const equipmentSearch =
+        document.getElementById(
+          'equipmentSearch'
+        );
+
+      if (
+        equipmentSearch &&
+        equipmentSearch.dataset
+          .coreSearchHandler !==
+          'true'
+      ) {
+        equipmentSearch.addEventListener(
+          'input',
+          renderEquipment
+        );
+
+        equipmentSearch.dataset
+          .coreSearchHandler =
+          'true';
+      }
+
+      initializeClassIconPicker();
+
+      const classSelect =
+        document.getElementById(
+          'className'
+        );
+
+      if (
+        classSelect &&
+        classSelect.dataset
+          .coreClassHandler !==
+          'true'
+      ) {
+        classSelect.addEventListener(
+          'change',
+          handleClassChange
+        );
+
+        classSelect.dataset
+          .coreClassHandler =
+          'true';
+      }
+
+      if (
+        typeof setLoadStatus ===
+        'function'
+      ) {
+        setLoadStatus(
+          'Список не загружен. ' +
+          'Нажмите «Обновить список».',
+          false
+        );
+      }
+
+      setAppMode('edit');
+    }
+  );
+</script>

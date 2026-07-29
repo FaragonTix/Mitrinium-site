@@ -1,0 +1,1250 @@
+<style>
+  /* =========================
+     Кнопки классов
+  ========================= */
+
+  .class-select-field {
+    grid-column: 1 / -1;
+  }
+
+  .class-select-field > select {
+    max-width: 440px;
+  }
+
+  .class-icon-picker {
+    display: grid !important;
+    grid-template-columns:
+      repeat(6, 48px) !important;
+
+    align-items: center;
+    justify-content: start;
+
+    gap: 8px !important;
+
+    width: 100%;
+    min-width: 0;
+
+    margin-top: 12px;
+    padding: 5px 4px 9px;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .class-icon-button {
+    position: relative;
+    isolation: isolate;
+
+    display: grid;
+    place-items: center;
+
+    width: 48px !important;
+    min-width: 48px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+
+    border: 2px solid #8a5a24 !important;
+    border-radius: 50% !important;
+
+    background:
+      radial-gradient(
+        circle at 32% 25%,
+        #fffdf0 0,
+        #f8e6ba 22%,
+        #dbb46e 64%,
+        #9d632e 100%
+      ) !important;
+
+    color: #2d1707 !important;
+
+    box-shadow:
+      inset 0 2px 2px
+        rgba(255, 255, 255, 0.8),
+      inset 0 -5px 8px
+        rgba(79, 37, 5, 0.22),
+      0 3px 0 #704315,
+      0 5px 9px
+        rgba(48, 24, 5, 0.2) !important;
+
+    padding: 0 !important;
+
+    font-size: 24px !important;
+    line-height: 1;
+
+    overflow: hidden;
+
+    cursor: pointer;
+
+    transform:
+      translateY(0)
+      scale(1);
+
+    transition:
+      transform 120ms ease,
+      box-shadow 120ms ease,
+      border-color 120ms ease;
+  }
+
+  .class-icon-button::before {
+    content: '';
+
+    position: absolute;
+    z-index: -1;
+
+    inset: 4px;
+
+    border: 1px solid
+      rgba(95, 51, 16, 0.45);
+
+    border-radius: 50%;
+  }
+
+  .class-icon-button:hover {
+    transform:
+      translateY(-1px)
+      scale(1.025);
+  }
+
+  .class-icon-button.selected {
+    border-color: #7a160f !important;
+
+    background:
+      radial-gradient(
+        circle at 32% 25%,
+        #fff9dd 0,
+        #ffdc85 27%,
+        #e78c37 68%,
+        #932516 100%
+      ) !important;
+
+    box-shadow:
+      0 0 0 3px
+        rgba(122, 22, 15, 0.18),
+      inset 0 2px 2px
+        rgba(255, 255, 255, 0.84),
+      inset 0 -6px 9px
+        rgba(79, 19, 6, 0.28),
+      0 3px 0 #6d170e,
+      0 6px 11px
+        rgba(67, 17, 8, 0.28) !important;
+
+    transform:
+      translateY(-1px)
+      scale(1.035);
+  }
+
+  .class-icon-button.selected::after {
+    content: '✓';
+
+    position: absolute;
+
+    right: 2px;
+    bottom: 2px;
+
+    display: grid;
+    place-items: center;
+
+    width: 16px;
+    height: 16px;
+
+    border: 1px solid #fff4d2;
+    border-radius: 50%;
+
+    background: #781b12;
+    color: white;
+
+    font-family:
+      Arial,
+      sans-serif;
+
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .class-icon-button-symbol {
+    display: block;
+
+    transform:
+      translateY(-1px);
+
+    text-shadow:
+      0 1px 0
+        rgba(255, 255, 255, 0.75);
+  }
+
+  .class-icon-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    min-height: 31px;
+    margin-top: 5px;
+
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .selected-class-label-icon,
+  .class-icon-inline {
+    display: inline-grid;
+    place-items: center;
+
+    flex: 0 0 auto;
+
+    border: 1px solid var(--border);
+    border-radius: 50%;
+
+    background:
+      radial-gradient(
+        circle at 35% 30%,
+        #fff7df,
+        #deb66d
+      );
+  }
+
+  .selected-class-label-icon {
+    width: 27px;
+    height: 27px;
+
+    font-size: 17px;
+  }
+
+  .class-icon-inline {
+    width: 1.7em;
+    height: 1.7em;
+
+    margin-right: 0.35em;
+
+    vertical-align: middle;
+  }
+
+  /* =========================
+     Скрытие персонажей
+  ========================= */
+
+  .saved-character-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .saved-character-hide-button {
+    border-color: #934630;
+    background: #edc7af;
+  }
+
+  .hidden-character-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+
+    margin: 0 0 12px;
+
+    border: 1px solid
+      var(--border-soft);
+
+    border-radius:
+      var(--radius-medium);
+
+    background:
+      var(--panel-soft);
+
+    padding: 9px 11px;
+  }
+
+  /* =========================
+     Основной экран бросков
+  ========================= */
+
+  #rollsMode {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .rolls-layout {
+    display: grid;
+
+    grid-template-columns:
+      minmax(0, 1.18fr)
+      minmax(300px, 0.82fr);
+
+    align-items: start;
+    gap: 18px;
+  }
+
+  .roll-panel,
+  .roll-log-panel {
+    min-width: 0;
+  }
+
+  .roll-subpanel {
+    min-width: 0;
+    margin-bottom: 18px;
+
+    border: 1px solid
+      var(--field-border);
+
+    border-radius:
+      var(--radius-medium);
+
+    background:
+      var(--panel-soft);
+
+    padding: 16px;
+  }
+
+  .roll-subpanel:last-child {
+    margin-bottom: 0;
+  }
+
+  .roll-subpanel-heading {
+    display: grid;
+
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(180px, 320px);
+
+    align-items: center;
+    gap: 12px;
+
+    margin-bottom: 14px;
+  }
+
+  .roll-subpanel-heading h3 {
+    margin: 0;
+  }
+
+  /* =========================
+     Переключатель режима
+  ========================= */
+
+  .roll-interface-switch {
+    display: grid !important;
+
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+
+    width: 100%;
+    min-width: 0;
+
+    border: 1px solid
+      var(--border);
+
+    border-radius: 13px;
+
+    background:
+      rgba(64, 35, 12, 0.08);
+
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .roll-interface-switch button {
+    display: block;
+
+    width: 100%;
+    min-width: 0 !important;
+    min-height: 36px !important;
+
+    border: 0 !important;
+    border-radius: 9px !important;
+
+    background: transparent !important;
+
+    padding: 6px 7px !important;
+
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.15;
+
+    white-space: normal;
+    overflow-wrap: anywhere;
+
+    cursor: pointer;
+  }
+
+  .roll-interface-switch button.active {
+    background:
+      linear-gradient(
+        145deg,
+        #f7ddb0,
+        #d6a85d
+      ) !important;
+
+    box-shadow:
+      inset 0 1px 0
+        rgba(255, 255, 255, 0.8),
+      0 2px 5px
+        rgba(61, 28, 4, 0.18);
+  }
+
+  .roll-editor-panel {
+    margin-top: 14px;
+  }
+
+  .roll-form-grid {
+    display: grid;
+
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+
+    gap: 12px;
+  }
+
+  .roll-form-full {
+    grid-column: 1 / -1;
+  }
+
+  /* =========================
+     Конструктор компонентов
+  ========================= */
+
+  .roll-builder-section {
+    margin-bottom: 15px;
+
+    border: 1px solid
+      var(--border-soft);
+
+    border-radius:
+      var(--radius-medium);
+
+    background:
+      var(--panel-light);
+
+    padding: 13px;
+  }
+
+  .roll-builder-section:last-child {
+    margin-bottom: 0;
+  }
+
+  .roll-builder-section h4,
+  .roll-builder-section h5 {
+    margin-top: 0;
+  }
+
+  .roll-builder-section > h4 {
+    margin-bottom: 10px;
+
+    border-bottom: 1px solid
+      var(--border-soft);
+
+    padding-bottom: 7px;
+
+    text-transform: uppercase;
+    font-size: 14px;
+  }
+
+  .roll-scene-buttons {
+    display: grid;
+
+    grid-template-columns:
+      repeat(
+        4,
+        minmax(0, 1fr)
+      );
+
+    gap: 7px;
+  }
+
+  .roll-scene-buttons button {
+    display: grid;
+    place-items: center;
+    gap: 3px;
+
+    min-width: 0;
+    min-height: 59px;
+
+    border: 1px solid
+      var(--border-soft);
+
+    border-radius: 10px;
+
+    background:
+      var(--panel-soft);
+
+    color: var(--text);
+
+    padding: 7px 5px;
+
+    font-size: 12px;
+    line-height: 1.1;
+
+    cursor: pointer;
+  }
+
+  .roll-scene-buttons button span {
+    font-size: 11px;
+    opacity: 0.72;
+  }
+
+  .roll-scene-buttons button.selected {
+    border-color: #7a160f;
+
+    background:
+      linear-gradient(
+        145deg,
+        #ffe9bd,
+        #dfa45e
+      );
+
+    box-shadow:
+      0 0 0 2px
+        rgba(122, 22, 15, 0.14);
+  }
+
+  .roll-component-table-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    margin-bottom: 12px;
+
+    border-bottom: 1px solid
+      var(--border-soft);
+
+    padding-bottom: 8px;
+  }
+
+  .roll-component-table-heading h4 {
+    margin: 0;
+  }
+
+  .roll-builder-selection-status {
+    border: 1px solid
+      var(--border-soft);
+
+    border-radius: 999px;
+
+    background:
+      var(--panel-soft);
+
+    padding: 5px 9px;
+
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .roll-builder-selection-status.error {
+    border-color: #a74735;
+    background: #f2d2c2;
+    color: #751d12;
+  }
+
+  .roll-component-table {
+    margin-top: 13px;
+  }
+
+  .roll-component-table h5 {
+    margin: 0 0 8px;
+
+    text-transform: uppercase;
+    font-size: 12px;
+    opacity: 0.72;
+  }
+
+  .roll-component-table-grid {
+    display: grid;
+
+    grid-template-columns:
+      repeat(
+        5,
+        minmax(0, 1fr)
+      );
+
+    gap: 7px;
+  }
+
+  .roll-component-square {
+    position: relative;
+
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 5px;
+
+    width: 100%;
+    min-width: 0;
+
+    aspect-ratio: 1 / 1;
+
+    border: 1px solid
+      var(--border-soft);
+
+    border-radius: 10px;
+
+    background:
+      linear-gradient(
+        145deg,
+        #fffaf0,
+        #ead4aa
+      );
+
+    color: var(--text);
+
+    padding: 5px;
+
+    text-align: center;
+
+    cursor: pointer;
+
+    transition:
+      transform 100ms ease,
+      box-shadow 100ms ease,
+      background 100ms ease;
+  }
+
+  .roll-component-square:hover {
+    transform: translateY(-1px);
+
+    box-shadow:
+      0 3px 7px
+        rgba(52, 25, 5, 0.15);
+  }
+
+  .roll-component-square.selected {
+    border-color: #7a160f;
+
+    background:
+      linear-gradient(
+        145deg,
+        #ffe9bd,
+        #df984d
+      );
+
+    box-shadow:
+      0 0 0 2px
+        rgba(122, 22, 15, 0.14);
+  }
+
+  .roll-component-square.selected::after {
+    content:
+      attr(data-selection-order);
+
+    position: absolute;
+
+    right: 3px;
+    top: 3px;
+
+    display: grid;
+    place-items: center;
+
+    width: 18px;
+    height: 18px;
+
+    border-radius: 50%;
+
+    background: #781b12;
+    color: white;
+
+    font-family:
+      Arial,
+      sans-serif;
+
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .roll-component-square-name {
+    max-width: 100%;
+
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.05;
+
+    overflow-wrap: anywhere;
+  }
+
+  .roll-component-square strong {
+    border: 1px solid
+      rgba(86, 43, 10, 0.32);
+
+    border-radius: 999px;
+
+    background:
+      rgba(255, 255, 255, 0.48);
+
+    padding: 2px 6px;
+
+    font-size: 10px;
+  }
+
+  /* =========================
+     Кнопки Контроля и кубов
+  ========================= */
+
+  .roll-choice-button-grid {
+    display: grid;
+
+    grid-template-columns:
+      repeat(
+        auto-fit,
+        minmax(54px, 1fr)
+      );
+
+    gap: 7px;
+
+    margin-top: 6px;
+  }
+
+  .roll-choice-button-grid button {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 3px;
+
+    min-width: 0;
+    min-height: 55px;
+
+    border: 1px solid
+      var(--border-soft);
+
+    border-radius: 10px;
+
+    background:
+      linear-gradient(
+        145deg,
+        #fffaf0,
+        #ead4aa
+      );
+
+    color: var(--text);
+
+    padding: 6px;
+
+    cursor: pointer;
+  }
+
+  .roll-choice-button-grid button span {
+    font-size: 11px;
+    opacity: 0.72;
+  }
+
+  .roll-choice-button-grid button.selected {
+    border-color: #7a160f;
+
+    background:
+      linear-gradient(
+        145deg,
+        #ffe9bd,
+        #df984d
+      );
+
+    box-shadow:
+      0 0 0 2px
+        rgba(122, 22, 15, 0.14);
+  }
+
+  .roll-die-choice-grid {
+    grid-template-columns:
+      repeat(
+        6,
+        minmax(0, 1fr)
+      );
+  }
+
+  .roll-die-choice-grid button {
+    min-height: 49px;
+    font-weight: 700;
+  }
+
+  /* =========================
+     Контроль и результаты
+  ========================= */
+
+  .roll-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+
+    margin: 15px 0;
+  }
+
+  .roll-control-panel {
+    background:
+      var(--panel-light);
+  }
+
+  .roll-result {
+    min-height: 95px;
+    margin-top: 15px;
+
+    border: 1px solid
+      var(--field-border);
+
+    border-radius:
+      var(--radius-medium);
+
+    background:
+      var(--panel-light);
+
+    padding: 14px;
+  }
+
+  .roll-result.empty {
+    display: grid;
+    place-items: center;
+
+    text-align: center;
+    opacity: 0.72;
+  }
+
+  .roll-result-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+
+    margin-bottom: 12px;
+  }
+
+  .roll-result-number {
+    flex: 0 0 auto;
+
+    border: 2px solid
+      var(--border);
+
+    border-radius: 999px;
+
+    background:
+      linear-gradient(
+        145deg,
+        #f9e2ae,
+        #d8a553
+      );
+
+    padding: 7px 13px;
+
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .roll-dice {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    margin: 10px 0;
+  }
+
+  .roll-die {
+    display: inline-grid;
+    place-items: center;
+
+    min-width: 47px;
+    min-height: 47px;
+
+    border: 2px solid
+      var(--border);
+
+    border-radius: 11px;
+
+    background:
+      linear-gradient(
+        145deg,
+        #fff9eb,
+        #ead3a6
+      );
+
+    padding: 5px;
+
+    text-align: center;
+  }
+
+  .roll-die strong {
+    display: block;
+
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .roll-die small {
+    display: block;
+
+    margin-top: 4px;
+
+    font-size: 9px;
+    line-height: 1.1;
+    opacity: 0.72;
+  }
+
+  .roll-die.replaced {
+    border-color: #8c2017;
+
+    background:
+      linear-gradient(
+        145deg,
+        #ffe8d5,
+        #e99b70
+      );
+  }
+
+  .roll-summary-grid {
+    display: grid;
+
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .roll-summary-item {
+    border: 1px solid
+      var(--border-soft);
+
+    border-radius:
+      var(--radius-small);
+
+    background:
+      var(--panel-soft);
+
+    padding: 9px;
+  }
+
+  .roll-summary-item span {
+    display: block;
+
+    margin-bottom: 3px;
+
+    font-size: 11px;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+
+  .roll-control-result {
+    margin-top: 12px;
+
+    border-left: 4px solid
+      var(--border);
+
+    border-radius:
+      var(--radius-small);
+
+    background:
+      var(--panel-soft);
+
+    padding: 10px 12px;
+  }
+
+  .roll-replacement-note {
+    border-left: 4px solid #8c2017;
+
+    border-radius:
+      var(--radius-small);
+
+    background: #f5d5bd;
+
+    padding: 9px 11px;
+  }
+
+  .roll-result-actions {
+    display: grid;
+    justify-items: start;
+    gap: 5px;
+
+    margin-top: 14px;
+
+    border-top: 1px solid
+      var(--border-soft);
+
+    padding-top: 13px;
+  }
+
+  .roll-four-button {
+    background:
+      linear-gradient(
+        145deg,
+        #f8dba3,
+        #d69446
+      );
+  }
+
+  .roll-result-action-note {
+    margin-top: 13px;
+
+    border: 1px solid
+      var(--border-soft);
+
+    border-radius:
+      var(--radius-small);
+
+    background:
+      var(--panel-soft);
+
+    padding: 9px 11px;
+
+    font-weight: 700;
+  }
+
+  /* =========================
+     Лог
+  ========================= */
+
+  .roll-log-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    margin-bottom: 12px;
+  }
+
+  .roll-log-toolbar h3 {
+    margin: 0;
+  }
+
+  .roll-log-list {
+    display: grid;
+    gap: 10px;
+
+    max-height: 760px;
+    overflow-y: auto;
+  }
+
+  .roll-log-entry {
+    border: 1px solid
+      var(--field-border);
+
+    border-radius:
+      var(--radius-medium);
+
+    background:
+      var(--panel-light);
+
+    padding: 11px;
+  }
+
+  .roll-log-entry-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .roll-log-entry-title {
+    display: flex;
+    align-items: center;
+
+    font-weight: 700;
+  }
+
+  .roll-log-entry-time {
+    flex: 0 0 auto;
+
+    font-size: 11px;
+    opacity: 0.67;
+  }
+
+  .roll-log-entry-meta,
+  .roll-status-line {
+    margin-top: 6px;
+
+    font-size: 12px;
+    line-height: 1.3;
+    opacity: 0.8;
+  }
+
+  /* =========================
+     Печать
+  ========================= */
+
+  .viewer-print-footer {
+    display: flex;
+    justify-content: center;
+
+    margin-top: 18px;
+  }
+
+  .viewer-print-footer
+  .print-character-button {
+    min-width: 210px;
+  }
+
+  /* =========================
+     Адаптивность
+  ========================= */
+
+  @media (max-width: 980px) {
+    .rolls-layout {
+      grid-template-columns:
+        minmax(0, 1fr);
+    }
+
+    .roll-log-list {
+      max-height: none;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .class-select-field > select {
+      display: none;
+    }
+
+    .class-icon-picker {
+      grid-template-columns:
+        repeat(6, 44px) !important;
+
+      gap: 7px !important;
+    }
+
+    .class-icon-button {
+      width: 44px !important;
+      min-width: 44px !important;
+      height: 44px !important;
+      min-height: 44px !important;
+
+      font-size: 22px !important;
+    }
+
+    .roll-subpanel-heading {
+      grid-template-columns:
+        minmax(0, 1fr);
+    }
+
+    .roll-interface-switch {
+      max-width: none;
+    }
+
+    .roll-form-grid,
+    .roll-summary-grid {
+      grid-template-columns:
+        minmax(0, 1fr);
+    }
+
+    .roll-form-full {
+      grid-column: auto;
+    }
+
+    .roll-scene-buttons {
+      grid-template-columns:
+        repeat(
+          2,
+          minmax(0, 1fr)
+        );
+    }
+
+    .roll-component-table-grid {
+      grid-template-columns:
+        repeat(
+          3,
+          minmax(0, 1fr)
+        );
+    }
+
+    .roll-die-choice-grid {
+      grid-template-columns:
+        repeat(
+          3,
+          minmax(0, 1fr)
+        );
+    }
+
+    .saved-character-actions,
+    .hidden-character-controls {
+      display: grid;
+
+      grid-template-columns:
+        minmax(0, 1fr);
+
+      width: 100%;
+    }
+
+    .saved-character-actions button,
+    .hidden-character-controls button {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .roll-component-table-grid {
+      grid-template-columns:
+        repeat(
+          2,
+          minmax(0, 1fr)
+        );
+    }
+  }
+
+  /* =========================
+     Печатный режим
+  ========================= */
+
+  @media print {
+    @page {
+      size: A4 portrait;
+      margin: 8mm;
+    }
+
+    .hero,
+    .mode-switcher,
+    #editMode,
+    #rollsMode,
+    .viewer-print-footer,
+    #viewerSaveStatus {
+      display: none !important;
+    }
+
+    #viewMode,
+    .app-shell,
+    .app-content,
+    .viewer,
+    .viewer-content {
+      display: block !important;
+
+      width: 100% !important;
+      max-width: none !important;
+
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    .viewer-content {
+      columns: 2;
+      column-gap: 7mm;
+    }
+
+    .viewer-hero,
+    .viewer-card {
+      display: inline-block;
+
+      width: 100%;
+      margin: 0 0 4mm;
+
+      break-inside: avoid;
+
+      border: 1px solid black;
+      border-radius: 0;
+
+      background: white !important;
+      box-shadow: none !important;
+
+      padding: 3mm;
+    }
+
+    .viewer-hero {
+      column-span: all;
+    }
+
+    .viewer-hero button,
+    .viewer-card button {
+      display: none !important;
+    }
+  }
+</style>

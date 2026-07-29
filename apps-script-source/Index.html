@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <base target="_top">
+
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Митриниум — создание персонажа</title>
+
+  <?!= include('Styles'); ?>
+  <?!= include('UiStyles'); ?>
+</head>
+
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <h1>Митриниум</h1>
+      <p>Создание персонажа</p>
+    </header>
+
+    <nav
+      class="mode-switcher"
+      aria-label="Режим приложения"
+    >
+      <button
+        type="button"
+        id="editModeButton"
+        class="active"
+        onclick="setAppMode('edit')"
+      >
+        Редактор
+      </button>
+
+      <button
+        type="button"
+        id="viewModeButton"
+        onclick="setAppMode('view')"
+      >
+        Просмотр
+      </button>
+
+      <button
+        type="button"
+        id="rollsModeButton"
+        onclick="setAppMode('rolls')"
+      >
+        Броски
+      </button>
+    </nav>
+
+    <main class="app-content">
+      <!-- =========================
+           РЕДАКТОР
+      ========================== -->
+      <div id="editMode">
+        <!-- Список находится наверху редактора.
+             В режиме бросков он полностью скрыт вместе с editMode. -->
+        <section
+          id="savedCharactersSection"
+          class="card saved-characters-top-card"
+        >
+          <div class="section-heading">
+            <div>
+              <h2>Сохранённые персонажи</h2>
+
+              <p class="helper-note">
+                Список загружается только после нажатия кнопки.
+                Обычный пользователь видит своих персонажей,
+                администратор — всех.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              class="secondary-button"
+              onclick="loadSavedCharactersList()"
+            >
+              Обновить список
+            </button>
+          </div>
+
+          <div
+            id="loadStatus"
+            class="save-status"
+            aria-live="polite"
+          >
+            Список не загружен.
+          </div>
+
+          <div
+            id="savedCharactersList"
+            class="saved-characters-list"
+          ></div>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <div>
+              <h2>Персонаж</h2>
+
+              <p class="helper-note">
+                Создайте нового персонажа или загрузите
+                существующего.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              class="secondary-button"
+              onclick="startNewCharacter(); syncClassIconPicker();"
+            >
+              Новый персонаж
+            </button>
+          </div>
+
+          <div class="form-grid">
+            <label class="field">
+              <span>Имя персонажа</span>
+
+              <input
+                id="characterName"
+                type="text"
+                autocomplete="off"
+                placeholder="Имя персонажа"
+              >
+            </label>
+
+            <label class="field">
+              <span>Игрок</span>
+
+              <input
+                id="playerName"
+                type="text"
+                autocomplete="off"
+                placeholder="Имя игрока"
+              >
+            </label>
+
+            <label class="field class-select-field">
+              <span>Класс</span>
+
+              <select id="className">
+                <option value="">Выберите класс</option>
+                <option value="Психопат">Психопат</option>
+                <option value="Кустарь">Кустарь</option>
+                <option value="Воротила">Воротила</option>
+                <option value="Рекрут">Рекрут</option>
+                <option value="Менталист">Менталист</option>
+                <option value="Натуралист">Натуралист</option>
+              </select>
+
+              <div
+                id="classIconPicker"
+                class="class-icon-picker"
+                role="group"
+                aria-label="Быстрый выбор класса"
+              ></div>
+
+              <div
+                id="selectedClassIconLabel"
+                class="class-icon-label"
+                aria-live="polite"
+              >
+                Класс не выбран
+              </div>
+            </label>
+          </div>
+
+          <label class="field field-full">
+            <span>Концепт</span>
+
+            <textarea
+              id="concept"
+              rows="4"
+              placeholder="Краткое описание, происхождение, характер и цели персонажа"
+            ></textarea>
+          </label>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <div>
+              <h2>Биографические черты</h2>
+
+              <p class="helper-note">
+                Выберите по одной карточке происхождения,
+                образования и положения семьи.
+                Каждая карточка даёт две биографические черты.
+              </p>
+            </div>
+          </div>
+
+          <div
+            id="biographyEditor"
+            class="biography-editor"
+          >
+            <p class="empty-note">
+              Загружаю биографические карточки...
+            </p>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <div>
+              <h2>Режим редактирования</h2>
+
+              <p class="helper-note">
+                Стартовый режим применяет ограничения создания
+                персонажа. Режим развития позволяет изменять
+                персонажа после начала игры, но значение Атрибутов
+                и Навыков всё равно не может превышать 3.
+              </p>
+            </div>
+          </div>
+
+          <label class="checkbox-line">
+            <input
+              type="checkbox"
+              id="advancedEditMode"
+              onchange="toggleAdvancedEditMode(this.checked)"
+            >
+
+            <span>Режим развития персонажа</span>
+          </label>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <div>
+              <h2>Атрибуты</h2>
+
+              <p class="helper-note">
+                В стартовом режиме каждый Атрибут начинается с 1.
+              </p>
+            </div>
+
+            <div class="points-badge">
+              Осталось:
+              <strong id="attributePointsLeft">4</strong>
+            </div>
+          </div>
+
+          <div
+            id="attributesGrid"
+            class="attributes-grid"
+          ></div>
+        </section>
+
+        <section class="card">
+          <h2>Ресурсы</h2>
+
+          <div class="resources-grid">
+            <div class="resource-card">
+              <span>Тело</span>
+              <strong id="bodyValue">8</strong>
+            </div>
+
+            <div class="resource-card">
+              <span>Основной Нерв</span>
+              <strong id="mainNerveValue">2</strong>
+            </div>
+
+            <div class="resource-card">
+              <span>Бонусный Нерв</span>
+              <strong id="bonusNerveValue">3</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <div>
+              <h2>Навыки</h2>
+
+              <p class="helper-note">
+                В стартовом режиме каждый Навык начинается с 1.
+              </p>
+            </div>
+
+            <div class="points-badge">
+              Осталось:
+              <strong id="skillPointsLeft">6</strong>
+            </div>
+          </div>
+
+          <div
+            id="skillsGrid"
+            class="skills-grid"
+          ></div>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <div>
+              <h2>Способности</h2>
+
+              <p class="helper-note">
+                В стартовом режиме выберите по одной способности
+                из каждой категории: Ультимативная,
+                Любимый приём и Обычное дело.
+              </p>
+            </div>
+
+            <div class="points-badge">
+              Выбрано:
+              <strong id="abilitiesSelectedCount">
+                0 / 3
+              </strong>
+            </div>
+          </div>
+
+          <div
+            id="abilitiesWarning"
+            class="save-status error hidden"
+          ></div>
+
+          <div class="abilities-layout">
+            <div
+              id="abilitiesList"
+              class="abilities-list"
+            >
+              <p class="empty-note">
+                Сначала выберите класс.
+              </p>
+            </div>
+
+            <aside
+              id="abilityDetailsPanel"
+              class="ability-details-panel"
+            >
+              Нажмите на способность в списке,
+              чтобы увидеть описание.
+            </aside>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <div>
+              <h2>Снаряжение</h2>
+
+              <p class="helper-note">
+                Рекомендации зависят от выбранного класса.
+              </p>
+            </div>
+          </div>
+
+          <label class="field field-full">
+            <span>Поиск по снаряжению</span>
+
+            <input
+              id="equipmentSearch"
+              type="search"
+              autocomplete="off"
+              placeholder="Название, категория, тег, стоимость или обслуживание"
+            >
+          </label>
+
+          <div class="equipment-summary">
+            <div>
+              Бюджет:
+              <strong>1000 ф</strong>
+            </div>
+
+            <div>
+              Потрачено:
+              <strong id="equipmentSpent">0 ф</strong>
+            </div>
+
+            <div>
+              Осталось:
+              <strong id="equipmentLeft">1000 ф</strong>
+            </div>
+
+            <div>
+              Обслуживание:
+              <strong id="equipmentMaintenance">0 ф</strong>
+            </div>
+          </div>
+
+          <div
+            id="equipmentWarning"
+            class="save-status error hidden"
+          ></div>
+
+          <div class="equipment-section">
+            <h3>Выбранное снаряжение</h3>
+
+            <div id="selectedEquipmentList">
+              <p class="empty-note">
+                Пока ничего не выбрано.
+              </p>
+            </div>
+          </div>
+
+          <div class="equipment-section">
+            <h3>Рекомендовано классу</h3>
+
+            <div
+              id="recommendedEquipmentList"
+              class="equipment-list"
+            >
+              <p class="empty-note">
+                Выберите класс, чтобы увидеть рекомендации.
+              </p>
+            </div>
+          </div>
+
+          <div class="equipment-section">
+            <h3>Остальное снаряжение</h3>
+
+            <div
+              id="otherEquipmentList"
+              class="equipment-list"
+            ></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <div>
+              <h2>Сохранение</h2>
+
+              <p class="helper-note">
+                Основные данные персонажа и игровое состояние
+                сохраняются отдельно.
+              </p>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button
+              type="button"
+              class="primary-button"
+              onclick="saveCurrentCharacter()"
+            >
+              Сохранить персонажа
+            </button>
+
+            <button
+              type="button"
+              class="secondary-button"
+              onclick="setAppMode('view')"
+            >
+              Открыть просмотр
+            </button>
+          </div>
+
+          <div
+            id="saveStatus"
+            class="save-status"
+            aria-live="polite"
+          ></div>
+        </section>
+      </div>
+
+      <!-- Просмотрщик -->
+      <?!= include('ViewerView'); ?>
+
+      <!-- Броски -->
+<div
+  id="rollsMode"
+  class="hidden"
+  aria-hidden="true"
+>
+  <?!= include('RollsView'); ?>
+</div>
+    </main>
+  </div>
+
+  <!-- Данные -->
+  <?!= include('EquipmentData'); ?>
+  <?!= include('EquipmentMaintenanceData'); ?>
+  <?!= include('AbilitiesData'); ?>
+  <?!= include('BiographyData'); ?>
+
+  <!-- Логика: порядок важен -->
+  <?!= include('ScriptsCore'); ?>
+  <?!= include('ScriptsCharacter'); ?>
+  <?!= include('ScriptsAbilities'); ?>
+  <?!= include('ScriptsEquipment'); ?>
+  <?!= include('ScriptsStorage'); ?>
+  <?!= include('ViewerScripts'); ?>
+  <?!= include('RollsScripts'); ?>
+</body>
+</html>

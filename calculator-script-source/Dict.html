@@ -1,0 +1,2135 @@
+<script>
+'use strict';
+
+const LOCAL_KEY = 'mitriniumEncounterV7';
+
+const DIFFICULTIES = {
+  easy:{label:'Легко',permille:600},
+  medium:{label:'Средне',permille:1000},
+  hard:{label:'Сложно',permille:1300},
+  deadly:{label:'Смертельно',permille:1600}
+};
+
+/* Эталон одиночного противника на 1000‰ для трёх игроков. */
+const LEVEL_BASELINES = [
+  null,
+  {hp:22,armor:1,pz:4,pool:4,damage:'d6'},
+  {hp:23,armor:1,pz:4,pool:4,damage:'d6'},
+  {hp:24,armor:1,pz:4,pool:4,damage:'d6'},
+  {hp:25,armor:1,pz:5,pool:5,damage:'d6'},
+  {hp:27,armor:2,pz:5,pool:5,damage:'d6+1'},
+  {hp:29,armor:2,pz:5,pool:5,damage:'d8'},
+  {hp:31,armor:2,pz:5,pool:5,damage:'d8'},
+  {hp:33,armor:2,pz:5,pool:6,damage:'d8'},
+  {hp:35,armor:2,pz:6,pool:6,damage:'d8'},
+  {hp:37,armor:3,pz:6,pool:6,damage:'d8'},
+  {hp:39,armor:3,pz:6,pool:6,damage:'d8+1'},
+  {hp:41,armor:3,pz:6,pool:6,damage:'d8+1'},
+  {hp:43,armor:3,pz:6,pool:7,damage:'d8+1'},
+  {hp:45,armor:3,pz:6,pool:7,damage:'d10'},
+  {hp:47,armor:4,pz:6,pool:7,damage:'d10'},
+  {hp:49,armor:4,pz:7,pool:7,damage:'d10'},
+  {hp:52,armor:4,pz:7,pool:7,damage:'d10'},
+  {hp:55,armor:4,pz:7,pool:8,damage:'d10'},
+  {hp:58,armor:4,pz:7,pool:8,damage:'d10+1'},
+  {hp:62,armor:4,pz:7,pool:8,damage:'d12'}
+];
+
+const PLAYER_LEVEL_PROFILES = [
+  null,
+  {hp:12,armor:2,attackPool:4,defensePool:4,physicalDefensePool:4,mentalDefensePool:4,damage:'d6',penetration:.30},
+  {hp:12,armor:2,attackPool:4,defensePool:4,physicalDefensePool:4,mentalDefensePool:4,damage:'d6',penetration:.30},
+  {hp:12,armor:2,attackPool:4,defensePool:4,physicalDefensePool:4,mentalDefensePool:4,damage:'d6',penetration:.30},
+  {hp:12,armor:2,attackPool:5,defensePool:4,physicalDefensePool:4,mentalDefensePool:4,damage:'d6',penetration:.35},
+  {hp:12,armor:2.5,attackPool:5,defensePool:4,physicalDefensePool:4,mentalDefensePool:4,damage:'d6+1',penetration:.38},
+  {hp:12,armor:2.5,attackPool:5,defensePool:4,physicalDefensePool:4,mentalDefensePool:4,damage:'d8',penetration:.40},
+  {hp:12,armor:2.5,attackPool:5,defensePool:4,physicalDefensePool:4,mentalDefensePool:4,damage:'d8',penetration:.40},
+  {hp:12,armor:2.5,attackPool:6,defensePool:4,physicalDefensePool:4,mentalDefensePool:4,damage:'d8',penetration:.43},
+  {hp:12,armor:2.5,attackPool:6,defensePool:4,physicalDefensePool:4,mentalDefensePool:4,damage:'d8',penetration:.43},
+  {hp:14,armor:3,attackPool:6,defensePool:5,physicalDefensePool:5,mentalDefensePool:5,damage:'d8',penetration:.46},
+  {hp:14,armor:3,attackPool:6,defensePool:5,physicalDefensePool:5,mentalDefensePool:5,damage:'d8+1',penetration:.47},
+  {hp:14,armor:3,attackPool:6,defensePool:5,physicalDefensePool:5,mentalDefensePool:5,damage:'d8+1',penetration:.47},
+  {hp:14,armor:3,attackPool:7,defensePool:5,physicalDefensePool:5,mentalDefensePool:5,damage:'d8+1',penetration:.49},
+  {hp:14,armor:3,attackPool:7,defensePool:5,physicalDefensePool:5,mentalDefensePool:5,damage:'d10',penetration:.50},
+  {hp:14,armor:3.5,attackPool:7,defensePool:5,physicalDefensePool:5,mentalDefensePool:5,damage:'d10',penetration:.51},
+  {hp:14,armor:3.5,attackPool:7,defensePool:5,physicalDefensePool:5,mentalDefensePool:5,damage:'d10',penetration:.51},
+  {hp:16,armor:3.5,attackPool:7,defensePool:6,physicalDefensePool:6,mentalDefensePool:6,damage:'d10',penetration:.53},
+  {hp:16,armor:3.5,attackPool:8,defensePool:6,physicalDefensePool:6,mentalDefensePool:6,damage:'d10',penetration:.55},
+  {hp:16,armor:3.5,attackPool:8,defensePool:6,physicalDefensePool:6,mentalDefensePool:6,damage:'d10+1',penetration:.57},
+  {hp:16,armor:4,attackPool:8,defensePool:6,physicalDefensePool:6,mentalDefensePool:6,damage:'d12',penetration:.60}
+];
+
+const DAMAGE_PROFILES = ['d4','d6','d6+1','d8','d8+1','d10','d10+1','d12'];
+const DIFFICULTY_BANDS = {
+  easy:{min:0,max:750,label:'Легко'},
+  medium:{min:751,max:1150,label:'Средне'},
+  hard:{min:1151,max:1450,label:'Сложно'},
+  deadly:{min:1451,max:5000,label:'Смертельно'}
+};
+
+/* В модели БС Кубы сцены всегда обычные: d4+d6. */
+const MODEL_SCENE_DICE = [4,6];
+const DEFAULT_ATTACKS = 2;
+const DEFAULT_REACTIONS = 2;
+const MAX_ATTACKS = 5;
+const MAX_REACTIONS = 5;
+const DEFENSE_POOL_MIN = 2;
+const DEFENSE_POOL_MAX = 8;
+
+/* Модификаторы пулов физической и ментальной защиты для генератора пресетов. */
+const DEFENSE_POOL_MODIFIERS = {
+  type:{
+    humanoid:{physical:0,mental:0},
+    mechanism:{physical:1,mental:1},
+    animal:{physical:1,mental:-1},
+    beast:{physical:1,mental:1},
+    undead:{physical:1,mental:1}
+  },
+  tag:{boss:{physical:1,mental:1},chief:{physical:0,mental:0},minion:{physical:-1,mental:-1}},
+  class:{
+    none:{physical:0,mental:0},psychopath:{physical:0,mental:0},tinkerer:{physical:0,mental:0},
+    bigshot:{physical:0,mental:1},recruit:{physical:1,mental:0},mentalist:{physical:0,mental:1},naturalist:{physical:1,mental:0}
+  }
+};
+const SCENE_PRESETS = {
+  normal:{label:'Обычная (d4+d6)',dice:[4,6]},
+  hindrance:{label:'Помеха (2d4)',dice:[4,4]},
+  advantage:{label:'Преимущество (2d6)',dice:[6,6]}
+};
+
+const CONDITIONS = ['Ослепление','Ошеломление','Дезориентация','Испуг','Замедление','Связан','Отравление','Пониженная видимость','Удушье','При смерти'];
+const CREATURE_TYPES = ['humanoid','mechanism','animal','beast','undead'];
+const CLASS_KEYS = ['auto','none','psychopath','tinkerer','bigshot','recruit','mentalist','naturalist'];
+const TAG_KEYS = ['boss','chief','minion'];
+const FORMATIONS = {
+  boss_minions:{label:'Босс + миньоны'},
+  chief_minions:{label:'Главарь + миньоны'},
+  minion_crowd:{label:'Толпа миньонов'}
+};
+
+const TAGS = {
+  boss:{label:'Босс',hp:1.28,armor:1,pz:1,pool:1,damageStep:1,reactionBonus:1,weight:2.5},
+  chief:{label:'Главарь',hp:1.08,armor:0,pz:0,pool:0,damageStep:0,reactionBonus:1,weight:1.55},
+  minion:{label:'Миньон',hp:.68,armor:-1,pz:-1,pool:-1,damageStep:-1,reactionBonus:0,weight:.65}
+};
+
+const CLASSES = {
+  none:{label:'без класса',pool:0,armor:0,hp:1,nerve:1,damageStep:0},
+  psychopath:{label:'Психопат',pool:0,armor:0,hp:1,nerve:1,damageStep:1},
+  tinkerer:{label:'Кустарь',pool:0,armor:1,hp:1.05,nerve:1,damageStep:0},
+  bigshot:{label:'Воротила',pool:0,armor:0,hp:1,nerve:1.2,damageStep:0},
+  recruit:{label:'Рекрут',pool:1,armor:0,hp:1,nerve:1,damageStep:0},
+  mentalist:{label:'Менталист',pool:0,armor:0,hp:.92,nerve:1.45,damageStep:0},
+  naturalist:{label:'Натуралист',pool:0,armor:0,hp:1.1,nerve:1.05,damageStep:0}
+};
+
+const TYPE_DATA = {
+  humanoid:{label:'Гуманоид',hp:1,armor:0,nerve:1,speed:3,resilience:1,immunities:[],rules:['Подчиняется обычным правилам захвата, состояний, Нерва и снаряжения.']},
+  mechanism:{label:'Механизм',hp:1.08,armor:1,nerve:0,speed:3,resilience:1.16,immunities:['Отравление','Удушье','Испуг'],rules:['Невосприимчив к яду, удушью, испугу и эффектам красного стекла.','Не имеет Нерва; ментальный урон по нему не применяется.']},
+  animal:{label:'Животное',hp:.92,armor:-1,nerve:.85,speed:4,resilience:.98,immunities:[],rules:['Скорость 4 очка передвижения (около 15 м).','При получении Дезориентации с шансом 15% полностью игнорирует её.']},
+  beast:{label:'Бестия',hp:1.12,armor:0,nerve:.95,speed:3,resilience:1.10,immunities:['Связан'],rules:['Нельзя захватить или связать.','Труднопроходимую местность обычно считает обычной.','Некоторые бестии получают +2 против яда и Испуга.']},
+  undead:{label:'Нежить',hp:1.05,armor:0,nerve:0,speed:3,resilience:1.22,immunities:['Отравление','Удушье','Испуг','Ослепление','Связан'],rules:['Редкая разновидность бестии; нельзя захватить или связать.','−1 входящего урона от огнестрела; −2 урона от Драки.','Тяжёлое дробящее оружие наносит +1 урон.']}
+};
+
+const ATTACK_LIBRARY = {
+  "humanoid": [
+    {
+      "name": "Удар голыми руками",
+      "range": "Касание",
+      "category": "Безоружная, обычная",
+      "effect": "Совершите безоружную атаку. Эта атака использует пониженный пул и пониженный профиль урона относительно оружейных атак, но всегда остаётся доступной, пока гуманоид способен действовать.",
+      "limitText": "Без ограничений.",
+      "id": "humanoid_1",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": -1,
+      "damageStep": -1,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "безоружная",
+        "обычная"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Удар головой",
+      "range": "Касание",
+      "category": "Безоружная, хитрая",
+      "effect": "При попадании цель проходит проверку Стойкости. При провале цель получает Дезориентацию до конца своего следующего действия. При провале самой атаки с ЭФ 0 или меньше атакующий получает 1 урон, игнорирующий Броню.",
+      "limitText": "2 раза за бой.",
+      "id": "humanoid_2",
+      "zoneSize": "",
+      "uses": 2,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "безоружная",
+        "хитрая"
+      ],
+      "power": "medium"
+    },
+    {
+      "name": "Рубящий удар",
+      "range": "Ближняя",
+      "category": "Холодное оружие, обычная",
+      "effect": "Совершите обычную атаку холодным оружием",
+      "limitText": "Без ограничений.",
+      "id": "humanoid_6",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "холодное оружие",
+        "обычная"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Выстрел на средней дистанции",
+      "range": "Средняя",
+      "effect": "Совершите обычную атаку пистолем",
+      "limitText": "Без ограничений.",
+      "id": "humanoid_11",
+      "category": "Особая",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": true,
+      "tags": [
+        "особая"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Выстрел на дальней дистанции",
+      "range": "Дальняя",
+      "category": "Дальнобойное оружие, обычная",
+      "effect": "Совершите обычную атаку дальнобойным оружием",
+      "limitText": "Без ограничений.",
+      "id": "humanoid_12",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "дальнобойное оружие",
+        "обычная"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Дымовая шашка",
+      "range": "Средняя, зона",
+      "category": "Расходник, зона",
+      "effect": "Выберите клетку в средней дистанции. В ней и соседних клетках возникает дым до конца следующего раунда. Атаки, требующие зрения через эту зону, совершаются с Помехой.",
+      "limitText": "1 раз за бой.",
+      "id": "humanoid_20",
+      "zoneSize": "",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "расходник",
+        "зона"
+      ],
+      "power": "strong"
+    },
+    {
+      "name": "Ослепляющая шашка",
+      "range": "Средняя, зона",
+      "category": "Расходник, зона",
+      "effect": "Все существа в выбранной небольшой зоне проходят проверку Стойкости. При провале получают Ослепление до конца своего следующего действия. Размер зоны: 2 соседних гекса.",
+      "limitText": "1 раз за бой.",
+      "id": "humanoid_21",
+      "zoneSize": "2 соседних гекса",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "расходник",
+        "зона"
+      ],
+      "power": "strong"
+    },
+    {
+      "name": "Зажигательная смесь",
+      "range": "Средняя, зона",
+      "category": "Расходник, зона",
+      "effect": "Нанесите урон всем существам в небольшой зоне. Зона (2 гекса) остаётся опасной до конца следующего раунда; первое вхождение или начало хода в ней наносит 2 урона.",
+      "limitText": "1 раз за бой.",
+      "id": "humanoid_22",
+      "zoneSize": "",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "расходник",
+        "зона"
+      ],
+      "power": "strong"
+    },
+    {
+      "name": "Кислотная колба",
+      "range": "Средняя, зона",
+      "category": "Расходник, зона",
+      "effect": "Нанесите урон всем существам в небольшой зоне. Размер зоны: 2 соседних гекса.",
+      "limitText": "1 раз за бой.",
+      "id": "humanoid_23",
+      "zoneSize": "2 соседних гекса",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "расходник",
+        "зона"
+      ],
+      "power": "strong"
+    },
+    {
+      "name": "Отравленный клинок: продолжающийся урон",
+      "range": "Ближняя",
+      "category": "Холодное оружие, яд",
+      "effect": "Если после Брони прошёл хотя бы 1 урон, цель проходит проверку Стойкости. При провале она получает 2 урона в конце своего следующего хода. Повторное применение обновляет длительность, но не складывает урон.",
+      "limitText": "2 успешных применения за бой.",
+      "id": "humanoid_24",
+      "zoneSize": "",
+      "uses": 2,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "холодное оружие",
+        "яд"
+      ],
+      "power": "medium"
+    }
+  ],
+  "mechanism": [
+    {
+      "name": "Удар манипулятором",
+      "range": "Касание",
+      "category": "Физическая, обычная",
+      "effect": "Совершите обычную атаку клешнёй, рукой, захватом или тяжёлым рабочим инструментом.",
+      "limitText": "Без ограничений.",
+      "id": "mechanism_1",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "физическая",
+        "обычная"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Толчок поршнем",
+      "range": "Касание",
+      "category": "Физическая, контроль",
+      "effect": "При попадании цель проходит проверку Стойкости. При провале отталкивается на 1 клетку.",
+      "limitText": "Без ограничений.",
+      "restriction": "Цель не должна быть существенно крупнее механизма.",
+      "id": "mechanism_2",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "физическая",
+        "контроль"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Вращающиеся лезвия",
+      "range": "Касание",
+      "category": "Режущая, опасная",
+      "effect": "Совершите атаку встроенными ножами, пилами или дисками. Атака получает Пробитие 1.",
+      "limitText": "Без ограничений.",
+      "id": "mechanism_4",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": true,
+      "technical": false,
+      "tags": [
+        "режущая",
+        "опасная"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Захват клешнёй",
+      "range": "Касание",
+      "category": "Контроль",
+      "effect": "При попадании вместо обычного урона проведите встречную проверку. При победе механизма цель удерживается.",
+      "limitText": "Без ограничений.",
+      "id": "mechanism_6",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "контроль"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Сдавливание",
+      "range": "Касание",
+      "category": "Физическая, условная",
+      "effect": "Совершите атаку по цели, уже удерживаемой этим механизмом. Атака получает Пробитие 1.",
+      "limitText": "Без ограничений.",
+      "restriction": "Требует удерживаемой цели.",
+      "id": "mechanism_7",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": true,
+      "technical": false,
+      "tags": [
+        "физическая",
+        "условная"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Встроенное орудие средней дистанции",
+      "range": "Средняя",
+      "effect": "Совершите обычную атаку встроенным гвоздомётом, короткой турелью или метателем болтов.",
+      "limitText": "Без ограничений.",
+      "id": "mechanism_8",
+      "category": "Особая",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "особая"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Дальнобойная турель",
+      "range": "Дальняя",
+      "category": "Дальнобойная, обычная",
+      "effect": "Совершите обычную дальнюю атаку. Если механизм перемещался в этот ход, атака совершается с Помехой.",
+      "limitText": "Без ограничений.",
+      "id": "mechanism_9",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "дальнобойная",
+        "обычная"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Электрический разряд: потеря реакции",
+      "range": "Касание или ближняя",
+      "category": "Энергетическая, контроль",
+      "effect": "При попадании цель проходит проверку Стойкости. При провале не может использовать реакции до начала своего следующего хода.",
+      "limitText": "2 раза за бой.",
+      "id": "mechanism_12",
+      "zoneSize": "",
+      "uses": 2,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "энергетическая",
+        "контроль"
+      ],
+      "power": "medium"
+    },
+    {
+      "name": "Огнемётная линия",
+      "range": "Ближняя, линия",
+      "category": "Зона",
+      "effect": "Проведите линию длиной до указанной дальности. Все существа в линии проходят защитную проверку. При провале получают полный урон, при успехе - половину.",
+      "limitText": "2 раза за бой.",
+      "id": "mechanism_15",
+      "zoneSize": "",
+      "uses": 2,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "зона"
+      ],
+      "power": "medium"
+    },
+    {
+      "name": "Ядовитый газ",
+      "range": "Ближняя, зона",
+      "category": "Химическая, зона",
+      "effect": "Создайте газовую зону размером в 2 соседних гекса до конца следующего раунда. Живое существо, начинающее ход в зоне, проходит проверку Стойкости; при провале получает урон.",
+      "limitText": "1 раз за бой.",
+      "id": "mechanism_17",
+      "zoneSize": "",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "химическая",
+        "зона"
+      ],
+      "power": "strong"
+    },
+    {
+      "name": "Ослепляющий пар",
+      "range": "Ближняя, зона",
+      "category": "Химическая, зона",
+      "effect": "Все существа в небольшой зоне проходят проверку Стойкости. При провале получают Ослепление до конца следующего действия. Размер зоны: 2 соседних гекса.",
+      "limitText": "2 раза за бой.",
+      "id": "mechanism_18",
+      "zoneSize": "2 соседних гекса",
+      "uses": 2,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "химическая",
+        "зона"
+      ],
+      "power": "medium"
+    },
+    {
+      "name": "Гарпун: притяжение",
+      "range": "Средняя",
+      "category": "Дальнобойная, контроль",
+      "effect": "При попадании цель проходит проверку Стойкости. При провале притягивается на 1 клетку к механизму. Чтобы освободиться нужно потратить действие. Пока гарпун активен механизм ничего не может делать.",
+      "limitText": "1 раз за бой.",
+      "id": "mechanism_22",
+      "zoneSize": "",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "дальнобойная",
+        "контроль"
+      ],
+      "power": "strong"
+    }
+  ],
+  "animal": [
+    {
+      "name": "Укус",
+      "range": "Касание",
+      "category": "Естественное оружие, обычная",
+      "effect": "Совершите обычную атаку зубами или клювом.",
+      "limitText": "Без ограничений.",
+      "id": "animal_1",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "естественное оружие",
+        "обычная"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Когти",
+      "range": "Касание",
+      "category": "Естественное оружие, обычная",
+      "effect": "Совершите обычную режущую атаку лапой или когтями.",
+      "limitText": "Без ограничений.",
+      "id": "animal_2",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "естественное оружие",
+        "обычная"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Удар лапой: отталкивание",
+      "range": "Касание",
+      "category": "Физическая, тяжёлая",
+      "effect": "При попадании цель проходит проверку Стойкости. При провале отталкивается на 1 клетку.",
+      "limitText": "2 раза за бой.",
+      "id": "animal_3",
+      "zoneSize": "",
+      "uses": 2,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "физическая",
+        "тяжёлая"
+      ],
+      "power": "medium"
+    },
+    {
+      "name": "Удар лапой: падение",
+      "range": "Касание",
+      "category": "Физическая, тяжёлая",
+      "effect": "При попадании цель проходит проверку Стойкости. При провале падает.",
+      "limitText": "2 раза за бой.",
+      "id": "animal_4",
+      "zoneSize": "",
+      "uses": 2,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "физическая",
+        "тяжёлая"
+      ],
+      "power": "medium"
+    },
+    {
+      "name": "Удар рогами",
+      "range": "Ближняя",
+      "category": "Физическая, разгон",
+      "effect": "Если животное перед атакой переместилось по прямой хотя бы на 1 клетку, атака получает Пробитие 1.",
+      "limitText": "Без ограничений.",
+      "id": "animal_5",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": true,
+      "technical": false,
+      "tags": [
+        "физическая",
+        "разгон"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Двойной удар лапами",
+      "range": "Касание",
+      "category": "Множественная",
+      "effect": "Совершите две отдельные атаки с Помехой по одной или двум целям в дальности касания.",
+      "limitText": "2 раза за бой.",
+      "id": "animal_9",
+      "zoneSize": "",
+      "uses": 2,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "множественная"
+      ],
+      "power": "medium"
+    },
+    {
+      "name": "Размашистый удар двумя лапами",
+      "range": "Касание",
+      "category": "Множественная, зона",
+      "effect": "Совершите одну атаку по двум соседним целям. Для каждой цели отдельно определите попадание.",
+      "limitText": "1 раз за бой.",
+      "id": "animal_10",
+      "zoneSize": "",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "множественная",
+        "зона"
+      ],
+      "power": "strong"
+    },
+    {
+      "name": "Вцепиться",
+      "range": "Касание",
+      "category": "Удержание",
+      "effect": "После успешного укуса цель проходит проверку Стойкости. При провале животное удерживает её. Пока удержание продолжается, этой пастью нельзя атаковать другие цели.",
+      "limitText": "Без ограничений.",
+      "id": "animal_12",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "удержание"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Встряхнуть добычу: усиленный урон",
+      "range": "Касание",
+      "category": "Условная",
+      "effect": "Совершите атаку по цели, удерживаемой этим животным. Атака получает дополнительно +2 урона. Попадание не требуется.",
+      "limitText": "Без ограничений.",
+      "id": "animal_13",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 1,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "условная"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Размашистый удар хвостом",
+      "range": "Ближняя, зона сбоку",
+      "category": "Физическая, зона",
+      "effect": "Совершите отдельную атаку по каждой цели в указанной боковой зоне. Все атаки совершаются с Помехой.",
+      "limitText": "1 раз за бой.",
+      "id": "animal_24",
+      "zoneSize": "",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "физическая",
+        "зона"
+      ],
+      "power": "strong"
+    }
+  ],
+  "beast": [
+    {
+      "name": "Искажённый удар",
+      "range": "Касание",
+      "category": "Физическая или сверхъестественная, обычная",
+      "effect": "Совершите обычную атаку конечностью, отростком или изменённой частью тела.",
+      "limitText": "Без ограничений.",
+      "id": "beast_1",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "физическая или сверхъестественная",
+        "обычная"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Когти чужой формы",
+      "range": "Касание",
+      "category": "Режущая",
+      "effect": "Совершите режущую атаку. Атака получает Пробитие 1.",
+      "limitText": "Без ограничений.",
+      "id": "beast_2",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": true,
+      "technical": false,
+      "tags": [
+        "режущая"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Размашистый удар отростками",
+      "range": "Касание или ближняя",
+      "category": "Множественная, зона",
+      "effect": "Совершите одну атаку по двум соседним целям. Для каждой цели отдельно определите попадание.",
+      "limitText": "1 раз за бой.",
+      "id": "beast_6",
+      "zoneSize": "",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "множественная",
+        "зона"
+      ],
+      "power": "strong"
+    },
+    {
+      "name": "Негативный импульс: потеря Нерва",
+      "range": "Средняя",
+      "category": "Сверхъестественная дальняя",
+      "effect": "При попадании нанесите обычный урон. Цель также теряет 1 Нерв.",
+      "limitText": "1 раз за бой.",
+      "id": "beast_8",
+      "zoneSize": "",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "сверхъестественная дальняя"
+      ],
+      "power": "strong"
+    },
+    {
+      "name": "Негативный импульс: дезориентация",
+      "range": "Средняя",
+      "category": "Сверхъестественная дальняя, контроль",
+      "effect": "При попадании цель проходит проверку Дисциплины. При провале получает Дезориентацию до конца следующего действия.",
+      "limitText": "2 раза за бой.",
+      "id": "beast_9",
+      "zoneSize": "",
+      "uses": 2,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "сверхъестественная дальняя",
+        "контроль"
+      ],
+      "power": "medium"
+    },
+    {
+      "name": "Луч разложения: снижение Брони",
+      "range": "Дальняя",
+      "category": "Сверхъестественная, точная",
+      "effect": "Если после Брони прошёл хотя бы 1 урон, цель теряет 2 Брони.",
+      "limitText": "2 раза за бой.",
+      "id": "beast_11",
+      "zoneSize": "",
+      "uses": 2,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "сверхъестественная",
+        "точная"
+      ],
+      "power": "medium"
+    },
+    {
+      "name": "Луч разложения: продолжающийся урон",
+      "range": "Дальняя",
+      "category": "Сверхъестественная, точная",
+      "effect": "Если после Брони прошёл хотя бы 1 урон, цель получает 2 урона в конце следующего хода. Эффект не складывается.",
+      "limitText": "2 раза за бой.",
+      "id": "beast_13",
+      "zoneSize": "",
+      "uses": 2,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "сверхъестественная",
+        "точная"
+      ],
+      "power": "medium"
+    },
+    {
+      "name": "Пространственный разрез",
+      "range": "Средняя, линия",
+      "category": "Зона, сверхъестественная",
+      "effect": "Все существа в выбранной линии проходят защитную проверку. При провале получают полный урон, при успехе - половину. Атака получает Пробитие 1.",
+      "limitText": "2 раза за бой.",
+      "id": "beast_15",
+      "zoneSize": "",
+      "uses": 2,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": true,
+      "technical": false,
+      "tags": [
+        "зона",
+        "сверхъестественная"
+      ],
+      "power": "medium"
+    },
+    {
+      "name": "Взрыв чужой энергии: отталкивание",
+      "range": "Зона вокруг",
+      "category": "Зона, контроль",
+      "effect": "Все существа рядом проходят проверку Стойкости. При провале получают урон и отталкиваются на 1 клетку.",
+      "limitText": "1 раз за бой.",
+      "id": "beast_16",
+      "zoneSize": "",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "зона",
+        "контроль"
+      ],
+      "power": "strong"
+    },
+    {
+      "name": "Поглощающий укус",
+      "range": "Касание",
+      "category": "Естественная, восстановление",
+      "effect": "При нанесении хотя бы 1 урона Телу бестия восстанавливает 2 Тела.",
+      "limitText": "2 раза за бой.",
+      "id": "beast_18",
+      "zoneSize": "",
+      "uses": 2,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "естественная",
+        "восстановление"
+      ],
+      "power": "medium"
+    },
+    {
+      "name": "Пожирание пространства: притяжение",
+      "range": "Средняя, зона",
+      "category": "Особая, контроль",
+      "effect": "Все существа в выбранной зоне проходят проверку Стойкости. При провале перемещаются на 1 клетку к центру зоны. Размер зоны: 2 соседних гекса.",
+      "limitText": "1 раз за бой.",
+      "id": "beast_26",
+      "zoneSize": "2 соседних гекса",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "особая",
+        "контроль"
+      ],
+      "power": "strong"
+    },
+    {
+      "name": "Пожирание пространства: искажённая сцена",
+      "range": "Средняя, зона",
+      "category": "Особая, контроль",
+      "effect": "До конца следующего раунда Кубы сцены всех существ в выбранной зоне считаются Помехой. Размер зоны: 2 соседних гекса.",
+      "limitText": "1 раз за бой.",
+      "id": "beast_27",
+      "zoneSize": "2 соседних гекса",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "особая",
+        "контроль"
+      ],
+      "power": "strong"
+    }
+  ],
+  "undead": [
+    {
+      "name": "Удар мёртвой рукой",
+      "range": "Касание",
+      "category": "Физическая, обычная",
+      "effect": "Совершите обычную атаку рукой, кулаком или костяной конечностью.",
+      "limitText": "Без ограничений.",
+      "id": "undead_1",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "физическая",
+        "обычная"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Укус мертвеца",
+      "range": "Касание",
+      "category": "Естественная",
+      "effect": "Совершите обычную атаку укусом.",
+      "limitText": "Без ограничений.",
+      "id": "undead_2",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "естественная"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Удар ржавым оружием",
+      "range": "Ближняя",
+      "category": "Холодное оружие, обычная",
+      "effect": "Совершите обычную атаку старым мечом, топором, копьём или инструментом.",
+      "limitText": "Без ограничений.",
+      "id": "undead_7",
+      "zoneSize": "",
+      "uses": 0,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "холодное оружие",
+        "обычная"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Заражённое оружие",
+      "range": "Ближняя",
+      "category": "Холодное оружие, заражение",
+      "effect": "Если после Брони прошёл хотя бы 1 урон, цель проходит проверку Стойкости. При провале получает Отравление. Эффект не складывается.",
+      "limitText": "2 успешных применения за бой.",
+      "id": "undead_8",
+      "zoneSize": "",
+      "uses": 2,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "холодное оружие",
+        "заражение"
+      ],
+      "power": "medium"
+    },
+    {
+      "name": "Костяной метатель",
+      "range": "Средняя",
+      "category": "Естественная дальняя",
+      "effect": "Совершите дальнюю атаку костяным шипом, зубом или обломком конечности. Атака получает Пробитие 1.",
+      "limitText": "3 раза за бой.",
+      "id": "undead_9",
+      "zoneSize": "",
+      "uses": 3,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": true,
+      "technical": false,
+      "tags": [
+        "естественная дальняя"
+      ],
+      "power": "simple"
+    },
+    {
+      "name": "Облако разложения: яд",
+      "range": "Зона вокруг",
+      "category": "Токсическая зона",
+      "effect": "Создайте зону в 2 гекса до конца следующего раунда. Живое существо, начинающее ход в зоне, проходит проверку Стойкости. При провале получает Отравление.",
+      "limitText": "1 раз за бой.",
+      "id": "undead_18",
+      "zoneSize": "",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "токсическая зона"
+      ],
+      "power": "strong"
+    },
+    {
+      "name": "Облако разложения: удушье",
+      "range": "Зона вокруг",
+      "category": "Токсическая зона",
+      "effect": "Создайте зону 2 гекса до конца следующего раунда. Живое существо, начинающее ход в зоне, проходит проверку Стойкости. При провале получает Удушье.",
+      "limitText": "1 раз за бой.",
+      "id": "undead_20",
+      "zoneSize": "",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "токсическая зона"
+      ],
+      "power": "strong"
+    },
+    {
+      "name": "Костяной взрыв",
+      "range": "Зона вокруг",
+      "category": "Физическая зона",
+      "effect": "Все существа рядом проходят защитную проверку. При провале получают полный урон, при успехе - половину. После применения нежить теряет 3 Тела, игнорируя Броню.",
+      "limitText": "1 раз за бой.",
+      "id": "undead_21",
+      "zoneSize": "",
+      "uses": 1,
+      "poolModifier": 0,
+      "damageStep": 0,
+      "penetrating": false,
+      "technical": false,
+      "tags": [
+        "физическая зона"
+      ],
+      "power": "strong"
+    }
+  ]
+};
+
+const REACTION_LIBRARY = {
+  "humanoid": [
+    {
+      "id": "humanoid_1",
+      "name": "Ответный выстрел",
+      "trigger": "В свой ход.",
+      "effect": "Гуманоид совершает дополнительную атаку тем же оружием с Помехой. Урон и свойства оружия не меняются.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "defense",
+        "control"
+      ]
+    },
+    {
+      "id": "humanoid_2",
+      "name": "Подавляющий огонь",
+      "trigger": "Противник объявляет перемещение в пределах дальности оружия.",
+      "effect": "Гуманоид совершает атаку с Помехой. Цель получает не урон, а теряет 1 очко движения и не может совершать рывок до конца текущего хода.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "defense",
+        "movement",
+        "control"
+      ]
+    },
+    {
+      "id": "humanoid_3",
+      "name": "Сбить прицел",
+      "trigger": "Противник объявляет атаку.",
+      "effect": "Кубы сцены атакующего становятся 2d4 для этой атаки.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "control"
+      ]
+    },
+    {
+      "id": "humanoid_4",
+      "name": "Резкий уклон",
+      "trigger": "После броска атаки, но до определения урона.",
+      "effect": "Атакующий перебрасывает одну из двух наибольших костей и обязан принять новый результат.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "defense"
+      ]
+    },
+    {
+      "id": "humanoid_5",
+      "name": "Подставить укрытие",
+      "trigger": "Гуманоид получает физический урон рядом с подходящим предметом окружения.",
+      "effect": "Предмет поглощает d6 урона. Если предмет достаточно прочен, ведущий может повысить поглощение до d8, после чего предмет разрушается.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "defense"
+      ]
+    },
+    {
+      "id": "humanoid_6",
+      "name": "Стиснуть зубы",
+      "trigger": "Гуманоид получает урон Телу.",
+      "effect": "Уменьшает полученный урон на 2.",
+      "limitText": "3 раза за бой.",
+      "zoneSize": "",
+      "uses": 3,
+      "power": "simple",
+      "tags": [
+        "defense"
+      ]
+    },
+    {
+      "id": "humanoid_7",
+      "name": "Поднять воротник",
+      "trigger": "Гуманоид становится целью дальней атаки.",
+      "effect": "Получает +2 Брони против этой атаки до конца раунда",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "defense"
+      ]
+    },
+    {
+      "id": "humanoid_8",
+      "name": "Форсированный рывок",
+      "trigger": "В начале собственного перемещения.",
+      "effect": "Скорость гуманоида увеличивается на 2 очка движения до конца хода. Обычные правила провоцированных атак продолжают действовать.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "movement"
+      ]
+    },
+    {
+      "id": "humanoid_9",
+      "name": "Репост",
+      "trigger": "Противник успешно атакует гуманоида в ближней дистанции.",
+      "effect": "Нападающий получает 2 урона игнорируя броню.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "defense"
+      ]
+    },
+    {
+      "id": "humanoid_10",
+      "name": "Туз в рукаве",
+      "trigger": "Гуманоид успешно наносит урон атакой оружием.",
+      "effect": "Применяет заранее подготовленный яд, разрывной заряд или иной расходник. Цель дополнительно получает d4 урона либо теряет 1 Нерв.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "defense",
+        "nerve"
+      ]
+    },
+    {
+      "id": "humanoid_11",
+      "name": "Неожиданная перезарядка",
+      "trigger": "Оружие гуманоида должно потерять последнюю единицу Прочности или стать непригодным.",
+      "effect": "Потеря Прочности отменяется, оружие остаётся с 1 Прочностью.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": []
+    },
+    {
+      "id": "humanoid_12",
+      "name": "Команда пригнуться",
+      "trigger": "Союзник в средней дистанции становится целью видимой атаки.",
+      "effect": "Союзник получает +1 ПЗ против этой атаки.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "defense"
+      ]
+    },
+    {
+      "id": "humanoid_13",
+      "name": "Навалиться всем весом",
+      "trigger": "Гуманоид выигрывает ближнюю атаку или состязание захвата.",
+      "effect": "Цель должна пройти встречную проверку Атлетики. При провале она падает.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "control"
+      ]
+    },
+    {
+      "id": "humanoid_14",
+      "name": "На последних силах",
+      "trigger": "Тело гуманоида впервые опускается до половины максимума или ниже.",
+      "effect": "До начала следующего хода получает +1 ПЗ и +1 к урону оружием.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "defense"
+      ]
+    }
+  ],
+  "mechanism": [
+    {
+      "id": "mechanism_1",
+      "name": "Аварийный выстрел",
+      "trigger": "Механизм получает пробивной урон.",
+      "effect": "Немедленно совершает дополнительную атаку основным оружием с Помехой.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "defense",
+        "control"
+      ]
+    },
+    {
+      "id": "mechanism_2",
+      "name": "Форсаж приводов",
+      "trigger": "В начале перемещения механизма.",
+      "effect": "Скорость увеличивается на 1 до конца хода. Игнорирует процированные атаки.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "movement"
+      ]
+    },
+    {
+      "id": "mechanism_3",
+      "name": "Баллистический расчёт",
+      "trigger": "Механизм объявляет атаку.",
+      "effect": "Его Кубы сцены для этой атаки становятся 2d6.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack"
+      ]
+    },
+    {
+      "id": "mechanism_4",
+      "name": "Дымовой выброс",
+      "trigger": "По механизму объявляют атаку.",
+      "effect": "Кубы сцены атакующего становятся 2d4.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "control"
+      ]
+    },
+    {
+      "id": "mechanism_5",
+      "name": "Сдвиг бронепластин",
+      "trigger": "После получения урона в раунде.",
+      "effect": "Броня механизма увеличивается на 1 до конца раунда",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "defense"
+      ]
+    },
+    {
+      "id": "mechanism_6",
+      "name": "Энергетический буфер",
+      "trigger": "Механизм получает урон",
+      "effect": "Уменьшает полученный урон на 1.",
+      "limitText": "3 раза за бой.",
+      "zoneSize": "",
+      "uses": 3,
+      "power": "simple",
+      "tags": [
+        "defense"
+      ]
+    },
+    {
+      "id": "mechanism_7",
+      "name": "Саморемонт",
+      "trigger": "В конце хода любого участника, если механизм имеет хотя бы 1 Тело.",
+      "effect": "Восстанавливает d6 Тела. В следующем раунде не может использовать реакции.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "control",
+        "healing"
+      ]
+    },
+    {
+      "id": "mechanism_8",
+      "name": "Запасная бронепластина",
+      "trigger": "Броня механизма уменьшается.",
+      "effect": "Снижение Брони отменяется.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "defense"
+      ]
+    },
+    {
+      "id": "mechanism_9",
+      "name": "Перегрузка орудия",
+      "trigger": "Механизм успешно попадает атакой.",
+      "effect": "Урон атаки увеличивается на d6, но оружие теряет 1 Прочность.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "defense",
+        "control"
+      ]
+    },
+    {
+      "id": "mechanism_10",
+      "name": "Дуговой разряд",
+      "trigger": "Противник касается механизма, атакует его безоружно или пытается захватить.",
+      "effect": "Противник получает d4 урона. Если урон прошёл через Броню, его действие совершается с Помехой.",
+      "limitText": "Без отдельного лимита.",
+      "zoneSize": "",
+      "uses": 0,
+      "power": "simple",
+      "tags": [
+        "attack",
+        "defense",
+        "control"
+      ]
+    },
+    {
+      "id": "mechanism_11",
+      "name": "Гироскопическая стабилизация",
+      "trigger": "В случае необходимости",
+      "effect": "Уменьшает принудительное перемещение на 1 клетку и получает Преимущество на проверку против падения.",
+      "limitText": "3 раза за бой.",
+      "zoneSize": "",
+      "uses": 3,
+      "power": "simple",
+      "tags": [
+        "movement"
+      ]
+    },
+    {
+      "id": "mechanism_12",
+      "name": "Резервный контур",
+      "trigger": "Оружие или модуль механизма теряет последнюю единицу Прочности.",
+      "effect": "Оно остаётся с 2 Прочности, но до конца следующего хода все его проверки совершаются с Помехой.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "control"
+      ]
+    },
+    {
+      "id": "mechanism_13",
+      "name": "Наведение на источник",
+      "trigger": "Механизм получает урон от видимого противника.",
+      "effect": "Атаки по противнику совершается с Преимуществом и получает +1 урон до тех пор, пока противник не поменяет положение.",
+      "limitText": "Неограниченно.",
+      "zoneSize": "",
+      "uses": 0,
+      "power": "simple",
+      "tags": [
+        "attack",
+        "defense"
+      ]
+    },
+    {
+      "id": "mechanism_14",
+      "name": "Сброс давления",
+      "trigger": "Противник входит в ближнюю дистанцию.",
+      "effect": "Противник проходит проверку Стойкости. При провале он отталкивается на 1 клетку. Это принудительное перемещение.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "movement",
+        "control"
+      ]
+    },
+    {
+      "id": "mechanism_15",
+      "name": "Последний протокол",
+      "trigger": "Механизм впервые падает до 0 Тела.",
+      "effect": "Механизм взрывается, наносит d6 урона всем вокруг себя.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "defense",
+        "control",
+        "healing"
+      ]
+    }
+  ],
+  "animal": [
+    {
+      "id": "animal_1",
+      "name": "Ответный укус",
+      "trigger": "Противник атакует животное в ближней дистанции.",
+      "effect": "Животное наносит противнику 1 урона. Броня применяется как обычно.",
+      "limitText": "Без отдельного лимита.",
+      "zoneSize": "",
+      "uses": 0,
+      "power": "simple",
+      "tags": [
+        "attack",
+        "defense"
+      ]
+    },
+    {
+      "id": "animal_2",
+      "name": "Прыжок хищника",
+      "trigger": "Видимый противник в пределах двух клеток завершает действие.",
+      "effect": "Животное перемещается к нему на расстояние до двух клеток. После этого цель проходит встречную проверку против Стойкости животного; при провале падает.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "movement",
+        "control"
+      ]
+    },
+    {
+      "id": "animal_3",
+      "name": "Сбить с ног",
+      "trigger": "Животное наносит урон ближней атакой.",
+      "effect": "Цель и животное совершают встречную проверку. При победе животного цель падает.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "defense",
+        "control"
+      ]
+    },
+    {
+      "id": "animal_4",
+      "name": "Рывок стаи",
+      "trigger": "В начале перемещения животного.",
+      "effect": "Его скорость увеличивается на 1 до конца хода за каждого члена стаи.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "movement"
+      ]
+    },
+    {
+      "id": "animal_5",
+      "name": "Зигзагообразный бег",
+      "trigger": "По животному объявляют дальнюю атаку.",
+      "effect": "Кубы сцены атакующего становятся 2d4.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "control"
+      ]
+    },
+    {
+      "id": "animal_6",
+      "name": "Резкий скачок",
+      "trigger": "После броска атаки по животному, но до определения попадания.",
+      "effect": "Атакующий перебрасывает одну из двух наибольших костей.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "movement"
+      ]
+    },
+    {
+      "id": "animal_7",
+      "name": "Толстая шкура",
+      "trigger": "Животное получает физический урон.",
+      "effect": "Уменьшает урон на 2.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "defense"
+      ]
+    },
+    {
+      "id": "animal_8",
+      "name": "Яростная хватка",
+      "trigger": "Противник пытается покинуть ближнюю дистанцию животного.",
+      "effect": "Животное совершает обычную провоцированную атаку. При нанесении хотя бы 1 урона скорость цели уменьшается до 1 до конца хода.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "defense",
+        "movement"
+      ]
+    },
+    {
+      "id": "animal_9",
+      "name": "Защитить детёныша",
+      "trigger": "Союзное животное в ближней дистанции становится целью атаки.",
+      "effect": "Это животное становится новой целью, если физически может закрыть союзника. Получает +1 Брони против атаки.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "defense"
+      ]
+    },
+    {
+      "id": "animal_10",
+      "name": "Почувствовать слабость",
+      "trigger": "Противник в ближней дистанции получает урон.",
+      "effect": "Следующая атака животного по этой цели до конца следующего хода получает Преимущество.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "defense"
+      ]
+    },
+    {
+      "id": "animal_11",
+      "name": "Встряхнуть добычу",
+      "trigger": "Животное успешно атакует лежащую, удерживаемую или обездвиженную цель.",
+      "effect": "Наносит дополнительно d4 урона.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "defense"
+      ]
+    },
+    {
+      "id": "animal_12",
+      "name": "Предсмертный бросок",
+      "trigger": "Животное впервые падает до 0 Тела.",
+      "effect": "Совершает одну ближнюю атаку с Помехой по доступной цели, наносит дополнительно +1 урона.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "defense",
+        "control",
+        "healing"
+      ]
+    },
+    {
+      "id": "animal_13",
+      "name": "Инстинктивное уклонение",
+      "trigger": "Животное должно получить полный урон от атаки по площади.",
+      "effect": "Уменьшает полученный урон вдвое, округляя вниз.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "defense"
+      ]
+    }
+  ],
+  "beast": [
+    {
+      "id": "beast_1",
+      "name": "Разрыв пространства",
+      "trigger": "Бестия становится целью атаки или эффекта, требующего линии видимости.",
+      "effect": "До броска телепортируется в видимую свободную точку на расстоянии до двух клеток. Если новая позиция делает действие невозможным, действие срывается.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "movement"
+      ]
+    },
+    {
+      "id": "beast_2",
+      "name": "Хаотический скачок",
+      "trigger": "Бестия совершает успешную атаку.",
+      "effect": "После завершения атаки телепортируется на одну клетку в случайном или выбранном ведущим направлении.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "movement"
+      ]
+    },
+    {
+      "id": "beast_3",
+      "name": "Вампиризм",
+      "trigger": "Бестия наносит урон",
+      "effect": "Восстанавливает здоровье в объёме нанесенного урона.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "defense",
+        "healing"
+      ]
+    },
+    {
+      "id": "beast_4",
+      "name": "Сшивание плоти",
+      "trigger": "В конце хода любого участника, если бестия имеет не больше половины Тела.",
+      "effect": "Восстанавливает d6 Тела, но не может атаковать в следующем раунде или совершать реакции.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "control",
+        "healing"
+      ]
+    },
+    {
+      "id": "beast_5",
+      "name": "Неправильный угол",
+      "trigger": "Противник объявляет атаку по бестии.",
+      "effect": "Кубы сцены атакующего становятся 2d4.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "control"
+      ]
+    },
+    {
+      "id": "beast_6",
+      "name": "Складка пространства",
+      "trigger": "После попадания по бестии, но до броска урона.",
+      "effect": "Урон уменьшается на d6.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "defense"
+      ]
+    },
+    {
+      "id": "beast_7",
+      "name": "Чужая броня",
+      "trigger": "Бестия получает физический урон.",
+      "effect": "Бестия уменшает входящий урон на 1 до конца следующего раунда.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "defense"
+      ]
+    },
+    {
+      "id": "beast_8",
+      "name": "Отражённая агрессия",
+      "trigger": "Противник успешно наносит бестии урон в ближней дистанции.",
+      "effect": "Бестия совершает дополнительную атаку с Помехой по этому противнику.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "defense",
+        "control"
+      ]
+    },
+    {
+      "id": "beast_9",
+      "name": "Эхо боли",
+      "trigger": "Бестия теряет 5 или больше Тела от одной атаки.",
+      "effect": "Нападающий теряет 2 Нерва.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "healing",
+        "nerve"
+      ]
+    },
+    {
+      "id": "beast_10",
+      "name": "Дополнительная конечность",
+      "trigger": "Бестия успешно попадает ближней атакой.",
+      "effect": "Наносит ещё 2 урона другой конечностью. Броня применяется отдельно.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "defense",
+        "control"
+      ]
+    },
+    {
+      "id": "beast_12",
+      "name": "Нестабильная кровь",
+      "trigger": "Бестия получает урон в дистанции касание.",
+      "effect": "Все существа в дальности касания получают 2 урона.",
+      "limitText": "3 раза за бой.",
+      "zoneSize": "",
+      "uses": 3,
+      "power": "simple",
+      "tags": [
+        "defense"
+      ]
+    },
+    {
+      "id": "beast_14",
+      "name": "Временная линька",
+      "trigger": "Бестия должна получить состояние.",
+      "effect": "Отменяет состояние, но теряет 2 Тела.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "healing"
+      ]
+    },
+    {
+      "id": "beast_15",
+      "name": "Последствие бури",
+      "trigger": "Бестия впервые падает до 0 Тела.",
+      "effect": "Создаёт вокруг себя опасную зону радиусом в одну клетку. Первое существо, входящее в неё или начинающее там ход, получает d6 урона.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "defense",
+        "control",
+        "healing"
+      ]
+    }
+  ],
+  "undead": [
+    {
+      "id": "undead_1",
+      "name": "Не замечает раны",
+      "trigger": "Нежить получает физический урон.",
+      "effect": "Уменьшает урон на 2.",
+      "limitText": "3 раза за бой.",
+      "zoneSize": "",
+      "uses": 3,
+      "power": "simple",
+      "tags": [
+        "defense"
+      ]
+    },
+    {
+      "id": "undead_2",
+      "name": "Мёртвая плоть",
+      "trigger": "После попадания, но до броска урона.",
+      "effect": "Броня нежити увеличивается на 2 против этой атаки.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "defense"
+      ]
+    },
+    {
+      "id": "undead_3",
+      "name": "Последний взмах",
+      "trigger": "Нежить впервые падает до 0 Тела.",
+      "effect": "Совершает дополнительную атаку с Помехой.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "control",
+        "healing"
+      ]
+    },
+    {
+      "id": "undead_5",
+      "name": "Мёртвая хватка",
+      "trigger": "Противник пытается покинуть ближнюю дистанцию нежити.",
+      "effect": "Нежить совершает обычную провоцированную атаку. При нанесении урона цель не может перемещаться.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "defense",
+        "movement"
+      ]
+    },
+    {
+      "id": "undead_6",
+      "name": "Холод могилы",
+      "trigger": "Противник наносит нежити урон в ближней дистанции.",
+      "effect": "Противник теряет 1 Нерв, если проваливает проверку Дисциплины.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "defense",
+        "nerve"
+      ]
+    },
+    {
+      "id": "undead_7",
+      "name": "Гаснущий взгляд",
+      "trigger": "Видимый живой противник объявляет атаку.",
+      "effect": "Кубы сцены атакующего становятся 2d4.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "control"
+      ]
+    },
+    {
+      "id": "undead_8",
+      "name": "Рывок мертвеца",
+      "trigger": "В начале перемещения нежити.",
+      "effect": "Скорость увеличивается на 2 до конца хода. Все провоцированные атаки применяются как обычно.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "attack",
+        "movement"
+      ]
+    },
+    {
+      "id": "undead_9",
+      "name": "Костяной выпад",
+      "trigger": "Противник завершает действие в ближней дистанции.",
+      "effect": "Нежить совершает дополнительную атаку с Помехой.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "control"
+      ]
+    },
+    {
+      "id": "undead_11",
+      "name": "Отдать конечность",
+      "trigger": "Нежить должна получить 5 или больше урона от одной атаки.",
+      "effect": "Уменьшает урон вдвое, но до конца боя её скорость снижается на 1 или атака теряет -1 ЭФ.",
+      "limitText": "1 раз за бой.",
+      "zoneSize": "",
+      "uses": 1,
+      "power": "strong",
+      "tags": [
+        "attack",
+        "defense",
+        "movement"
+      ]
+    },
+    {
+      "id": "undead_12",
+      "name": "Голод мертвеца",
+      "trigger": "Нежить наносит урон живому существу в ближней дистанции.",
+      "effect": "Восстанавливает 2 Тела.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "defense",
+        "healing"
+      ]
+    },
+    {
+      "id": "undead_13",
+      "name": "Пустой разум",
+      "trigger": "На нежить действует эффект, который не покрывается её обычными иммунитетами.",
+      "effect": "Бросает проверку с Преимуществом. При успехе полностью игнорирует эффект.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": []
+    },
+    {
+      "id": "undead_14",
+      "name": "Зов из могилы",
+      "trigger": "Другая нежить в средней дистанции падает до 0 Тела.",
+      "effect": "Эта нежить получает +1 к урону и +1 к скорости до конца следующего хода.",
+      "limitText": "2 раза за бой.",
+      "zoneSize": "",
+      "uses": 2,
+      "power": "medium",
+      "tags": [
+        "defense",
+        "movement",
+        "control",
+        "healing"
+      ]
+    }
+  ]
+};
+
+/* Совместимость со старым кодом и сохранениями. */
+const REACTIONS = REACTION_LIBRARY;
+
+const CLASS_REACTIONS = {
+  none:[],
+  psychopath:[
+    {name:'Дымовой разрыв',text:'До броска атаки, требующей зрения: создать дымовую зону радиусом 3 м; существа в ней получают Ослепление до конца хода.'},
+    {name:'Резкая ингаляция',text:'До броска физической атаки, рывка или захвата живой цели рядом: при провале Стойкости действие срывается.'},
+    {name:'Антидот на языке',text:'После получения яда, токсина или газа уменьшить длительность на d2 раунда; эффект на 1 раунд отменяется.'},
+    {name:'Кислотный плевок',text:'После захвата или безоружной атаки: захват прекращается либо нападающий получает d6 урона.'},
+    {name:'Подрывной отход',text:'До сближения по очевидному маршруту малый заряд наносит d6 урона в зоне 2×2 м.'}
+  ],
+  tinkerer:[
+    {name:'Рывок поля',text:'После броска сдвинуть объект или союзника в средней дистанции на 5 м; если это ломает действие, оно проваливается.'},
+    {name:'Держится на проволоке',text:'После снижения Прочности снаряжения союзника отменить это снижение.'},
+    {name:'Механический перехват',text:'Ассистент теряет d4 Прочности и полностью поглощает входящий урон.'},
+    {name:'Мгновенный щит',text:'После физического урона снизить его на ЭФ реакции.'}
+  ],
+  bigshot:[
+    {name:'Под руку попалось',text:'После броска ближней атаки использовать предмет окружения и поглотить d8 урона.'},
+    {name:'Встречный захват',text:'После критической атаки критические грани превращаются в штраф, а Прорыв отменяется.'},
+    {name:'Скрыться в потоке',text:'В людном, тёмном или шумном месте наложить d4+1 штрафа на обнаружение.'}
+  ],
+  recruit:[
+    {name:'Сбить прицел',text:'До дальней атаки противника его Кубы сцены становятся 2d4.'},
+    {name:'Холостой в лицо',text:'До атаки, захвата или сближения цель получает Ослепление до конца действия и Помеху.'},
+    {name:'На опережение',text:'До действия видимого противника провести дальнюю атаку d6; если прошёл урон, действие срывается.'}
+  ],
+  mentalist:[
+    {name:'Закрыть разум',text:'После ментального эффекта он не действует 1 раунд, а новые ментальные эффекты в этом раунде невозможны.'},
+    {name:'Держись за мой голос',text:'Союзник игнорирует Дезориентацию, Испуг или Ошеломление.'},
+    {name:'Я ждал этого',text:'При попытке солгать провести состязание и понять природу лжи и её мотив.'},
+    {name:'Пси-отдача',text:'Снизить потерю Нерва на 1; при победе в состязании противник теряет 1 Нерв.'},
+    {name:'Сомнение в руке',text:'Разумная цель, объявившая атаку, при поражении в состязании должна выбрать другое действие.'}
+  ],
+  naturalist:[
+    {name:'Мелкая помеха',text:'Подконтрольные животные окружают цель; она тратит 5 м движения или отказывается от действия.'},
+    {name:'Стая заслоняет',text:'Животные закрывают линию атаки и поглощают урон; затем с вероятностью 33% покидают сцену.'},
+    {name:'Шприц в последний момент',text:'Снизить яд, шок, страх или потерю Нерва на одну ступень; яд отменяется.'},
+    {name:'Удар по болевой точке',text:'Нанести d6 урона; цель не получает Прорыв и не использует Преимущество.'},
+    {name:'Не умирай',text:'Союзник при 0 Тела остаётся в сознании ещё d6+2 раунда.'}
+  ]
+};
+
+const NAMES = {
+  humanoid:{boss:['Коркский генерал','Начальник железнодорожной стражи','Плекский магистрат'],chief:['Коркский офицер','Шеллоунский мастер смены','Плекский инспектор'],minion:['Городской стражник','Заводской боец','Контрабандист','Карабинер']},
+  mechanism:{boss:['Главный паровой надзиратель','Командный автомат','Резонансный координатор'],chief:['Смотритель депо','Бронированный штурмовик','Заградительный автомат'],minion:['Ремонтный паук','Заводной разведчик','Малый перехватчик','Автоматическая турель']},
+  animal:{boss:['Старая речная хищница','Вожак каменной стаи','Крупный сторожевой зверь'],chief:['Матёрый вожак','Болотный кабан','Скалистый медведь'],minion:['Камышовая кошка','Речная гончая','Скальный прыгун','Быстрый шакал']},
+  beast:{boss:['Буревой князь','Великая неправильная тварь','Резонансный первенец'],chief:['Сердце хаотической стаи','Многосуставный ломатель','Пожиратель направления'],minion:['Ломаный бегун','Тонкая тень бури','Осколочный певец','Текучий громила']},
+  undead:{boss:['Мёртвый комендант','Костяной настоятель','Хозяин пустой роты'],chief:['Старший утопленник','Костяной латник','Могильный звонарь'],minion:['Мёртвый карабинер','Костяной бегун','Тихий покойник','Ползущий утопленник']}
+};
+
+const ATTACK_NAMES = {
+  humanoid:{boss:['Командный пистоль','Тяжёлая трость'],chief:['Карабин','Сабля'],minion:['Пистоль','Служебный нож']},
+  mechanism:{boss:['Командный разряд','Паровой резак'],chief:['Пружинный гвоздомёт','Таранный удар'],minion:['Игломёт','Режущая лапа']},
+  animal:{boss:['Укус вожака','Удар рогами'],chief:['Тяжёлый укус','Таран'],minion:['Быстрый укус','Прыжок с когтями']},
+  beast:{boss:['Разрыв реальности','Удар неправильной конечностью'],chief:['Осколочный выброс','Ломающее касание'],minion:['Ломаный выпад','Прыжок сквозь щель']},
+  undead:{boss:['Мёртвый приказ','Ржавый клинок'],chief:['Старый мушкет','Тяжёлый костяной удар'],minion:['Рваный укус','Ржавый нож']}
+};
+
+const RANGE_OPTIONS = ["Касание", "Ближняя", "Средняя", "Дальняя", "Средняя, зона", "Касание или ближняя", "Ближняя, линия", "Ближняя, зона", "Ближняя, зона сбоку", "Средняя, линия", "Зона вокруг", "Зона", "Особая"];
+</script>

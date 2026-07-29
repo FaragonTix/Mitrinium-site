@@ -1,0 +1,754 @@
+<script>
+  // Сохранение, загрузка, поиск и скрытие персонажей.
+
+  let savedCharactersListIsAdmin = false;
+  let hiddenCharactersCount = 0;
+
+  function setSaveStatus(
+    message,
+    isError
+  ) {
+    const status =
+      document.getElementById(
+        'saveStatus'
+      );
+
+    if (!status) {
+      return;
+    }
+
+    status.textContent = message || '';
+
+    status.className = isError
+      ? 'save-status error'
+      : 'save-status success';
+  }
+
+  function saveCurrentCharacter() {
+    const character =
+      collectCharacterForSave();
+
+    const errors =
+      validateCharacterOnClient(
+        character
+      );
+
+    if (errors.length > 0) {
+      setSaveStatus(
+        errors.join(' '),
+        true
+      );
+
+      return;
+    }
+
+    setSaveStatus(
+      'Сохраняю...',
+      false
+    );
+
+    google.script.run
+      .withSuccessHandler(
+        function (result) {
+          currentCharacterId =
+            result.id;
+
+          setSaveStatus(
+            'Персонаж сохранён. Список не обновлялся автоматически.',
+            false
+          );
+        }
+      )
+      .withFailureHandler(
+        function (error) {
+          setSaveStatus(
+            error.message ||
+              'Ошибка сохранения.',
+            true
+          );
+        }
+      )
+      .mitriniumSaveCharacter(
+        character
+      );
+  }
+
+  function setLoadStatus(
+    message,
+    isError
+  ) {
+    const status =
+      document.getElementById(
+        'loadStatus'
+      );
+
+    if (!status) {
+      return;
+    }
+
+    status.textContent = message || '';
+
+    status.className = isError
+      ? 'save-status error'
+      : 'save-status success';
+  }
+
+  function ensureSavedCharacterSearch() {
+    const list =
+      document.getElementById(
+        'savedCharactersList'
+      );
+
+    const status =
+      document.getElementById(
+        'loadStatus'
+      );
+
+    if (
+      !list ||
+      document.getElementById(
+        'savedCharacterSearch'
+      )
+    ) {
+      return;
+    }
+
+    const wrapper =
+      document.createElement('div');
+
+    wrapper.className =
+      'saved-character-search';
+
+    wrapper.innerHTML = `
+      <label
+        for="savedCharacterSearch"
+        class="field"
+      >
+        <span>
+          Поиск по сохранённым персонажам
+        </span>
+
+        <input
+          type="search"
+          id="savedCharacterSearch"
+          placeholder="Имя, игрок, класс или email"
+          autocomplete="off"
+        >
+      </label>
+    `;
+
+    if (
+      status &&
+      status.parentNode
+    ) {
+      status.parentNode.insertBefore(
+        wrapper,
+        status
+      );
+    } else if (list.parentNode) {
+      list.parentNode.insertBefore(
+        wrapper,
+        list
+      );
+    }
+
+    const searchInput =
+      document.getElementById(
+        'savedCharacterSearch'
+      );
+
+    if (searchInput) {
+      searchInput.addEventListener(
+        'input',
+        filterSavedCharactersList
+      );
+    }
+  }
+
+  function escapeSavedCharacterText(
+    value
+  ) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function escapeSavedCharacterJs(
+    value
+  ) {
+    return String(value || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'");
+  }
+
+  function filterSavedCharactersList() {
+    renderSavedCharactersList();
+  }
+
+  function renderSavedCharactersList() {
+    const list =
+      document.getElementById(
+        'savedCharactersList'
+      );
+
+    const searchInput =
+      document.getElementById(
+        'savedCharacterSearch'
+      );
+
+    if (!list) {
+      return;
+    }
+
+    const query = String(
+      searchInput
+        ? searchInput.value
+        : ''
+    )
+      .trim()
+      .toLocaleLowerCase('ru-RU');
+
+    const filteredCharacters =
+      savedCharactersCache.filter(
+        function (character) {
+          if (!query) {
+            return true;
+          }
+
+          const searchableText = [
+            character.name,
+            character.player,
+            character.className,
+            character.ownerEmail
+          ]
+            .join(' ')
+            .toLocaleLowerCase(
+              'ru-RU'
+            );
+
+          return (
+            searchableText.indexOf(
+              query
+            ) !== -1
+          );
+        }
+      );
+
+    if (
+      savedCharactersCache.length === 0
+    ) {
+      list.innerHTML = '';
+
+      setLoadStatus(
+        hiddenCharactersCount > 0
+          ? 'Все доступные персонажи скрыты.'
+          : 'Сохранённых персонажей пока нет.',
+        false
+      );
+
+      renderHiddenCharactersControls();
+      return;
+    }
+
+    if (
+      filteredCharacters.length === 0
+    ) {
+      setLoadStatus(
+        'По запросу ничего не найдено.',
+        false
+      );
+
+      list.innerHTML = `
+        <div class="empty-note">
+          Попробуйте другое имя,
+          класс, игрока или email.
+        </div>
+      `;
+
+      renderHiddenCharactersControls();
+      return;
+    }
+
+    if (query) {
+      setLoadStatus(
+        'Показано персонажей: ' +
+          filteredCharacters.length +
+          ' из ' +
+          savedCharactersCache.length,
+        false
+      );
+    } else {
+      setLoadStatus(
+        'Найдено персонажей: ' +
+          savedCharactersCache.length,
+        false
+      );
+    }
+
+    list.innerHTML =
+      filteredCharacters
+        .map(function (character) {
+          const characterId =
+            escapeSavedCharacterJs(
+              character.id
+            );
+
+          const name =
+            escapeSavedCharacterText(
+              character.name ||
+                'Без имени'
+            );
+
+          const className =
+            escapeSavedCharacterText(
+              character.className ||
+                'Класс не указан'
+            );
+
+          const icon =
+            typeof getClassIcon ===
+            'function'
+              ? getClassIcon(
+                  character.className
+                )
+              : '';
+
+          const player =
+            character.player
+              ? ' · игрок: ' +
+                escapeSavedCharacterText(
+                  character.player
+                )
+              : '';
+
+          const ownerEmail =
+            character.ownerEmail
+              ? ' · ' +
+                escapeSavedCharacterText(
+                  character.ownerEmail
+                )
+              : '';
+
+          const hideButton =
+            savedCharactersListIsAdmin
+              ? `
+                <button
+                  type="button"
+                  class="equipment-button saved-character-hide-button"
+                  onclick="hideCharacterFromOwnerList(
+                    '${characterId}'
+                  )"
+                >
+                  Скрыть
+                </button>
+              `
+              : '';
+
+          return `
+            <div class="saved-character-item">
+              <div>
+                <div class="saved-character-name">
+                  ${
+                    icon
+                      ? `
+                        <span
+                          class="class-icon-inline"
+                          aria-hidden="true"
+                        >
+                          ${escapeSavedCharacterText(
+                            icon
+                          )}
+                        </span>
+                      `
+                      : ''
+                  }
+
+                  ${name}
+                </div>
+
+                <div class="saved-character-meta">
+                  ${className}
+                  ${player}
+                  ${ownerEmail}
+                </div>
+              </div>
+
+              <div class="saved-character-actions">
+                <button
+                  type="button"
+                  class="equipment-button"
+                  onclick="loadCharacterForEdit(
+                    '${characterId}'
+                  )"
+                >
+                  Загрузить
+                </button>
+
+                ${hideButton}
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+
+    renderHiddenCharactersControls();
+  }
+
+  function loadSavedCharactersList() {
+    const list =
+      document.getElementById(
+        'savedCharactersList'
+      );
+
+    if (!list) {
+      return;
+    }
+
+    ensureSavedCharacterSearch();
+
+    setLoadStatus(
+      'Загружаю список...',
+      false
+    );
+
+    list.innerHTML = '';
+
+    google.script.run
+      .withSuccessHandler(
+        function (result) {
+          savedCharactersListIsAdmin =
+            Boolean(
+              result &&
+              result.isAdmin
+            );
+
+          hiddenCharactersCount =
+            Number(
+              result &&
+              result.hiddenCount
+            ) || 0;
+
+          savedCharactersCache =
+            result &&
+            Array.isArray(
+              result.characters
+            )
+              ? result.characters
+              : [];
+
+          renderSavedCharactersList();
+        }
+      )
+      .withFailureHandler(
+        function (error) {
+          savedCharactersCache = [];
+
+          setLoadStatus(
+            error.message ||
+              'Ошибка загрузки списка.',
+            true
+          );
+        }
+      )
+      .mitriniumListVisibleCharacters();
+  }
+
+  function sanitizeLoadedCharacterCaps(
+    character
+  ) {
+    const result =
+      character || {};
+
+    const loadedAttributes =
+      result.attributes || {};
+
+    Object.keys(
+      loadedAttributes
+    ).forEach(function (key) {
+      loadedAttributes[key] =
+        clampLoadedStat(
+          loadedAttributes[key]
+        );
+    });
+
+    const loadedSkills =
+      result.skills || {};
+
+    Object.keys(
+      loadedSkills
+    ).forEach(function (groupKey) {
+      const group =
+        loadedSkills[groupKey] || {};
+
+      Object.keys(group).forEach(
+        function (skillKey) {
+          group[skillKey] =
+            clampLoadedStat(
+              group[skillKey]
+            );
+        }
+      );
+    });
+
+    return result;
+  }
+
+  function clampLoadedStat(value) {
+    const numericValue =
+      Number(value);
+
+    if (!Number.isFinite(
+      numericValue
+    )) {
+      return 1;
+    }
+
+    return Math.max(
+      1,
+      Math.min(
+        3,
+        Math.round(numericValue)
+      )
+    );
+  }
+
+  function loadCharacterForEdit(
+    characterId
+  ) {
+    setLoadStatus(
+      'Загружаю персонажа...',
+      false
+    );
+
+    google.script.run
+      .withSuccessHandler(
+        function (character) {
+          const safeCharacter =
+            sanitizeLoadedCharacterCaps(
+              character
+            );
+
+          applyCharacterToForm(
+            safeCharacter
+          );
+
+          syncClassIconPicker();
+
+          if (
+            typeof renderRollComponentOptions ===
+            'function'
+          ) {
+            renderRollComponentOptions();
+          }
+
+          setLoadStatus(
+            'Персонаж загружен для редактирования.',
+            false
+          );
+
+          const characterCard =
+            document
+              .getElementById(
+                'characterName'
+              )
+              ?.closest('.card');
+
+          if (characterCard) {
+            characterCard.scrollIntoView(
+              {
+                behavior: 'smooth',
+                block: 'start'
+              }
+            );
+          }
+        }
+      )
+      .withFailureHandler(
+        function (error) {
+          setLoadStatus(
+            error.message ||
+              'Ошибка загрузки персонажа.',
+            true
+          );
+        }
+      )
+      .loadCharacter(characterId);
+  }
+
+  function hideCharacterFromOwnerList(
+    characterId
+  ) {
+    if (
+      !savedCharactersListIsAdmin
+    ) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        'Скрыть персонажа из вашего списка? Данные не будут удалены.'
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setLoadStatus(
+      'Скрываю персонажа...',
+      false
+    );
+
+    google.script.run
+      .withSuccessHandler(
+        function () {
+          loadSavedCharactersList();
+        }
+      )
+      .withFailureHandler(
+        function (error) {
+          setLoadStatus(
+            error.message ||
+              'Ошибка скрытия персонажа.',
+            true
+          );
+        }
+      )
+      .mitriniumHideCharacter(
+        characterId
+      );
+  }
+
+  function restoreAllHiddenCharacters() {
+    if (
+      !savedCharactersListIsAdmin
+    ) {
+      return;
+    }
+
+    setLoadStatus(
+      'Возвращаю скрытых персонажей...',
+      false
+    );
+
+    google.script.run
+      .withSuccessHandler(
+        function () {
+          loadSavedCharactersList();
+        }
+      )
+      .withFailureHandler(
+        function (error) {
+          setLoadStatus(
+            error.message ||
+              'Ошибка возврата персонажей.',
+            true
+          );
+        }
+      )
+      .mitriniumRestoreHiddenCharacters();
+  }
+
+  function renderHiddenCharactersControls() {
+    const section =
+      document.getElementById(
+        'savedCharactersSection'
+      );
+
+    if (!section) {
+      return;
+    }
+
+    let controls =
+      section.querySelector(
+        '.hidden-character-controls'
+      );
+
+    if (
+      !savedCharactersListIsAdmin
+    ) {
+      if (controls) {
+        controls.remove();
+      }
+
+      return;
+    }
+
+    if (!controls) {
+      controls =
+        document.createElement('div');
+
+      controls.className =
+        'hidden-character-controls';
+
+      const status =
+        document.getElementById(
+          'loadStatus'
+        );
+
+      if (status) {
+        status.insertAdjacentElement(
+          'beforebegin',
+          controls
+        );
+      } else {
+        section.appendChild(
+          controls
+        );
+      }
+    }
+
+    controls.innerHTML = `
+      <span class="hidden-character-count">
+        Скрыто:
+        <strong>
+          ${hiddenCharactersCount}
+        </strong>
+      </span>
+
+      <button
+        type="button"
+        class="secondary-button"
+        ${
+          hiddenCharactersCount === 0
+            ? 'disabled'
+            : ''
+        }
+        onclick="restoreAllHiddenCharacters()"
+      >
+        Вернуть всех скрытых
+      </button>
+    `;
+  }
+
+  function debugCharacters() {
+    google.script.run
+      .withSuccessHandler(
+        function (result) {
+          console.log(
+            'DEBUG CHARACTERS:',
+            result
+          );
+
+          alert(
+            JSON.stringify(
+              result,
+              null,
+              2
+            )
+          );
+        }
+      )
+      .withFailureHandler(
+        function (error) {
+          alert(
+            error.message ||
+              'Ошибка debugCharacters'
+          );
+        }
+      )
+      .debugCharactersSheet();
+  }
+</script>

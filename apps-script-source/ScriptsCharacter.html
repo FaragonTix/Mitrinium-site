@@ -1,0 +1,657 @@
+<script>
+  // Атрибуты, навыки, ресурсы, биография, форма персонажа и клиентская проверка.
+
+  let currentBiography = createEmptyBiography();
+
+  /* =========================
+     Атрибуты
+  ========================= */
+
+  function getSpentAttributePoints() {
+    return Object.values(attributes).reduce(function(sum, attribute) {
+      return sum + (attribute.value - 1);
+    }, 0);
+  }
+
+  function getAttributePointsLeft() {
+    return totalExtraAttributePoints - getSpentAttributePoints();
+  }
+
+  function changeAttribute(attributeKey, delta) {
+    const attribute = attributes[attributeKey];
+    if (!attribute) return;
+    const nextValue = Number(attribute.value) + Number(delta);
+    if (nextValue < 1 || nextValue > 3) return;
+    if (!advancedEditMode && delta > 0 && getAttributePointsLeft() <= 0) return;
+    attribute.value = nextValue;
+    renderAttributes();
+    refreshViewerIfOpen();
+    if (typeof renderRollComponentOptions === 'function') renderRollComponentOptions();
+  }
+
+  function renderAttributes() {
+    const grid = document.getElementById('attributesGrid');
+    const pointsLeft = document.getElementById('attributePointsLeft');
+
+    if (!grid || !pointsLeft) return;
+
+    pointsLeft.textContent = advancedEditMode
+      ? 'режим развития'
+      : getAttributePointsLeft();
+
+    grid.innerHTML = '';
+
+    Object.entries(attributes).forEach(function(entry) {
+      const key = entry[0];
+      const attribute = entry[1];
+      const item = document.createElement('div');
+
+      item.className = 'attribute-item';
+      item.innerHTML = `
+        <div class="attribute-name">${attribute.name}</div>
+
+        <div class="counter">
+          <button
+            type="button"
+            onclick="changeAttribute('${key}', -1)"
+          >
+            −
+          </button>
+
+          <strong>${attribute.value}</strong>
+
+          <button
+            type="button"
+            onclick="changeAttribute('${key}', 1)"
+          >
+            +
+          </button>
+        </div>
+      `;
+
+      grid.appendChild(item);
+    });
+
+    renderResources();
+  }
+
+  /* =========================
+     Ресурсы
+  ========================= */
+
+  function getCalculatedResources() {
+    return {
+      body: 4 + (
+        attributes.napor.value +
+        attributes.zhila.value
+      ) * 2,
+
+      mainNerve:
+        attributes.losk.value +
+        attributes.nyuh.value,
+
+      bonusNerve: 3
+    };
+  }
+
+  function renderResources() {
+    const resources = getCalculatedResources();
+    const bodyValue = document.getElementById('bodyValue');
+    const mainNerveValue = document.getElementById('mainNerveValue');
+    const bonusNerveValue = document.getElementById('bonusNerveValue');
+
+    if (bodyValue) {
+      bodyValue.textContent = resources.body;
+    }
+
+    if (mainNerveValue) {
+      mainNerveValue.textContent = resources.mainNerve;
+    }
+
+    if (bonusNerveValue) {
+      bonusNerveValue.textContent = resources.bonusNerve;
+    }
+  }
+
+  /* =========================
+     Навыки
+  ========================= */
+
+  function getSpentSkillPoints() {
+    let spent = 0;
+
+    Object.values(skills).forEach(function(group) {
+      Object.values(group.items).forEach(function(skill) {
+        spent += skill.value - 1;
+      });
+    });
+
+    return spent;
+  }
+
+  function getSkillPointsLeft() {
+    return totalExtraSkillPoints - getSpentSkillPoints();
+  }
+
+  function changeSkill(groupKey, skillKey, delta) {
+    const group = skills[groupKey];
+    const skill = group && group.items ? group.items[skillKey] : null;
+    if (!skill) return;
+    const nextValue = Number(skill.value) + Number(delta);
+    const maximum = advancedEditMode ? 3 : 2;
+    if (nextValue < 1 || nextValue > maximum) return;
+    if (!advancedEditMode && delta > 0 && getSkillPointsLeft() <= 0) return;
+    skill.value = nextValue;
+    renderSkills();
+    refreshViewerIfOpen();
+    if (typeof renderRollComponentOptions === 'function') renderRollComponentOptions();
+  }
+
+  function renderSkills() {
+    const grid = document.getElementById('skillsGrid');
+    const pointsLeft = document.getElementById('skillPointsLeft');
+
+    if (!grid || !pointsLeft) return;
+
+    pointsLeft.textContent = advancedEditMode
+      ? 'режим развития'
+      : getSkillPointsLeft();
+
+    grid.innerHTML = '';
+
+    Object.entries(skills).forEach(function(groupEntry) {
+      const groupKey = groupEntry[0];
+      const group = groupEntry[1];
+      const column = document.createElement('div');
+      let html = `<h3>${group.attributeName}</h3>`;
+
+      column.className = 'skill-column';
+
+      Object.entries(group.items).forEach(function(skillEntry) {
+        const skillKey = skillEntry[0];
+        const skill = skillEntry[1];
+
+        html += `
+          <div class="skill-item">
+            <span>${skill.name}</span>
+
+            <div class="mini-counter">
+              <button
+                type="button"
+                onclick="changeSkill('${groupKey}', '${skillKey}', -1)"
+              >
+                −
+              </button>
+
+              <strong>${skill.value}</strong>
+
+              <button
+                type="button"
+                onclick="changeSkill('${groupKey}', '${skillKey}', 1)"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        `;
+      });
+
+      column.innerHTML = html;
+      grid.appendChild(column);
+    });
+  }
+
+  function getSelectedClassName() {
+    const select = document.getElementById('className');
+    return select ? select.value : '';
+  }
+
+  /* =========================
+     Биографические черты
+  ========================= */
+
+  function escapeBiographyHtml(value) {
+    return String(value === null || value === undefined ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function selectBiographyCard(sectionId, cardId) {
+    currentBiography = normalizeBiography(currentBiography);
+
+    if (!currentBiography[sectionId]) {
+      return;
+    }
+
+    const previousCardId = currentBiography[sectionId].cardId;
+
+    currentBiography[sectionId].cardId = cardId;
+
+    if (previousCardId !== cardId) {
+      currentBiography[sectionId].detail = '';
+    }
+
+    renderBiographyEditor();
+    refreshViewerIfOpen();
+  }
+
+  function setBiographyDetail(sectionId, value) {
+    currentBiography = normalizeBiography(currentBiography);
+
+    if (!currentBiography[sectionId]) {
+      return;
+    }
+
+    currentBiography[sectionId].detail = String(value || '');
+    refreshViewerIfOpen();
+  }
+
+  function renderBiographyChoice(section, card, selection) {
+    const isSelected = selection.cardId === card.id;
+    const traits = (card.traits || []).map(function(trait) {
+      return `
+        <li>
+          <strong>${escapeBiographyHtml(trait.name)}</strong>
+        </li>
+      `;
+    }).join('');
+
+    return `
+      <button
+        type="button"
+        class="biography-choice-card${isSelected ? ' selected' : ''}"
+        aria-pressed="${isSelected ? 'true' : 'false'}"
+        onclick="selectBiographyCard('${section.id}', '${card.id}')"
+      >
+        <span class="biography-choice-name">
+          ${escapeBiographyHtml(card.name)}
+        </span>
+
+        <span class="biography-choice-description">
+          ${escapeBiographyHtml(card.description || '')}
+        </span>
+
+        <ul class="biography-choice-traits">
+          ${traits}
+        </ul>
+      </button>
+    `;
+  }
+
+  function renderBiographySelectedDetails(section, selection) {
+    const card = getBiographyCard(section.id, selection.cardId);
+
+    if (!card) {
+      return `
+        <p class="biography-selection-note">
+          Выберите одну карточку этого раздела.
+        </p>
+      `;
+    }
+
+    const traits = (card.traits || []).map(function(trait) {
+      return `
+        <article class="biography-trait-preview">
+          <strong>${escapeBiographyHtml(trait.name)}</strong>
+          <p>${escapeBiographyHtml(trait.description)}</p>
+        </article>
+      `;
+    }).join('');
+
+    const detailField = card.requiresDetail
+      ? `
+        <label class="field biography-detail-field">
+          <span>
+            ${escapeBiographyHtml(
+              section.detailLabel || 'Уточнение'
+            )}
+          </span>
+
+          <input
+            type="text"
+            value="${escapeBiographyHtml(selection.detail || '')}"
+            placeholder="${escapeBiographyHtml(card.detailPlaceholder || '')}"
+            oninput="setBiographyDetail('${section.id}', this.value)"
+          >
+        </label>
+      `
+      : '';
+
+    const note = card.note
+      ? `
+        <p class="biography-card-note">
+          ${escapeBiographyHtml(card.note)}
+        </p>
+      `
+      : '';
+
+    return `
+      <div class="biography-selected-card">
+        <div class="biography-selected-heading">
+          <strong>${escapeBiographyHtml(card.name)}</strong>
+          <span>${escapeBiographyHtml(card.description || '')}</span>
+        </div>
+
+        ${note}
+        ${detailField}
+
+        <div class="biography-trait-preview-grid">
+          ${traits}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderBiographyEditor() {
+    const container = document.getElementById('biographyEditor');
+
+    if (!container) return;
+
+    currentBiography = normalizeBiography(currentBiography);
+
+    container.innerHTML = biographyData.sections.map(function(section) {
+      const selection = currentBiography[section.id];
+      const choices = section.cards.map(function(card) {
+        return renderBiographyChoice(section, card, selection);
+      }).join('');
+
+      return `
+        <section class="biography-section">
+          <div class="biography-section-heading">
+            <h3>${escapeBiographyHtml(section.title)}</h3>
+            <p>${escapeBiographyHtml(section.description || '')}</p>
+          </div>
+
+          <div class="biography-choice-grid">
+            ${choices}
+          </div>
+
+          ${renderBiographySelectedDetails(section, selection)}
+        </section>
+      `;
+    }).join('');
+  }
+
+  function collectBiographyForSave() {
+    currentBiography = normalizeBiography(currentBiography);
+    return currentBiography;
+  }
+
+  function applyBiography(savedBiography) {
+    currentBiography = normalizeBiography(savedBiography);
+    renderBiographyEditor();
+  }
+
+  function resetBiography() {
+    currentBiography = createEmptyBiography();
+    renderBiographyEditor();
+  }
+
+  /* =========================
+     Сбор данных
+  ========================= */
+
+  function collectAttributesForSave() {
+    const result = {};
+
+    Object.entries(attributes).forEach(function(entry) {
+      result[entry[0]] = entry[1].value;
+    });
+
+    return result;
+  }
+
+  function collectSkillsForSave() {
+    const result = {};
+
+    Object.entries(skills).forEach(function(groupEntry) {
+      const groupKey = groupEntry[0];
+      const group = groupEntry[1];
+
+      result[groupKey] = {};
+
+      Object.entries(group.items).forEach(function(skillEntry) {
+        result[groupKey][skillEntry[0]] = skillEntry[1].value;
+      });
+    });
+
+    return result;
+  }
+
+  function collectResourcesForSave() {
+    return getCalculatedResources();
+  }
+
+  function collectCharacterForSave() {
+    return {
+      id: currentCharacterId,
+      name: document.getElementById('characterName').value.trim(),
+      player: document.getElementById('playerName').value.trim(),
+      className: document.getElementById('className').value,
+      concept: document.getElementById('concept').value.trim(),
+      biography: collectBiographyForSave(),
+      advancedEditMode: advancedEditMode,
+      attributes: collectAttributesForSave(),
+      skills: collectSkillsForSave(),
+      resources: collectResourcesForSave(),
+      abilities: selectedAbilities.slice(),
+      equipment: selectedEquipment.slice(),
+      equipmentSpent: getSelectedEquipmentTotal(),
+      equipmentMaintenance: getSelectedEquipmentMaintenanceTotal()
+    };
+  }
+
+  /* =========================
+     Проверка
+  ========================= */
+
+  function validateCharacterOnClient(character) {
+    const errors = [];
+
+    if (!character.name) {
+      errors.push('Укажите имя персонажа.');
+    }
+
+    if (!character.className) {
+      errors.push('Выберите класс.');
+    }
+
+    const biographyValidation = validateBiography(
+      character.biography
+    );
+
+    if (!biographyValidation.valid) {
+      errors.push.apply(
+        errors,
+        biographyValidation.errors
+      );
+    }
+
+    if (
+      !advancedEditMode &&
+      getAttributePointsLeft() !== 0
+    ) {
+      errors.push('Распределите все очки Атрибутов.');
+    }
+
+    if (
+      !advancedEditMode &&
+      getSkillPointsLeft() !== 0
+    ) {
+      errors.push('Распределите все очки Навыков.');
+    }
+
+    if (!advancedEditMode) {
+      if (character.abilities.length !== 3) {
+        errors.push('Выберите ровно 3 способности.');
+      }
+
+      const selectedCategories = character.abilities
+        .map(function(abilityId) {
+          return getAbilityById(abilityId);
+        })
+        .filter(Boolean)
+        .map(function(ability) {
+          return ability.category;
+        });
+
+      const uniqueCategories = new Set(selectedCategories);
+
+      if (
+        uniqueCategories.size !== 3 ||
+        !uniqueCategories.has('ultimate') ||
+        !uniqueCategories.has('favorite') ||
+        !uniqueCategories.has('common')
+      ) {
+        errors.push(
+          'На старте выберите по одной способности из каждой категории: Ультимативная, Любимый приём, Обычное дело.'
+        );
+      }
+    }
+
+    if (character.equipmentSpent > startingMoney) {
+      errors.push(
+        'Стоимость снаряжения превышает 1000 ф.'
+      );
+    }
+
+    return errors;
+  }
+
+  /* =========================
+     Загрузка персонажа в форму
+  ========================= */
+
+  function applyCharacterToForm(character) {
+    character = character || {};
+
+    currentCharacterId = character.id || null;
+
+    document.getElementById('characterName').value =
+      character.name || '';
+
+    document.getElementById('playerName').value =
+      character.player || '';
+
+    document.getElementById('className').value =
+      character.className || '';
+
+    document.getElementById('concept').value =
+      character.concept || '';
+
+    setAdvancedEditMode(
+      Boolean(character.advancedEditMode)
+    );
+
+    applyAttributes(character.attributes || {});
+    applySkills(character.skills || {});
+    applyBiography(character.biography || {});
+
+    selectedAbilities.length = 0;
+
+    (character.abilities || []).forEach(function(abilityId) {
+      selectedAbilities.push(abilityId);
+    });
+
+    activeAbilityId = selectedAbilities[0] || null;
+
+    selectedEquipment.length = 0;
+
+    (character.equipment || []).forEach(function(equipmentId) {
+      selectedEquipment.push(equipmentId);
+    });
+
+    if (typeof setViewerStateFromCharacter === 'function') {
+      setViewerStateFromCharacter(character);
+    }
+
+    renderAttributes();
+    renderSkills();
+    renderBiographyEditor();
+    renderAbilities();
+    renderEquipment();
+    refreshViewerIfOpen();
+  }
+
+  function applyAttributes(savedAttributes) {
+    Object.entries(attributes).forEach(function(entry) {
+      const key = entry[0];
+      const attribute = entry[1];
+      const savedValue = savedAttributes[key] !== undefined ? Number(savedAttributes[key]) || 1 : 1;
+      attribute.value = Math.max(1, Math.min(3, savedValue));
+    });
+  }
+
+  function applySkills(savedSkills) {
+    Object.entries(skills).forEach(function(groupEntry) {
+      const groupKey = groupEntry[0];
+      const group = groupEntry[1];
+      Object.entries(group.items).forEach(function(skillEntry) {
+        const skillKey = skillEntry[0];
+        const skill = skillEntry[1];
+        const savedValue = savedSkills[groupKey] && savedSkills[groupKey][skillKey] !== undefined
+          ? Number(savedSkills[groupKey][skillKey]) || 1
+          : 1;
+        skill.value = Math.max(1, Math.min(3, savedValue));
+      });
+    });
+  }
+
+  function resetAttributes() {
+    Object.values(attributes).forEach(function(attribute) {
+      attribute.value = 1;
+    });
+  }
+
+  function resetSkills() {
+    Object.values(skills).forEach(function(group) {
+      Object.values(group.items).forEach(function(skill) {
+        skill.value = 1;
+      });
+    });
+  }
+
+  function startNewCharacter() {
+    currentCharacterId = null;
+
+    document.getElementById('characterName').value = '';
+    document.getElementById('playerName').value = '';
+    document.getElementById('className').value = '';
+    document.getElementById('concept').value = '';
+
+    setAdvancedEditMode(false);
+    resetAttributes();
+    resetSkills();
+    resetBiography();
+
+    selectedAbilities.length = 0;
+    activeAbilityId = null;
+    selectedEquipment.length = 0;
+
+    if (typeof setViewerStateFromCharacter === 'function') {
+      setViewerStateFromCharacter({
+        id: null,
+        resources: collectResourcesForSave(),
+        state: {}
+      });
+    }
+
+    renderAttributes();
+    renderSkills();
+    renderBiographyEditor();
+    renderAbilities();
+    renderEquipment();
+    if (typeof syncClassIconPicker === 'function') syncClassIconPicker();
+    if (typeof renderRollComponentOptions === 'function') renderRollComponentOptions();
+
+    setLoadStatus('Создана пустая форма.', false);
+    setSaveStatus('', false);
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderBiographyEditor();
+  });
+</script>

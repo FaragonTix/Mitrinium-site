@@ -1,0 +1,488 @@
+<script>
+  const biographyData = {
+    sections: [
+      {
+        id: 'origin',
+        title: 'Я происхожу из',
+        description: 'Культурная и географическая среда персонажа.',
+        detailLabel: 'Конкретное место происхождения',
+        cards: [
+          {
+            id: 'shelloun',
+            name: 'Шеллоун',
+            description: 'Ресурсный и промышленный край.',
+            requiresDetail: false,
+            traits: [
+              {
+                id: 'industrial-routes',
+                name: 'Промышленные пути',
+                description:
+                  'Шахты, тоннели, железные дороги, станции, депо, грузовые дворы, навигация и безопасность промышленного транспорта.'
+              },
+              {
+                id: 'factory-underground',
+                name: 'Фабричное подполье',
+                description:
+                  'Поиск контрабанды, нелегальных деталей, неофициальной помощи и полезных связей среди рабочих и жителей промышленных районов.'
+              }
+            ]
+          },
+
+          {
+            id: 'plex',
+            name: 'Плекс',
+            description: 'Технологический, городской и административный край.',
+            requiresDetail: false,
+            traits: [
+              {
+                id: 'big-city',
+                name: 'Большой город',
+                description:
+                  'Ориентирование, преследование, бегство, поиск адреса, услуги или нужного человека в крупном городе.'
+              },
+              {
+                id: 'public-life',
+                name: 'Публичная жизнь',
+                description:
+                  'Выступления, городские мероприятия, привлечение внимания, мода, настроение толпы и неписаные правила городской культуры.'
+              }
+            ]
+          },
+
+          {
+            id: 'rellek',
+            name: 'Реллек',
+            description: 'Аграрный, речной и общинный край.',
+            requiresDetail: false,
+            traits: [
+              {
+                id: 'rivers-and-weather',
+                name: 'Реки и погода',
+                description:
+                  'Лодки, баржи, пристани, переправы, течение, речная навигация и распознавание признаков перемены погоды.'
+              },
+              {
+                id: 'local-community',
+                name: 'Местная община',
+                description:
+                  'Получение доверия, сведений или небольшой помощи среди крестьян, фермеров и жителей малых поселений.'
+              }
+            ]
+          },
+
+          {
+            id: 'exotic',
+            name: 'Экзотика',
+            description: 'Происхождение вне трёх основных материков.',
+            requiresDetail: true,
+            detailPlaceholder: 'Например: острова Эфирного моря',
+            traits: [
+              {
+                id: 'foreign-environment',
+                name: 'Чужая среда',
+                description:
+                  'Выживание, ориентирование и поиск пути в необычных условиях и при отсутствии надёжных сведений.'
+              },
+              {
+                id: 'magic-and-chaos',
+                name: 'Магия и хаос',
+                description:
+                  'Распознавание магических и хаотических явлений, сопротивление их непосредственному воздействию.'
+              }
+            ]
+          }
+        ]
+      },
+
+      {
+        id: 'education',
+        title: 'Я получил образование',
+        description: 'Способ подготовки и освоенные методы работы.',
+        detailLabel: 'Специализация',
+        cards: [
+          {
+            id: 'guild',
+            name: 'Цеховое',
+            description:
+              'Практическая подготовка, ремесло или рабочая специальность.',
+            requiresDetail: true,
+            detailPlaceholder: 'Например: часовое дело',
+            traits: [
+              {
+                id: 'craft-process',
+                name: 'Ремесленный процесс',
+                description:
+                  'Материалы, изготовление, оценка качества работы, чтение инструкций и соблюдение порядка работы в выбранном ремесле.'
+              },
+              {
+                id: 'team-work',
+                name: 'Бригадная работа',
+                description:
+                  'Распределение практических задач, согласование действий и организация совместной работы нескольких людей.'
+              }
+            ]
+          },
+
+          {
+            id: 'humanities',
+            name: 'Гуманитарное',
+            description:
+              'Образование в области управления, истории и искусств.',
+            requiresDetail: false,
+            traits: [
+              {
+                id: 'institutions-and-archives',
+                name: 'Учреждения и архивы',
+                description:
+                  'Административные процедуры, полномочия учреждений, поиск документов, работа с архивами и восстановление событий прошлого.'
+              },
+              {
+                id: 'culture-and-public',
+                name: 'Культура и публика',
+                description:
+                  'Искусство, представления, культурные символы, организация мероприятий и понимание вкусов и реакции аудитории.'
+              }
+            ]
+          },
+
+          {
+            id: 'parish',
+            name: 'Приходское',
+            description:
+              'Религиозное, монастырское или благотворительное образование.',
+            note:
+              'Персонаж не обязан сохранять веру, в которой был воспитан.',
+            requiresDetail: false,
+            traits: [
+              {
+                id: 'faith-and-legends',
+                name: 'Вера и предания',
+                description:
+                  'Религии, обряды, священные места, старые тексты, народные поверья, суеверия и легенды.'
+              },
+              {
+                id: 'confidential-conversation',
+                name: 'Доверительный разговор',
+                description:
+                  'Утешение, примирение, разрешение личных и семейных конфликтов и получение сведений через сочувствие и доверие.'
+              }
+            ]
+          },
+
+          {
+            id: 'scientific',
+            name: 'Научное',
+            description:
+              'Академическая, исследовательская или высшая техническая подготовка.',
+            requiresDetail: true,
+            detailPlaceholder: 'Например: промышленная химия',
+            traits: [
+              {
+                id: 'research',
+                name: 'Исследование',
+                description:
+                  'Постановка опытов, проверка гипотез, работа с лабораторным оборудованием и поиск сведений в научных источниках.'
+              },
+              {
+                id: 'expert-community',
+                name: 'Экспертная среда',
+                description:
+                  'Научные учреждения, профессиональные дискуссии, академические знакомства и подготовка экспертных заключений.'
+              }
+            ]
+          }
+        ]
+      },
+
+      {
+        id: 'family',
+        title: 'Положение моей семьи',
+        description: 'Социальный и бытовой опыт персонажа.',
+        cards: [
+          {
+            id: 'poverty',
+            name: 'Нужда',
+            description:
+              'Крайняя бедность и постоянная нехватка необходимого.',
+            requiresDetail: false,
+            traits: [
+              {
+                id: 'life-in-hardship',
+                name: 'Жизнь в лишениях',
+                description:
+                  'Сопротивление голоду, холоду, бессоннице, грязи и другим тяжёлым бытовым условиям.'
+              },
+              {
+                id: 'street-and-side-jobs',
+                name: 'Улица и подработка',
+                description:
+                  'Поиск случайного заработка, дешёвой еды, ночлега, укрытия, сведений и помощи в бедных кварталах.'
+              }
+            ]
+          },
+
+          {
+            id: 'working-income',
+            name: 'Трудовой достаток',
+            description:
+              'Рядовая семья со стабильным, но ограниченным доходом.',
+            requiresDetail: false,
+            traits: [
+              {
+                id: 'everyday-market',
+                name: 'Повседневный рынок',
+                description:
+                  'Оценка справедливой цены, торг и поиск доступных товаров или услуг повседневного спроса.'
+              },
+              {
+                id: 'neighbourly-trust',
+                name: 'Соседское доверие',
+                description:
+                  'Получение небольшой помощи, местных сведений или временного пристанища среди обычных работников, семей и соседских сообществ.'
+              }
+            ]
+          },
+
+          {
+            id: 'prosperity',
+            name: 'Обеспеченность',
+            description:
+              'Успешная семья обычных граждан с устойчивыми средствами и возможностями.',
+            requiresDetail: false,
+            traits: [
+              {
+                id: 'respectable-institutions',
+                name: 'Респектабельные учреждения',
+                description:
+                  'Получение приёма, обслуживания или профессиональной помощи в банках, больницах, школах, гостиницах и других официальных заведениях.'
+              },
+              {
+                id: 'financial-opportunities',
+                name: 'Финансовые возможности',
+                description:
+                  'Обсуждение кредита, страховки, залога, рассрочки и других законных способов получить деньги или оплатить дорогую услугу.'
+              }
+            ]
+          },
+
+          {
+            id: 'privilege',
+            name: 'Привилегия',
+            description:
+              'Семья обладала влиянием, властью или исключительным общественным положением.',
+            requiresDetail: false,
+            traits: [
+              {
+                id: 'family-influence',
+                name: 'Семейное влияние',
+                description:
+                  'Использование известной фамилии, репутации или покровительства семьи, чтобы получить доверие, представление, аудиенцию, допуск или временную защиту.'
+              },
+              {
+                id: 'high-society',
+                name: 'Высший свет',
+                description:
+                  'Этикет, титулы, приёмы, церемонии и общение с представителями влиятельных и привилегированных кругов.'
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+
+  /**
+   * Возвращает раздел биографических карточек по его идентификатору.
+   *
+   * Возможные значения:
+   * origin
+   * education
+   * family
+   */
+  function getBiographySection(sectionId) {
+    return biographyData.sections.find(function(section) {
+      return section.id === sectionId;
+    }) || null;
+  }
+
+  /**
+   * Возвращает биографическую карточку.
+   */
+  function getBiographyCard(sectionId, cardId) {
+    const section = getBiographySection(sectionId);
+
+    if (!section) {
+      return null;
+    }
+
+    return section.cards.find(function(card) {
+      return card.id === cardId;
+    }) || null;
+  }
+
+  /**
+   * Возвращает все черты выбранной карточки.
+   */
+  function getBiographyTraits(sectionId, cardId) {
+    const card = getBiographyCard(sectionId, cardId);
+
+    if (!card || !Array.isArray(card.traits)) {
+      return [];
+    }
+
+    return card.traits;
+  }
+
+  /**
+   * Возвращает все шесть черт выбранной биографии.
+   *
+   * Ожидаемый формат biography:
+   * {
+   *   origin: {
+   *     cardId: 'shelloun',
+   *     detail: ''
+   *   },
+   *   education: {
+   *     cardId: 'guild',
+   *     detail: 'Часовое дело'
+   *   },
+   *   family: {
+   *     cardId: 'working-income',
+   *     detail: ''
+   *   }
+   * }
+   */
+  function getSelectedBiographyTraits(biography) {
+    if (!biography || typeof biography !== 'object') {
+      return [];
+    }
+
+    const result = [];
+
+    biographyData.sections.forEach(function(section) {
+      const selection = biography[section.id];
+
+      if (!selection) {
+        return;
+      }
+
+      const cardId = typeof selection === 'string'
+        ? selection
+        : selection.cardId;
+
+      const card = getBiographyCard(section.id, cardId);
+
+      if (!card) {
+        return;
+      }
+
+      card.traits.forEach(function(trait) {
+        result.push({
+          id: trait.id,
+          name: trait.name,
+          description: trait.description,
+          sectionId: section.id,
+          sectionTitle: section.title,
+          cardId: card.id,
+          cardName: card.name
+        });
+      });
+    });
+
+    return result;
+  }
+
+  /**
+   * Создаёт пустую структуру биографии для нового персонажа.
+   */
+  function createEmptyBiography() {
+    return {
+      origin: {
+        cardId: '',
+        detail: ''
+      },
+      education: {
+        cardId: '',
+        detail: ''
+      },
+      family: {
+        cardId: '',
+        detail: ''
+      }
+    };
+  }
+
+  /**
+   * Приводит загруженную биографию к актуальному формату.
+   * Поддерживает как новый формат с cardId,
+   * так и упрощённый старый формат со строками.
+   */
+  function normalizeBiography(biography) {
+    const normalized = createEmptyBiography();
+
+    if (!biography || typeof biography !== 'object') {
+      return normalized;
+    }
+
+    biographyData.sections.forEach(function(section) {
+      const value = biography[section.id];
+
+      if (typeof value === 'string') {
+        normalized[section.id].cardId = value;
+        return;
+      }
+
+      if (value && typeof value === 'object') {
+        normalized[section.id].cardId = String(
+          value.cardId || value.id || ''
+        );
+
+        normalized[section.id].detail = String(
+          value.detail || ''
+        );
+      }
+    });
+
+    return normalized;
+  }
+
+  /**
+   * Проверяет, что в каждом разделе выбрана существующая карточка
+   * и заполнены обязательные уточнения.
+   */
+  function validateBiography(biography) {
+    const normalized = normalizeBiography(biography);
+    const errors = [];
+
+    biographyData.sections.forEach(function(section) {
+      const selection = normalized[section.id];
+      const card = getBiographyCard(section.id, selection.cardId);
+
+      if (!card) {
+        errors.push(
+          'Не выбрана карточка в разделе «' + section.title + '».'
+        );
+        return;
+      }
+
+      if (
+        card.requiresDetail &&
+        !String(selection.detail || '').trim()
+      ) {
+        errors.push(
+          'Укажите уточнение для карточки «' +
+          card.name +
+          '» в разделе «' +
+          section.title +
+          '».'
+        );
+      }
+    });
+
+    return {
+      valid: errors.length === 0,
+      errors: errors,
+      biography: normalized
+    };
+  }
+</script>

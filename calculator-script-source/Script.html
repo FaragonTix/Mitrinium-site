@@ -1,0 +1,1641 @@
+<script>
+'use strict';
+let customEnemies=[];
+let toastTimer=null;
+const efficiencyCache=new Map();
+const damageCache=new Map();
+const referenceCache=new Map();
+function newId(prefix) {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
+}
+function clamp(value,min,max) {
+  return Math.max(min,Math.min(max,value));
+}
+function roundTo(value,step) {
+  return Math.round(value/step)*step;
+}
+function pick(array) {
+  return array?.length?array[Math.floor(Math.random()*array.length)]:'';
+}
+function deepClone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+function escapeHtml(value) {
+  return String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function shuffle(array) {
+  const result=[...array];
+  for(let i=result.length-1; i>0; i--) {
+    const j=Math.floor(Math.random()*(i+1));
+    [result[i],result[j]]=[result[j],result[i]];
+  }
+  return result;
+}
+function uniqueByName(items) {
+  const seen=new Set();
+  return (items||[]).filter(item=> {
+    const key=String(item?.name||'').trim().toLowerCase(); if(!key||seen.has(key))return false; seen.add(key); return true;
+  });
+}
+function serverAvailable() {
+  return typeof google!=='undefined'&&google.script&&google.script.run;
+}
+function serverCall(functionName,...args) {
+  return new Promise((resolve,reject)=> {
+    if(!serverAvailable()) {
+      reject(new Error('Функция доступна только в развёрнутом приложении Google Apps Script.')); return;
+    }
+    google.script.run.withSuccessHandler(resolve).withFailureHandler(error=>reject(new Error(error?.message||String(error))))[functionName](...args);
+  });
+}
+function isTechnicalWeaponName(name) {
+  return /(?:^|\s)(?:пистол(?:ь|ет|и|й)?|карабин(?:ы|а|ом|у)?)(?:$|\s|[.,;:()—-])/i.test(` ${String(name||'').trim()} `);
+}
+function normalizeTagKey(value) {
+  const key=String(value||'').toLowerCase();
+  if(TAGS[key])return key;
+  if(['support','minion'].includes(key))return'minion';
+  if(['leader','chief','standalone','skirmisher','brute','shooter','controller'].includes(key))return'chief';
+  if(key==='boss')return'boss';
+  return'chief';
+}
+function attackTemplate(index,typeKey='humanoid') {
+  return {
+    id:newId('a'),templateId:'',name:index===0?'Основная атака':`Атака ${index+1}`,category:'Обычная',pool:4,damage:index===0?'d6':'d4',range:index===0?'Средняя':'Ближняя',penetrating:false,text:'',restriction:'',uses:0,usesLeft:0,technical:false,controlBonus:0,maxDurability:0,durability:0,lastRoll:null,lastControl:null
+  };
+}
+function ensureTwoAttacks(attacks,typeKey='humanoid') {
+  const source=Array.isArray(attacks)?attacks:[];
+  const count=clamp(source.length||DEFAULT_ATTACKS,DEFAULT_ATTACKS,MAX_ATTACKS);
+  return Array.from( {
+    length:count
+  },(_,index)=> {
+    const raw=source[index]||attackTemplate(index,typeKey); const poolText=String(raw.pool??'4'),poolMatch=poolText.match(/(\d+)\s*d6/i); const pool=clamp(poolMatch?Number(poolMatch[1]):Number(raw.pool)||4,1,8); const name=String(raw.name||(index===0?'Основная атака':`Атака ${index+1}`)); const technical=typeKey==='humanoid'&&(Boolean(raw.technical)||isTechnicalWeaponName(name)); const maxDurability=technical?clamp(Number(raw.maxDurability??raw.durability)||2,2,99):0; const uses=clamp(Number(raw.uses)||0,0,99); return {
+      id:raw.id||newId('a'),templateId:String(raw.templateId||''),name,category:String(raw.category||raw.type||'Обычная'),pool,damage:String(raw.damage||(index===0?'d6':'d4')),range:String(raw.range||(index===0?'Средняя':'Ближняя')),penetrating:Boolean(raw.penetrating||raw.piercing),text:String(raw.text||raw.effect||''),restriction:String(raw.restriction||''),uses,usesLeft:uses?clamp(Number(raw.usesLeft??uses),0,uses):0,technical,controlBonus:technical?clamp(Number(raw.controlBonus)||2,2,7):0,maxDurability,durability:technical?clamp(Number(raw.durability??maxDurability),0,maxDurability):0,lastRoll:raw.lastRoll||null,lastControl:raw.lastControl||null
+    };
+  });
+}
+function normalizeReaction(raw= {
+}) {
+  const uses=clamp(Number(raw.uses)||0,0,99),trigger=String(raw.trigger||''),effect=String(raw.effect||raw.text||'');
+  return {
+    id:raw.id||newId('r'),templateId:String(raw.templateId||''),name:String(raw.name||'Новая реакция'),trigger,effect,text:[trigger,effect].filter(Boolean).join(' — '),uses,usesLeft:uses?clamp(Number(raw.usesLeft??uses),0,uses):0,power:String(raw.power||'simple'),tags:Array.isArray(raw.tags)?raw.tags:[],used:Boolean(raw.used)
+  };
+}
+function normalizeReactions(items) {
+  return (Array.isArray(items)?items:[]).slice(0,MAX_REACTIONS).map(normalizeReaction);
+}
+function reactionTemplate() {
+  return normalizeReaction( {
+    name:'Новая реакция',trigger:'',effect:'',uses:2,power:'medium'
+  });
+}
+function combinedReactionText(reaction) {
+  return [reaction.trigger,reaction.effect||reaction.text].filter(Boolean).join(' — ');
+}
+function withDefaultZoneText(text) {
+  const value=String(text||'').trim();
+  if(!/зон/i.test(value)||/вокруг|линия|по прямой|радиус|соседн|\b2\s*(?:гекс|клет)|\b3\s*(?:гекс|клет)|2×2|боков/i.test(value))return value;
+  return `${value}${/[.!?]$/.test(value)?'':'.'} Размер зоны: 2 соседних гекса.`;
+}
+function defaultManualEnemy() {
+  return {
+    id:newId('m'),source:'generated',templateId:'',typeKey:'humanoid',tagKey:'chief',classKey:'none',name:''
+  };
+}
+function defaultBestiaryDraft() {
+  return {
+    id:'',attacks:ensureTwoAttacks([], 'humanoid'),reactions:Array.from( {
+      length:DEFAULT_REACTIONS
+    },()=>reactionTemplate())
+  };
+}
+function defaultState() {
+  return {
+    version:7,currentScreen:'prep',round:1,players:[1,2,3].map(i=>( {
+      id:newId('p'),name:`Игрок ${i}`,initiative:0
+    })),settings:null,targetBp:0,actionMultiplier:1,enemies:[],initiative: {
+      activeId:null
+    },manualDraft:[defaultManualEnemy()],bestiaryDraft:defaultBestiaryDraft(),generatedAt:null
+  };
+}
+let state=defaultState();
+/* ---------------- МОДЕЛЬ БОЕСПОСОБНОСТИ ---------------- */ function efficiencyDistribution(poolD6,sceneDice=MODEL_SCENE_DICE) {
+  const pool=clamp(Number(poolD6)||1,1,8);
+  const cacheKey=`${pool}|${sceneDice.join(',')}`;
+  if(efficiencyCache.has(cacheKey))return efficiencyCache.get(cacheKey);
+  let states=new Map([['99,99,-99,-99', {
+    p:1,l1:99,l2:99,h1:-99,h2:-99
+  }]]);
+  const dice=[...Array(pool).fill(6),...sceneDice];
+  dice.forEach(sides=> {
+    const next=new Map(); states.forEach(state=> {
+      for(let face=1; face<=sides; face++) {
+        let {
+          l1,l2,h1,h2
+        }
+        =state; if(face<l1) {
+          l2=l1; l1=face;
+        } else if(face<l2) {
+          l2=face;
+        }
+        if(face>h1) {
+          h2=h1; h1=face;
+        } else if(face>h2) {
+          h2=face;
+        }
+        const key=`${l1},${l2},${h1},${h2}`; const node=next.get(key)|| {
+          p:0,l1,l2,h1,h2
+        }; node.p+=state.p/sides; next.set(key,node);
+      }
+    }); states=next;
+  });
+  const result=new Map();
+  states.forEach(state=> {
+    const ef=(state.h1+state.h2)-(state.l1+state.l2); result.set(ef,(result.get(ef)||0)+state.p);
+  });
+  efficiencyCache.set(cacheKey,result);
+  return result;
+}
+function chanceAtLeast(pool,pz) {
+  const threshold=clamp(Number(pz)||3,3,10);
+  let chance=0;
+  efficiencyDistribution(pool).forEach((prob,ef)=> {
+    if(ef>=threshold)chance+=prob;
+  });
+  return clamp(chance,0,1);
+}
+function chanceAgainstPlayerDefense(pool,defensePool) {
+  let chance=0;
+  const attack=efficiencyDistribution(pool),defense=efficiencyDistribution(clamp(defensePool,1,8));
+  attack.forEach((ap,ef)=>defense.forEach((dp,pz)=> {
+    if(ef>=Math.max(3,pz))chance+=ap*dp;
+  }));
+  return clamp(chance,0,1);
+}
+/* Воздействующий бросок выигрывает при ЭФ не ниже 3 и не ниже результата защиты. */ function effectSuccessChance(effectPool,defensePool) {
+  return chanceAgainstPlayerDefense(clamp(effectPool,1,8),clamp(defensePool,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX));
+}
+function effectResistanceChance(defensePool,effectPool) {
+  return clamp(1-effectSuccessChance(effectPool,defensePool),0,1);
+}
+function generatedDefensePools(level,bp,typeKey,tagKey,classKey) {
+  const safeLevel=clamp(Number(level)||1,1,20),ratio=Math.max(.04,(Number(bp)||20)/1000),logScale=Math.log(ratio)/Math.log(2),base=LEVEL_BASELINES[safeLevel],typeMod=DEFENSE_POOL_MODIFIERS.type[typeKey]||DEFENSE_POOL_MODIFIERS.type.humanoid,tagMod=DEFENSE_POOL_MODIFIERS.tag[normalizeTagKey(tagKey)]||DEFENSE_POOL_MODIFIERS.tag.chief,classMod=DEFENSE_POOL_MODIFIERS.class[classKey]||DEFENSE_POOL_MODIFIERS.class.none,scale=Math.round(logScale*.30);
+  return {
+    physicalDefensePool:clamp((base.pool||4)+typeMod.physical+tagMod.physical+classMod.physical+scale,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),mentalDefensePool:clamp((base.pool||4)+typeMod.mental+tagMod.mental+classMod.mental+scale,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX)
+  };
+}
+function resistanceMetrics(template,level) {
+  const player=PLAYER_LEVEL_PROFILES[level],base=LEVEL_BASELINES[level],physicalDefensePool=clamp(Number(template.physicalDefensePool)||base.pool||4,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),mentalDefensePool=clamp(Number(template.mentalDefensePool)||base.pool||4,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),physicalEffectPool=clamp(Number(player.physicalEffectPool)||Number(player.attackPool)||4,1,8),mentalEffectPool=clamp(Number(player.mentalEffectPool)||Number(player.attackPool)||4,1,8);
+  const physicalEffectChance=effectSuccessChance(physicalEffectPool,physicalDefensePool),mentalEffectChance=effectSuccessChance(mentalEffectPool,mentalDefensePool),referencePhysicalEffectChance=effectSuccessChance(physicalEffectPool,base.pool||4),referenceMentalEffectChance=effectSuccessChance(mentalEffectPool,base.pool||4);
+  const physicalFactor=clamp(Math.pow(referencePhysicalEffectChance/Math.max(.04,physicalEffectChance),.16),.84,1.24),mentalWeight=(Number(template.nerve)||0)>0?.13:.08,mentalFactor=clamp(Math.pow(referenceMentalEffectChance/Math.max(.04,mentalEffectChance),mentalWeight),.88,1.20);
+  return {
+    physicalDefensePool,mentalDefensePool,physicalEffectPool,mentalEffectPool,physicalEffectChance,mentalEffectChance,physicalResistance:1-physicalEffectChance,mentalResistance:1-mentalEffectChance,physicalFactor,mentalFactor,factor:physicalFactor*mentalFactor
+  };
+}
+function damageDistribution(expression) {
+  const key=String(expression||'d6').toLowerCase().replace(/\s+/g,'');
+  if(damageCache.has(key))return damageCache.get(key);
+  const match=key.match(/^(\d*)d(\d+)([+-]\d+)?$/i);
+  if(!match) {
+    const fixed=Math.max(0,Number(key)||0);
+    const dist=new Map([[fixed,1]]);
+    damageCache.set(key,dist);
+    return dist;
+  }
+  const count=clamp(Number(match[1]||1),1,6),sides=clamp(Number(match[2]),2,20),modifier=Number(match[3]||0);
+  let dist=new Map([[0,1]]);
+  for(let die=0; die<count; die++) {
+    const next=new Map();
+    dist.forEach((p,total)=> {
+      for(let face=1; face<=sides; face++)next.set(total+face,(next.get(total+face)||0)+p/sides);
+    });
+    dist=next;
+  }
+  const shifted=new Map();
+  dist.forEach((p,total)=>shifted.set(Math.max(0,total+modifier),(shifted.get(Math.max(0,total+modifier))||0)+p));
+  damageCache.set(key,shifted);
+  return shifted;
+}
+function expectedValue(dist) {
+  let result=0;
+  dist.forEach((p,value)=>result+=p*value);
+  return result;
+}
+function expectedDamageAfterArmor(dist,armor,penetrating=false) {
+  const effective=Math.max(0,armor-(penetrating?1:0));
+  let result=0;
+  dist.forEach((p,dmg)=>result+=p*Math.max(0,dmg-effective));
+  return result;
+}
+function expectedDamageFractionalArmor(dist,armor,penetrating=false) {
+  const low=Math.floor(Math.max(0,armor)),high=Math.ceil(Math.max(0,armor));
+  if(low===high)return expectedDamageAfterArmor(dist,low,penetrating);
+  const f=armor-low;
+  return expectedDamageAfterArmor(dist,low,penetrating)*(1-f)+expectedDamageAfterArmor(dist,high,penetrating)*f;
+}
+/* Пошаговая модель истирания брони за ожидаемую последовательность успешных попаданий. */ function armorSequence(damageExpression,initialArmor,successfulHits,penetrationChance) {
+  const dist=damageDistribution(damageExpression),mean=expectedValue(dist),pen=clamp(penetrationChance,0,1);
+  const penetrationStates=[ {
+    value:0,p:1-pen
+  }, {
+    value:1,p:pen
+  }].filter(x=>x.p>0);
+  function simulate(hitCount) {
+    let states=new Map([[Math.max(0,Math.round(initialArmor)), {
+      prob:1,weightedDamage:0
+    }]]);
+    for(let hit=0; hit<hitCount; hit++) {
+      const next=new Map();
+      states.forEach((node,armor)=> {
+        dist.forEach((damageProb,damage)=>penetrationStates.forEach(penState=> {
+          const q=damageProb*penState.p; const effectiveArmor=Math.max(0,armor-penState.value); const bodyDamage=Math.max(0,damage-effectiveArmor); const nextArmor=bodyDamage>0?Math.max(0,armor-1):armor; const out=next.get(nextArmor)|| {
+            prob:0,weightedDamage:0
+          }; out.prob+=node.prob*q; out.weightedDamage+=(node.weightedDamage+node.prob*bodyDamage)*q; next.set(nextArmor,out);
+        }));
+      });
+      states=next;
+    }
+    let total=0;
+    states.forEach(node=>total+=node.weightedDamage);
+    return total;
+  }
+  const hits=Math.max(0,successfulHits),whole=Math.floor(hits),fraction=hits-whole;
+  const body0=simulate(whole),body1=fraction?simulate(whole+1):body0;
+  const bodyDamage=body0+(body1-body0)*fraction;
+  const noArmorDamage=hits*mean;
+  const multiplier=clamp(noArmorDamage/Math.max(.05,bodyDamage),1,8);
+  return {
+    bodyDamage,noArmorDamage,mean,multiplier,reduction:clamp(1-1/multiplier,0,.99),prevented:Math.max(0,noArmorDamage-bodyDamage)
+  };
+}
+function nerveFactors(nerve) {
+  const n=clamp(Number(nerve)||0,0,30),early=Math.min(n,6),late=Math.max(0,n-6);
+  return {
+    defense:1+.035*early+.018*late,offense:1+.025*early+.012*late
+  };
+}
+function reactionImpact(reaction) {
+  const text=`${reaction?.name||''} ${reaction?.trigger||''} ${reaction?.effect||reaction?.text||''}`.toLowerCase();
+  let defense=.015,offense=.01;
+  if(/дополнительн\w* атак|ответн\w* выстрел|аварийн\w* выстрел|выпад/.test(text))offense+=.12;
+  if(/2d4|перебрасывает одну из двух наибольших|помех/.test(text))defense+=.10;
+  if(/уменьшает.*урон|поглощ|брон|\+1 пз|\+2 пз|игнорирует эффект|отменяет состояние/.test(text))defense+=.09;
+  if(/восстанавливает|саморемонт|вампиризм|подняться/.test(text))defense+=.13;
+  if(/телепорт|действие срывается|останавливает движение/.test(text))defense+=.11;
+  if(/скорост|перемещ|рывок|скачок/.test(text)) {
+    defense+=.025;
+    offense+=.035;
+  }
+  if(/наносит|урона|теряет \d+ нерв|\+1 к урону/.test(text))offense+=.055;
+  const uses=clamp(Number(reaction?.uses)||0,0,99),availability=uses===0?1:uses===1?.52:uses===2?.76:uses===3?.90:1;
+  return {
+    defense:defense*availability,offense:offense*availability
+  };
+}
+function reactionFactors(limit,reactions) {
+  const list=Array.isArray(reactions)?reactions:Array.from( {
+    length:Math.max(0,Number(reactions)||0)
+  },()=>( {
+    uses:2,effect:'Уменьшает урон на 1.'
+  }));
+  const active=Math.min(clamp(Number(limit)||0,0,4),list.length);
+  if(active<=0||!list.length)return {
+    defense:1,offense:1,defenseBonus:0,offenseBonus:0
+  };
+  const impacts=list.map(reactionImpact),sumTop=(key)=> {
+    const vals=impacts.map(x=>x[key]).sort((a,b)=>b-a);
+    return vals.slice(0,active).reduce((a,b)=>a+b,0)+vals.slice(active).reduce((a,b)=>a+b*.22,0);
+  };
+  const defenseBonus=Math.min(.52,sumTop('defense')),offenseBonus=Math.min(.42,sumTop('offense'));
+  return {
+    defense:1+defenseBonus,offense:1+offenseBonus,defenseBonus,offenseBonus
+  };
+}
+function speedFactors(speed) {
+  const delta=(Number(speed)||3)-3;
+  return {
+    defense:clamp(1+delta*.025,.85,1.20),offense:clamp(1+delta*.045,.80,1.25)
+  };
+}
+function propertyDefenseFactor(properties) {
+  const text=(properties||[]).join(' ').toLowerCase();
+  let bonus=0;
+  if(/невосприим|иммун/.test(text))bonus+=.04;
+  if(/регенер|восстанавлив|подняться снова/.test(text))bonus+=.06;
+  if(/нельзя захватить|нельзя связать/.test(text))bonus+=.025;
+  if(/игнорир\w* труднопроходим/.test(text))bonus+=.02;
+  return 1+Math.min(.15,bonus);
+}
+function attackUtilityFactor(attack) {
+  const text=`${attack?.name||''} ${attack?.category||''} ${attack?.text||''} ${attack?.restriction||''}`.toLowerCase();
+  let bonus=0;
+  if(/ошелом|не может использовать реакции|действие срывается/.test(text))bonus+=.20;
+  if(/ослеп|дезориент|испуг|связан|замедлен|падает|отталки|удерж/.test(text))bonus+=.12;
+  if(/зон|радиус|линия|двум соседним|каждой цели/.test(text))bonus+=.20;
+  if(/две отдельные атаки|множествен/.test(text))bonus+=.16;
+  if(attack?.penetrating)bonus+=.10;
+  if(/восстанавливает/.test(text))bonus+=.12;
+  if(/условн|требует удерживаемой|если .*переместил/.test(text))bonus-=.05;
+  if(attack?.technical)bonus+=.02*Math.max(0,(Number(attack.controlBonus)||2)-2);
+  return clamp(1+bonus,.85,1.65);
+}
+function attackControlEquivalent(attack) {
+  const text=`${attack?.category||''} ${attack?.text||''}`.toLowerCase();
+  let value=0;
+  if(/падает|отталки|удерж|ослеп|дезориент|замед|потер.*реакц|помех/.test(text))value+=.75;
+  if(/нерв/.test(text))value+=.45;
+  if(/зон|линия|двум соседним/.test(text))value+=.35;
+  return value;
+}
+function attackEffectDefenseKind(attack) {
+  const text=`${attack?.name||''} ${attack?.category||''} ${attack?.text||''}`.toLowerCase();
+  if(/проверку дисциплин|нерв|ментал|подчин|вол[еию]|испуг|разум|куб[ыа]? сцен/.test(text))return'mental';
+  if(/проверку стойкост|яд|отрав|опрокид|падает|отталки|притяг|удерж|связан|ослеп|удуш|замед|дезориент/.test(text))return'physical';
+  return null;
+}
+function tagModelFactor(tagKey) {
+  return( {
+    boss:1.04,chief:1,minion:.97
+  })[normalizeTagKey(tagKey)]||1;
+}
+function defenseMetrics(template,level) {
+  const player=PLAYER_LEVEL_PROFILES[level],pz=clamp(Number(template.pz)||3,3,10),hitChance=chanceAtLeast(player.attackPool,pz),attempts=18,successfulHits=attempts*hitChance;
+  const armor=armorSequence(player.damage,Number(template.armor)||0,successfulHits,player.penetration),rawAttemptDamage=attempts*armor.mean,effectiveHp=(Math.max(1,Number(template.hp)||1)*rawAttemptDamage)/Math.max(.15,armor.bodyDamage);
+  const nerve=nerveFactors(template.nerve),reactions=reactionFactors(template.reactionLimit,normalizeReactions(template.reactions)),speed=speedFactors(template.speed),resistance=resistanceMetrics(template,level),type=TYPE_DATA[template.typeKey]||TYPE_DATA.humanoid;
+  const value=effectiveHp*nerve.defense*reactions.defense*speed.defense*resistance.factor*(type.resilience||1)*propertyDefenseFactor(template.properties)*tagModelFactor(template.tagKey||template.roleKey);
+  return {
+    value,effectiveHp,pz,hitChance,successfulHits,armor,nerveFactor:nerve.defense,reactionFactor:reactions.defense,reactionBonus:reactions.defenseBonus,speedFactor:speed.defense,resistanceFactor:resistance.factor,...resistance
+  };
+}
+function offenseMetrics(template,level) {
+  const player=PLAYER_LEVEL_PROFILES[level],normalized=ensureTwoAttacks(template.attacks,template.typeKey);
+  const attacks=normalized.map(attack=> {
+    const pool=clamp(Number(attack.pool)||1,1,8),hitChance=chanceAgainstPlayerDefense(pool,player.defensePool),dist=damageDistribution(attack.damage),damageOnHit=expectedDamageFractionalArmor(dist,player.armor,attack.penetrating),utility=attackUtilityFactor(attack),rawControlEquivalent=attackControlEquivalent(attack),controlDefenseKind=attackEffectDefenseKind(attack),effectDefensePool=controlDefenseKind==='mental'?(player.mentalDefensePool||player.defensePool):(player.physicalDefensePool||player.defensePool),controlSuccessChance=rawControlEquivalent>0&&controlDefenseKind?effectSuccessChance(pool,effectDefensePool):1,controlEquivalent=rawControlEquivalent*controlSuccessChance,durabilityFactor=attack.technical?clamp(1+(Math.max(2,Number(attack.maxDurability)||2)-2)*.012,1,1.12):1,value=hitChance*(damageOnHit+controlEquivalent)*utility*durabilityFactor; return {
+      attack,pool,hitChance,damageOnHit,utility,rawControlEquivalent,controlEquivalent,controlDefenseKind,controlSuccessChance,effectDefensePool,durabilityFactor,value
+    };
+  }).sort((a,b)=>b.value-a.value);
+  const rounds=6,slots=[];
+  attacks.forEach(metric=> {
+    const uses=clamp(Number(metric.attack.uses)||0,0,99),count=uses===0?rounds:Math.min(rounds,uses); for(let i=0; i<count; i++)slots.push(metric.value);
+  });
+  slots.sort((a,b)=>b-a);
+  while(slots.length<rounds)slots.push((attacks[0]?.value||.02)*.70);
+  const roundPressure=slots.slice(0,rounds).reduce((a,b)=>a+b,0)/rounds,best=attacks[0]|| {
+    hitChance:0,damageOnHit:0,pool:1,utility:1,controlDefenseKind:null,controlSuccessChance:1,effectDefensePool:0
+  };
+  const categoryCount=new Set(normalized.map(a=>a.category)).size,variety=1+Math.min(.14,Math.max(0,normalized.length-1)*.022+Math.max(0,categoryCount-1)*.012);
+  const nerve=nerveFactors(template.nerve),reactions=reactionFactors(template.reactionLimit,normalizeReactions(template.reactions)),speed=speedFactors(template.speed),value=Math.max(.02,roundPressure)*variety*nerve.offense*reactions.offense*speed.offense*tagModelFactor(template.tagKey||template.roleKey);
+  return {
+    value,hitChance:best.hitChance,damageOnHit:best.damageOnHit,attackPool:best.pool,utility:best.utility,controlDefenseKind:best.controlDefenseKind,controlSuccessChance:best.controlSuccessChance,effectDefensePool:best.effectDefensePool,variety,roundPressure,attackCount:normalized.length,nerveFactor:nerve.offense,reactionFactor:reactions.offense,reactionBonus:reactions.offenseBonus,speedFactor:speed.offense
+  };
+}
+function baselineNerve(level) {
+  return Math.round(4+level*.38);
+}
+function baselineReactionLimit(level) {
+  return level>=17?2:1;
+}
+function referenceMetrics(level) {
+  if(referenceCache.has(level))return referenceCache.get(level);
+  const base=LEVEL_BASELINES[level];
+  const reference= {
+    level,typeKey:'humanoid',tagKey:'chief',hp:base.hp,nerve:baselineNerve(level),armor:base.armor,pz:base.pz,physicalDefensePool:base.pool,mentalDefensePool:base.pool,speed:3,reactionLimit:1,properties:[],reactions:[normalizeReaction( {
+      name:'Стиснуть зубы',effect:'Уменьшает полученный урон на 2.',uses:2
+    }),normalizeReaction( {
+      name:'Сбить прицел',effect:'Кубы сцены атакующего становятся 2d4.',uses:1
+    })],attacks:[ {
+      name:'Обычная атака',pool:base.pool,damage:base.damage,range:'Средняя',category:'Обычная',uses:0
+    }, {
+      name:'Дополнительная атака',pool:Math.max(1,base.pool-1),damage:previousDamage(base.damage),range:'Ближняя',category:'Обычная',uses:0
+    }]
+  };
+  const result= {
+    defense:defenseMetrics(reference,level),offense:offenseMetrics(reference,level)
+  };
+  referenceCache.set(level,result);
+  return result;
+}
+function previousDamage(expression) {
+  const index=DAMAGE_PROFILES.indexOf(expression);
+  return DAMAGE_PROFILES[Math.max(0,index-1)]||'d4';
+}
+function evaluateCombatPower(template) {
+  const level=clamp(Math.round(Number(template.level)||1),1,20),base=LEVEL_BASELINES[level],safe= {
+    ...template,level,pz:clamp(Number(template.pz)||3,3,10),physicalDefensePool:clamp(Number(template.physicalDefensePool)||base.pool||4,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),mentalDefensePool:clamp(Number(template.mentalDefensePool)||base.pool||4,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),attacks:ensureTwoAttacks(template.attacks,template.typeKey),reactions:normalizeReactions(template.reactions),tagKey:normalizeTagKey(template.tagKey||template.roleKey)
+  };
+  const defense=defenseMetrics(safe,level),offense=offenseMetrics(safe,level),reference=referenceMetrics(level),defenseRatio=clamp(defense.value/reference.defense.value,.03,30),offenseRatio=clamp(offense.value/reference.offense.value,.03,30),raw=1000*Math.pow(defenseRatio,.56)*Math.pow(offenseRatio,.44);
+  return {
+    bp:clamp(roundTo(raw,10),20,5000),defenseRatio,offenseRatio,defense,offense
+  };
+}
+function damageStep(expression,delta) {
+  const index=Math.max(0,DAMAGE_PROFILES.indexOf(expression));
+  return DAMAGE_PROFILES[clamp(index+delta,0,DAMAGE_PROFILES.length-1)];
+}
+function abilityCountFor(bp,tagKey) {
+  let count=Number(bp)<1150?2:Number(bp)<1700?3:Number(bp)<2400?4:5;
+  if(normalizeTagKey(tagKey)==='boss')count=Math.max(3,count);
+  return clamp(count,DEFAULT_ATTACKS,MAX_ATTACKS);
+}
+function recommendedAttackStats(level,bp,typeKey,tagKey,classKey) {
+  const safeLevel=clamp(Number(level)||1,1,20),target=clamp(Number(bp)||20,20,5000),base=LEVEL_BASELINES[safeLevel],tag=TAGS[normalizeTagKey(tagKey)],cls=CLASSES[classKey]||CLASSES.none,ratio=Math.max(.04,target/1000),logScale=Math.log(ratio)/Math.log(2);
+  return {
+    pool:clamp(base.pool+tag.pool+cls.pool+Math.round(logScale*.70),1,8),damage:damageStep(base.damage,tag.damageStep+cls.damageStep+Math.round(logScale*.50))
+  };
+}
+function instantiateAttackLibraryItem(item,stats,typeKey,index=0) {
+  const zone=/зон|линия|двум соседним|каждой цели/i.test(`${item.range} ${item.category} ${item.effect}`),step=(Number(item.damageStep)||0)+(index===1&&Number(item.damageStep||0)===0&&!zone?-1:0)+(zone&&item.uses!==0?-1:0),technical=typeKey==='humanoid'&&(Boolean(item.technical)||isTechnicalWeaponName(item.name)),uses=clamp(Number(item.uses)||0,0,99);
+  return ensureTwoAttacks([ {
+    templateId:item.id,name:item.name,category:item.category||'Особая',pool:clamp(stats.pool+(Number(item.poolModifier)||0),1,8),damage:damageStep(stats.damage,step),range:item.range||'Особая',penetrating:Boolean(item.penetrating),text:withDefaultZoneText(item.effect||''),restriction:item.restriction||'',uses,usesLeft:uses,technical,controlBonus:technical?clamp(2+Math.floor((typeof document!=='undefined'?Number(document.getElementById?.('beLevel')?.value):1)/5),2,7):0,maxDurability:technical?2:0
+  }],typeKey)[0];
+}
+function chooseAttackTemplates(typeKey,count) {
+  const items=ATTACK_LIBRARY[typeKey]||[],common=shuffle(items.filter(x=>x.uses===0)),special=shuffle(items.filter(x=>x.uses>0)),chosen=[];
+  if(common.length)chosen.push(common.shift());
+  while(chosen.length<Math.min(2,count)&&common.length) {
+    const candidate=common.find(x=>!chosen.some(y=>y.range===x.range))||common[0];
+    chosen.push(candidate);
+    common.splice(common.indexOf(candidate),1);
+  }
+  for(const item of [...special,...common]) {
+    if(chosen.length>=count)break;
+    if(!chosen.some(x=>x.id===item.id))chosen.push(item);
+  }
+  return chosen.slice(0,count);
+}
+function normalizeClassReaction(item,index) {
+  const effect=withDefaultZoneText(item.effect||item.text||''),uses=/один раз|1 раз/i.test(effect)?1:/два раза|2 раз/i.test(effect)?2:2;
+  return {
+    templateId:`class_${index}_${item.name}`,name:item.name,trigger:item.trigger||'Подходящий момент, описанный эффектом.',effect,uses,power:uses===1?'strong':'medium',tags:['class']
+  };
+}
+function chooseReactionTemplates(typeKey,classKey,count) {
+  let items=[...(REACTION_LIBRARY[typeKey]||[])];
+  if(typeKey==='humanoid'&&classKey!=='none') {
+    const classItems=(CLASS_REACTIONS[classKey]||[]).map(normalizeClassReaction);
+    if(classItems.length)items=[...items.slice(0,Math.max(0,count-1)),pick(classItems),...items.slice(Math.max(0,count-1))];
+  }
+  const preferred=shuffle(items.filter(x=>x.uses===0||x.uses===2)),strong=shuffle(items.filter(x=>x.uses===1)),rest=shuffle(items.filter(x=>x.uses>2));
+  return uniqueByName([...preferred,...strong,...rest]).slice(0,count);
+}
+function generatedProfile(level,bp,typeKey,tagKey,classKey) {
+  const safeLevel=clamp(Number(level)||1,1,20),target=clamp(Number(bp)||20,20,5000),base=LEVEL_BASELINES[safeLevel],type=TYPE_DATA[typeKey]||TYPE_DATA.humanoid,tag=TAGS[normalizeTagKey(tagKey)],cls=CLASSES[classKey]||CLASSES.none,ratio=Math.max(.04,target/1000),logScale=Math.log(ratio)/Math.log(2);
+  let hp=Math.max(1,Math.round(base.hp*Math.pow(ratio,.72)*type.hp*tag.hp*cls.hp));
+  const armor=clamp(base.armor+type.armor+tag.armor+cls.armor+Math.round(logScale*.42),0,8),pz=clamp(base.pz+tag.pz+Math.round(logScale*.36),3,10),defensePools=generatedDefensePools(safeLevel,target,typeKey,tagKey,classKey),stats=recommendedAttackStats(safeLevel,target,typeKey,tagKey,classKey),nerve=type.nerve===0?0:Math.max(1,Math.round(baselineNerve(safeLevel)*Math.pow(ratio,.40)*type.nerve*cls.nerve)),reactionLimit=clamp(baselineReactionLimit(safeLevel)+tag.reactionBonus+(ratio>=1.8?1:0)-(ratio<.35?1:0),0,4),attackCount=abilityCountFor(target,tagKey),reactionCount=abilityCountFor(target,tagKey);
+  const selectedAttacks=chooseAttackTemplates(typeKey,attackCount),attacks=selectedAttacks.length?selectedAttacks.map((item,index)=>instantiateAttackLibraryItem(item,stats,typeKey,index)):ensureTwoAttacks([],typeKey);
+  const reactions=chooseReactionTemplates(typeKey,classKey,reactionCount).map(item=>normalizeReaction( {
+    ...item,id:newId('r'),templateId:item.id||item.templateId,usesLeft:item.uses
+  })),properties=[...(type.rules||[])],template= {
+    level:safeLevel,typeKey,tagKey:normalizeTagKey(tagKey),classKey,hp,nerve,armor,pz,physicalDefensePool:defensePools.physicalDefensePool,mentalDefensePool:defensePools.mentalDefensePool,speed:type.speed,reactionLimit,reactions,properties,attacks
+  };
+  for(let pass=0; pass<7; pass++) {
+    const analysis=evaluateCombatPower(template),correction=Math.pow(target/Math.max(20,analysis.bp),1/.56);
+    template.hp=Math.max(1,Math.round(template.hp*clamp(correction,.58,1.72)));
+  }
+  return template;
+}
+/* ---------------- ПОДГОТОВКА ---------------- */ function countMultiplier(count) {
+  if(count<=1)return 1;
+  if(count===2)return 1.10;
+  if(count===3)return 1.20;
+  if(count===4)return 1.35;
+  if(count<=6)return 1.50;
+  return 1.65;
+}
+function tagPlan(count,formation) {
+  if(count<=0)return[];
+  if(formation==='boss_minions')return count===1?['boss']:['boss',...Array(count-1).fill('minion')];
+  if(formation==='chief_minions')return count===1?['chief']:['chief',...Array(count-1).fill('minion')];
+  return Array(count).fill('minion');
+}
+function resolveHumanoidClass(preference,tagKey) {
+  if(preference&&preference!=='auto')return preference;
+  const options=tagKey==='boss'?['recruit','mentalist','tinkerer','bigshot']:tagKey==='chief'?['recruit','psychopath','naturalist','bigshot']:['none','recruit','psychopath'];
+  return pick(options);
+}
+function optionList(items,selected='') {
+  return items.map(([value,label])=>`<option value="${escapeHtml(value)}" ${String(value)===String(selected)?'selected':''}>${escapeHtml(label)}</option>`).join('');
+}
+function fillSelect(id,items,includeAuto=false) {
+  const element=document.getElementById(id);
+  if(!element)return;
+  element.innerHTML=(includeAuto?'<option value="auto">Автоматически</option>':'')+optionList(items,element.value);
+}
+function fillClassSelect(id,includeAuto) {
+  fillSelect(id,CLASS_KEYS.filter(k=>k!=='auto').map(k=>[k,CLASSES[k].label]),includeAuto);
+}
+function initializeControls() {
+  fillClassSelect('humanoidClass',true);
+  fillClassSelect('typedHumanoidClass',true);
+  fillClassSelect('combatAddClass',false);
+  fillClassSelect('beClass',false);
+  fillSelect('composition',Object.entries(FORMATIONS).map(([k,v])=>[k,v.label]));
+  fillSelect('typedFormation',Object.entries(FORMATIONS).map(([k,v])=>[k,v.label]));
+  fillSelect('combatAddType',CREATURE_TYPES.map(k=>[k,TYPE_DATA[k].label]));
+  fillSelect('combatAddTag',TAG_KEYS.map(k=>[k,TAGS[k].label]));
+  fillSelect('beType',CREATURE_TYPES.map(k=>[k,TYPE_DATA[k].label]));
+  fillSelect('beTag',TAG_KEYS.map(k=>[k,TAGS[k].label]));
+  ['prepFilterType','libFilterType'].forEach(id=> {
+    const el=document.getElementById(id); if(el)el.innerHTML='<option value="">Все типы</option>'+optionList(CREATURE_TYPES.map(k=>[k,TYPE_DATA[k].label]));
+  });
+  ['prepFilterTag','libFilterTag'].forEach(id=> {
+    const el=document.getElementById(id); if(el)el.innerHTML='<option value="">Все теги</option>'+optionList(TAG_KEYS.map(k=>[k,TAGS[k].label]));
+  });
+  const classFilter=document.getElementById('libFilterClass');
+  if(classFilter)classFilter.innerHTML='<option value="">Все классы</option>'+optionList(CLASS_KEYS.filter(k=>k!=='auto').map(k=>[k,CLASSES[k].label]));
+  document.getElementById('composition').value='chief_minions';
+  document.getElementById('typedFormation').value='chief_minions';
+  document.getElementById('combatAddTag').value='minion';
+  document.getElementById('beTag').value='chief';
+  const watched=['players','level','enemyCount','difficulty','creatureType','humanoidClass','composition','typedHumanoidClass','typedFormation','generationMode'];
+  watched.forEach(id=>document.getElementById(id)?.addEventListener('input',()=> {
+    if(id==='players') {
+      ensurePlayerCount(document.getElementById(id).value); renderPlayerSetup(); renderInitiative();
+    }
+    renderSummary();
+  }));
+  CREATURE_TYPES.forEach(key=>document.getElementById(`count_${key}`)?.addEventListener('input',renderSummary));
+  document.getElementById('combatAddType')?.addEventListener('change',renderCombatAddForm);
+  renderBuilderLibraryControls();
+}
+function ensurePlayerCount(value) {
+  const count=clamp(Number(value)||1,1,10);
+  while(state.players.length<count)state.players.push( {
+    id:newId('p'),name:`Игрок ${state.players.length+1}`,initiative:0
+  });
+  while(state.players.length>count)state.players.pop();
+  document.getElementById('players').value=state.players.length;
+  persistLocal();
+}
+function addPlayer() {
+  if(state.players.length>=10) {
+    showToast('Максимум 10 игроков.',true);
+    return;
+  }
+  state.players.push( {
+    id:newId('p'),name:`Игрок ${state.players.length+1}`,initiative:0
+  });
+  document.getElementById('players').value=state.players.length;
+  persistLocal();
+  renderPlayerSetup();
+  renderInitiative();
+  renderSummary();
+}
+function removePlayer(id) {
+  if(state.players.length<=1) {
+    showToast('Нужен хотя бы один игрок.',true);
+    return;
+  }
+  state.players=state.players.filter(x=>x.id!==id);
+  if(state.initiative.activeId===id)state.initiative.activeId=null;
+  document.getElementById('players').value=state.players.length;
+  persistLocal();
+  renderPlayerSetup();
+  renderInitiative();
+  renderSummary();
+}
+function updatePlayerName(id,value) {
+  const player=state.players.find(x=>x.id===id);
+  if(!player)return;
+  player.name=String(value||'').trim()||'Безымянный игрок';
+  persistLocal();
+  renderInitiative();
+}
+function renderPlayerSetup() {
+  const root=document.getElementById('playerSetup');
+  if(!root)return;
+  root.innerHTML=state.players.map((p,i)=>`<div class="player-setup-row"><b>${i+1}</b><input value="${escapeHtml(p.name)}" oninput="updatePlayerName('${p.id}',this.value)"><button class="small danger" onclick="removePlayer('${p.id}')">×</button></div>`).join('');
+}
+function getMode() {
+  return document.getElementById('generationMode').value;
+}
+function renderGenerationMode() {
+  const mode=getMode();
+  ['auto','typed','manual'].forEach(k=>document.getElementById(`${k}Mode`).classList.toggle('hidden',k!==mode));
+  if(mode==='manual')renderManualBuilder();
+  renderSummary();
+}
+function typedCounts() {
+  return Object.fromEntries(CREATURE_TYPES.map(k=>[k,clamp(Number(document.getElementById(`count_${k}`).value)||0,0,12)]));
+}
+function typedTypeList() {
+  const counts=typedCounts();
+  return CREATURE_TYPES.flatMap(k=>Array(counts[k]).fill(k));
+}
+function addManualEnemy(initial= {
+}) {
+  state.manualDraft.push( {
+    ...defaultManualEnemy(),...initial,id:newId('m')
+  });
+  persistLocal();
+  renderManualBuilder();
+  renderSummary();
+}
+function removeManualEnemy(id) {
+  if(state.manualDraft.length<=1) {
+    showToast('Нужен хотя бы один враг.',true);
+    return;
+  }
+  state.manualDraft=state.manualDraft.filter(x=>x.id!==id);
+  persistLocal();
+  renderManualBuilder();
+  renderSummary();
+}
+function updateManualRow(id,field,value) {
+  const row=state.manualDraft.find(x=>x.id===id);
+  if(!row)return;
+  row[field]=value;
+  if(field==='typeKey'&&value!=='humanoid')row.classKey='none';
+  if(field==='source'&&value==='library'&&!row.templateId&&customEnemies.length)row.templateId=customEnemies[0].id;
+  persistLocal();
+  renderManualBuilder();
+  renderSummary();
+}
+function renderManualBuilder() {
+  const root=document.getElementById('manualBuilder');
+  if(!root)return;
+  root.innerHTML=state.manualDraft.map((row,index)=> {
+    const sourceOptions=optionList([['generated','Сгенерированный'],['library','Из библиотеки']],row.source); const head=`<div class="manual-row-head"><b>Враг ${index+1}</b><button class="small danger" onclick="removeManualEnemy('${row.id}')">Убрать</button></div>`; if(row.source==='library') {
+      const templates=customEnemies.length?optionList(customEnemies.map(e=>[e.id,`${e.name} — ${e.bp}‰`]),row.templateId):'<option value="">Библиотека пуста</option>'; return `<div class="manual-row">${head}<div class="manual-row-grid"><label>Источник<select onchange="updateManualRow('${row.id}','source',this.value)">${sourceOptions}</select></label><label>Статблок<select onchange="updateManualRow('${row.id}','templateId',this.value)">${templates}</select></label></div></div>`;
+    }
+    const typeOptions=optionList(CREATURE_TYPES.map(k=>[k,TYPE_DATA[k].label]),row.typeKey),tagOptions=optionList(TAG_KEYS.map(k=>[k,TAGS[k].label]),row.tagKey),classOptions=optionList(CLASS_KEYS.filter(k=>k!=='auto').map(k=>[k,CLASSES[k].label]),row.classKey); const names=NAMES[row.typeKey]?.[row.tagKey]||[]; const nameOptions='<option value="">Случайное имя</option>'+optionList(names.map(n=>[n,n]),row.name); return `<div class="manual-row">${head}<div class="manual-row-grid"><label>Источник<select onchange="updateManualRow('${row.id}','source',this.value)">${sourceOptions}</select></label><label>Тип<select onchange="updateManualRow('${row.id}','typeKey',this.value)">${typeOptions}</select></label><label>Тег<select onchange="updateManualRow('${row.id}','tagKey',this.value)">${tagOptions}</select></label><label>Класс<select ${row.typeKey!=='humanoid'?'disabled':''} onchange="updateManualRow('${row.id}','classKey',this.value)">${classOptions}</select></label><label class="wide">Имя<select onchange="updateManualRow('${row.id}','name',this.value)">${nameOptions}</select></label></div></div>`;
+  }).join('');
+}
+function getSettings() {
+  ensurePlayerCount(document.getElementById('players').value);
+  return {
+    players:state.players.length,level:clamp(Number(document.getElementById('level').value)||1,1,20),difficulty:document.getElementById('difficulty').value,generationMode:getMode(),enemyCount:clamp(Number(document.getElementById('enemyCount').value)||1,1,12),creatureType:document.getElementById('creatureType').value,humanoidClass:document.getElementById('humanoidClass').value,composition:document.getElementById('composition').value,typedCounts:typedCounts(),typedHumanoidClass:document.getElementById('typedHumanoidClass').value,typedFormation:document.getElementById('typedFormation').value
+  };
+}
+function buildGenerationEntries(settings) {
+  if(settings.generationMode==='manual')return state.manualDraft.map(row=> {
+    if(row.source==='library') {
+      const template=customEnemies.find(e=>e.id===row.templateId); if(!template)throw new Error('Один из статблоков не найден.'); return {
+        source:'library',template,tagKey:normalizeTagKey(template.tagKey||template.roleKey)
+      };
+    }
+    return {
+      source:'generated',typeKey:row.typeKey,tagKey:normalizeTagKey(row.tagKey),classKey:row.typeKey==='humanoid'?row.classKey:'none',name:row.name||''
+    };
+  });
+  let types,formation,classPreference;
+  if(settings.generationMode==='typed') {
+    types=shuffle(typedTypeList());
+    if(!types.length)throw new Error('Укажите хотя бы одного врага.');
+    formation=settings.typedFormation;
+    classPreference=settings.typedHumanoidClass;
+  } else {
+    types=Array.from( {
+      length:settings.enemyCount
+    },(_,i)=>settings.creatureType==='auto'?CREATURE_TYPES.filter(k=>k!=='undead')[i%4]:settings.creatureType);
+    formation=settings.composition;
+    classPreference=settings.humanoidClass;
+  }
+  const tags=tagPlan(types.length,formation);
+  return types.map((typeKey,index)=>( {
+    source:'generated',typeKey,tagKey:tags[index],classKey:typeKey==='humanoid'?resolveHumanoidClass(classPreference,tags[index]):'none',name:''
+  }));
+}
+function buildEnemy(level,bp,typeKey,tagKey,classKey,index,fixedName='') {
+  const safeType=TYPE_DATA[typeKey]?typeKey:'humanoid',safeTag=normalizeTagKey(tagKey),safeClass=safeType==='humanoid'&&CLASSES[classKey]?classKey:'none';
+  const profile=generatedProfile(level,bp,safeType,safeTag,safeClass),type=TYPE_DATA[safeType],cls=CLASSES[safeClass];
+  return {
+    id:newId('e'),slot:index+1,name:fixedName||pick(NAMES[safeType]?.[safeTag])||type.label,typeKey:safeType,typeLabel:type.label,tagKey:safeTag,tagLabel:TAGS[safeTag].label,classKey:safeClass,classLabel:safeType==='humanoid'?cls.label:null,bp:Math.max(20,roundTo(Number(bp)||20,5)),level:Number(level)||1,maxHp:profile.hp,hp:profile.hp,maxNerve:profile.nerve,nerve:profile.nerve,maxArmor:profile.armor,armor:profile.armor,pz:profile.pz,physicalDefensePool:profile.physicalDefensePool,mentalDefensePool:profile.mentalDefensePool,speed:profile.speed,reactionLimit:profile.reactionLimit,reactions:profile.reactions,attacks:profile.attacks,properties:profile.properties,immunities:[...(type.immunities||[])],conditions:[],initiative:0,defeated:false,source:'generated',scenePreset:'normal'
+  };
+}
+function instantiateTemplate(template,index) {
+  const typeKey=TYPE_DATA[template.typeKey]?template.typeKey:'humanoid',type=TYPE_DATA[typeKey],tagKey=normalizeTagKey(template.tagKey||template.roleKey),classKey=typeKey==='humanoid'&&CLASSES[template.classKey]?template.classKey:'none',attacks=ensureTwoAttacks(template.attacks,typeKey).map(a=>( {
+    ...a,id:newId('a'),durability:a.maxDurability,usesLeft:a.uses,lastRoll:null,lastControl:null
+  })),reactions=normalizeReactions(template.reactions).map(r=>( {
+    ...r,id:newId('r'),usesLeft:r.uses,used:false
+  }));
+  return {
+    id:newId('e'),slot:index+1,name:template.name,typeKey,typeLabel:type.label,tagKey,tagLabel:TAGS[tagKey].label,classKey,classLabel:typeKey==='humanoid'?CLASSES[classKey].label:null,bp:Number(template.bp)||1000,level:Number(template.level)||1,maxHp:Number(template.hp)||1,hp:Number(template.hp)||1,maxNerve:Number(template.nerve)||0,nerve:Number(template.nerve)||0,maxArmor:Number(template.armor)||0,armor:Number(template.armor)||0,pz:clamp(Number(template.pz)||3,3,10),physicalDefensePool:clamp(Number(template.physicalDefensePool)||Number(template.pool)||attacks[0].pool,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),mentalDefensePool:clamp(Number(template.mentalDefensePool)||Number(template.pool)||attacks[0].pool,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),speed:Number(template.speed)||type.speed,reactionLimit:Number(template.reactionLimit)||0,reactions,attacks,properties:deepClone(template.properties||type.rules||[]),immunities:[...(type.immunities||[])],conditions:[],initiative:0,defeated:false,source:'library',notes:template.notes||'',scenePreset:'normal'
+  };
+}
+function generateEncounter() {
+  try {
+    const settings=getSettings(),entries=buildGenerationEntries(settings);
+    if(!entries.length)throw new Error('Добавьте хотя бы одного врага.');
+    const count=entries.length,targetBp=DIFFICULTIES[settings.difficulty].permille*settings.players/3,multiplier=countMultiplier(count),rawBudget=targetBp/multiplier;
+    const fixedSum=entries.filter(e=>e.source==='library').reduce((s,e)=>s+(Number(e.template.bp)||0),0),generated=entries.filter(e=>e.source==='generated');
+    const remaining=Math.max(20*generated.length,rawBudget-fixedSum),weights=generated.map(e=>TAGS[e.tagKey]?.weight||1),weightTotal=weights.reduce((a,b)=>a+b,0)||1;
+    let generatedIndex=0;
+    const enemies=entries.map((entry,index)=> {
+      if(entry.source==='library')return instantiateTemplate(entry.template,index); const bp=remaining*(weights[generatedIndex]/weightTotal); generatedIndex++; return buildEnemy(settings.level,bp,entry.typeKey,entry.tagKey,entry.classKey,index,entry.name);
+    });
+    state.settings= {
+      ...settings,enemyCount:count
+    };
+    state.targetBp=Math.round(targetBp);
+    state.actionMultiplier=multiplier;
+    state.enemies=enemies;
+    state.round=1;
+    state.initiative= {
+      activeId:null
+    };
+    state.generatedAt=new Date().toISOString();
+    state.version=7;
+    persistLocal();
+    render();
+    showScreen('combat');
+    const actual=Math.round(enemies.reduce((s,e)=>s+e.bp,0)*multiplier);
+    showToast(actual>targetBp*1.2?'Бой сформирован, но готовые статблоки превышают бюджет.':'Бой сформирован.');
+  } catch(error) {
+    showToast(error.message||String(error),true);
+  }
+}
+function rerollNamesAndTypes() {
+  state.manualDraft.forEach(r=> {
+    if(r.source!=='library')r.name='';
+  });
+  state.enemies.forEach(e=> {
+    if(e.source==='generated')e.name=pick(NAMES[e.typeKey]?.[e.tagKey]||[e.typeLabel]);
+  });
+  persistLocal();
+  renderManualBuilder();
+  renderEnemyGrid();
+  showToast('Имена переброшены.');
+}
+function renderSummary() {
+  const root=document.getElementById('budgetSummary');
+  if(!root)return;
+  const players=clamp(Number(document.getElementById('players')?.value)||state.players.length,1,10),difficulty=document.getElementById('difficulty')?.value||'medium',mode=getMode();
+  let count=Number(document.getElementById('enemyCount')?.value)||1;
+  if(mode==='typed')count=typedTypeList().length;
+  if(mode==='manual')count=state.manualDraft.length;
+  count=Math.max(1,count);
+  const target=Math.round(DIFFICULTIES[difficulty].permille*players/3),multiplier=countMultiplier(count),raw=Math.round(target/multiplier);
+  root.innerHTML=`Цель: <strong>${target}‰</strong> для ${players} игроков. Врагов: <strong>${count}</strong>. Множитель действий: <strong>×${multiplier.toFixed(2)}</strong>. Бюджет до множителя: около <strong>${raw}‰</strong>.`;
+}
+/* ---------------- БОЙ ---------------- */ function renderCombatMeta() {
+  const actual=Math.round(state.enemies.reduce((s,e)=>s+(Number(e.bp)||0),0)*countMultiplier(state.enemies.length)),target=state.targetBp||0;
+  document.getElementById('roundNumber').textContent=state.round;
+  document.getElementById('encounterMeta').textContent=state.enemies.length?`${state.enemies.length} врагов · БС ${actual}‰${target?` · цель ${target}‰`:''}`:'Бой пока не создан.';
+  document.getElementById('combatBudget').textContent=state.enemies.length?`Фактическая Боеспособность с множителем действий: ${actual}‰.`:'Противников нет.';
+}
+function resourceRow(enemy,field,label,cssClass) {
+  const maxField= {
+    hp:'maxHp',nerve:'maxNerve',armor:'maxArmor'
+  }
+  [field],current=Number(enemy[field])||0,maximum=Number(enemy[maxField])||0;
+  if(maximum<=0)return'';
+  const percent=clamp(current/maximum*100,0,100);
+  return`<div class="resource-row"><span>${label}</span><button class="small" onclick="adjustResource('${enemy.id}','${field}',-1)">−</button><div><div class="value">${current} / ${maximum}</div><div class="bar ${cssClass}"><i style="width:${percent}%"></i></div></div><button class="small" onclick="adjustResource('${enemy.id}','${field}',1)">+</button></div>`;
+}
+function sceneOptions(selected) {
+  return optionList(Object.entries(SCENE_PRESETS).map(([k,v])=>[k,v.label]),selected);
+}
+function rollResultHtml(attack) {
+  if(!attack.lastRoll)return'';
+  const result=attack.lastRoll;
+  return`<div class="roll-result ${result.hit?'hit':'miss'}"><b>ЭФ ${result.ef}</b> · кости: ${result.dice.join(', ')}${result.hit?` · урон <b>${result.damage}</b>${attack.penetrating?' · Пробитие 1':''}`:' · урон не бросался'}</div>`;
+}
+function defenseRollHtml(enemy,kind) {
+  const physical=kind==='physical',result=physical?enemy.lastPhysicalDefenseRoll:enemy.lastMentalDefenseRoll,label=physical?'Физическая защита':'Ментальная защита';
+  if(!result)return'';
+  return`<div class="roll-result"><b>${label}: ЭФ ${result.ef}</b> · ${result.pool}d6 · кости: ${result.dice.join(', ')}</div>`;
+}
+function attackHtml(enemy,attack,index,interactive) {
+  const technical=enemy.typeKey==='humanoid'&&attack.technical,durability=technical?`<div class="weapon-track"><span>Прочность</span><button class="small" onclick="adjustAttackDurability('${enemy.id}',${index},-1)">−</button><div>${attack.durability} / ${attack.maxDurability}</div><button class="small" onclick="adjustAttackDurability('${enemy.id}',${index},1)">+</button></div>`:'',limit=attack.uses===0?'∞':`${attack.usesLeft}/${attack.uses}`,disabled=attack.uses>0&&attack.usesLeft<=0;
+  const controls=interactive?`<div class="attack-actions"><button class="small primary" ${disabled?'disabled':''} onclick="rollEnemyAttack('${enemy.id}',${index})">Бросок атаки</button>${technical?`<button class="small" onclick="rollEnemyControl('${enemy.id}',${index})">Контроль +${attack.controlBonus}</button>`:''}<span class="badge">применения ${limit}</span></div>${rollResultHtml(attack)}${attack.lastControl?`<div class="roll-result">Контроль: d20 ${attack.lastControl.die} + ${attack.controlBonus} = <b>${attack.lastControl.total}</b></div>`:''}${durability}`:'';
+  return`<div class="attack"><div class="attack-head"><strong>${escapeHtml(attack.name)}</strong><span class="badge">Атака ${index+1}</span></div><small>${attack.pool}d6 · ${escapeHtml(attack.damage)} · ${escapeHtml(attack.range)}${attack.category?` · ${escapeHtml(attack.category)}`:''}${attack.penetrating?' · Пробитие 1':''}${technical?` · техническое, Контроль +${attack.controlBonus}`:''}</small>${attack.text?`<div class="help">${escapeHtml(attack.text)}</div>`:''}${attack.restriction?`<div class="source-note"><b>Ограничение:</b> ${escapeHtml(attack.restriction)}</div>`:''}${controls}</div>`;
+}
+function renderEnemyCard(enemy, {
+  interactive=true
+}
+= {
+}) {
+  const type=TYPE_DATA[enemy.typeKey]||TYPE_DATA.humanoid;
+  enemy.reactions=normalizeReactions(enemy.reactions);
+  const reactions=enemy.reactions.map((r,i)=> {
+    const limit=r.uses===0?'∞':`${r.usesLeft}/${r.uses}`; return`<label class="reaction ${r.used?'used':''}"><input type="checkbox" ${r.used?'checked':''} ${r.uses>0&&r.usesLeft<=0&&!r.used?'disabled':''} onchange="toggleReaction('${enemy.id}',${i},this.checked)"><span><strong>${escapeHtml(r.name)}</strong> <span class="badge">${limit}</span><small>${escapeHtml(r.trigger?`Триггер: ${r.trigger}`:'')}</small><small>${escapeHtml(r.effect||r.text)}</small></span></label>`;
+  }).join('');
+  const attacks=ensureTwoAttacks(enemy.attacks,enemy.typeKey);
+  enemy.attacks=attacks;
+  const conditions=interactive?CONDITIONS.map(c=> {
+    const immune=(enemy.immunities||[]).includes(c),active=(enemy.conditions||[]).includes(c); return`<button class="condition ${immune?'immune':''} ${active?'active':''}" ${immune?'disabled':''} onclick="toggleCondition('${enemy.id}','${c}')">${escapeHtml(c)}</button>`;
+  }).join(''):'';
+  const properties=(enemy.properties||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join('');
+  return`<article class="enemy-card ${enemy.hp<=0?'defeated':''}"><div class="enemy-head"><div class="enemy-title-row"><div><div class="enemy-name">${escapeHtml(enemy.name)}</div><div class="badges"><span class="badge">${escapeHtml(type.label)}</span><span class="badge">${escapeHtml(TAGS[enemy.tagKey]?.label||'Главарь')}</span>${enemy.classLabel?`<span class="badge">${escapeHtml(enemy.classLabel)}</span>`:''}<span class="badge bp">${Math.round(enemy.bp||0)}‰</span></div></div>${interactive?`<button class="small danger" onclick="removeEnemy('${enemy.id}')">Убрать</button>`:''}</div></div><div class="enemy-body"><div class="statline"><div class="statbox"><b>${enemy.maxHp}</b><span>Тело</span></div><div class="statbox"><b>${enemy.maxArmor}</b><span>Броня</span></div><div class="statbox"><b>${enemy.pz}</b><span>ПЗ</span></div><div class="statbox"><b>${enemy.physicalDefensePool}</b><span>Физ. защ.</span></div><div class="statbox"><b>${enemy.mentalDefensePool}</b><span>Мент. защ.</span></div><div class="statbox"><b>${enemy.speed}</b><span>Скорость</span></div></div><div class="badges"><span class="badge">Реакций ${enemy.reactionLimit}/раунд</span><span class="badge">Атак ${attacks.length}</span>${enemy.maxNerve>0?`<span class="badge">Нерв ${enemy.maxNerve}</span>`:''}</div>${interactive?`<div class="tracker">${resourceRow(enemy,'hp','Тело','')}${resourceRow(enemy,'nerve','Нерв','nerve')}${resourceRow(enemy,'armor','Броня','armor')}</div><label class="scene-control"><span>Кубы сцены</span><select onchange="setScenePreset('${enemy.id}',this.value)">${sceneOptions(enemy.scenePreset||'normal')}</select></label><div class="defense-rolls"><button class="small" onclick="rollEnemyDefense('${enemy.id}','physical')">Физическая защита ${enemy.physicalDefensePool}d6</button><button class="small" onclick="rollEnemyDefense('${enemy.id}','mental')">Ментальная защита ${enemy.mentalDefensePool}d6</button>${defenseRollHtml(enemy,'physical')}${defenseRollHtml(enemy,'mental')}</div>`:''}${properties?`<div class="section"><b>Свойства</b><ul class="rules">${properties}</ul></div>`:''}<div class="section"><b>Атаки</b><div class="attack-list">${attacks.map((a,i)=>attackHtml(enemy,a,i,interactive)).join('')}</div></div>${reactions?`<div class="section"><b>Реакции</b><div class="reactions">${reactions}</div></div>`:''}${conditions?`<div class="section"><b>Состояния</b><div class="conditions">${conditions}</div></div>`:''}</div></article>`;
+}
+function renderEnemyGrid() {
+  const root=document.getElementById('enemyGrid');
+  if(!root)return;
+  root.innerHTML=state.enemies.length?state.enemies.map(e=>renderEnemyCard(e)).join(''):'<div class="empty">Сначала сформируйте бой.</div>';
+  renderCombatMeta();
+}
+function findEnemy(id) {
+  return state.enemies.find(e=>e.id===id);
+}
+function adjustResource(id,field,delta) {
+  const enemy=findEnemy(id);
+  if(!enemy)return;
+  const maxField= {
+    hp:'maxHp',nerve:'maxNerve',armor:'maxArmor'
+  }
+  [field];
+  enemy[field]=clamp((Number(enemy[field])||0)+delta,0,Number(enemy[maxField])||0);
+  if(field==='hp')enemy.defeated=enemy.hp<=0;
+  persistLocal();
+  renderEnemyGrid();
+  renderInitiative();
+}
+function adjustAttackDurability(id,index,delta) {
+  const enemy=findEnemy(id),attack=enemy?.attacks?.[index];
+  if(!attack)return;
+  attack.durability=clamp((Number(attack.durability)||0)+delta,0,Number(attack.maxDurability)||2);
+  persistLocal();
+  renderEnemyGrid();
+}
+function setScenePreset(id,value) {
+  const enemy=findEnemy(id);
+  if(!enemy||!SCENE_PRESETS[value])return;
+  enemy.scenePreset=value;
+  persistLocal();
+}
+function rollDie(sides) {
+  return Math.floor(Math.random()*sides)+1;
+}
+function rollEfficiencyPool(pool,sceneDice) {
+  const dice=[...Array(clamp(Number(pool)||1,1,8)).fill(6),...(sceneDice||MODEL_SCENE_DICE)].map(rollDie).sort((a,b)=>a-b);
+  return {
+    dice,ef:dice[dice.length-1]+dice[dice.length-2]-dice[0]-dice[1]
+  };
+}
+function rollDamageExpression(expression) {
+  const match=String(expression||'d6').replace(/\s+/g,'').match(/^(\d*)d(\d+)([+-]\d+)?$/i);
+  if(!match)return Math.max(0,Number(expression)||0);
+  const count=clamp(Number(match[1]||1),1,6),sides=clamp(Number(match[2]),2,20),mod=Number(match[3]||0);
+  let total=mod;
+  for(let i=0; i<count; i++)total+=rollDie(sides);
+  return Math.max(0,total);
+}
+function rollEnemyAttack(id,index) {
+  const enemy=findEnemy(id),attack=enemy?.attacks?.[index];
+  if(!attack)return;
+  if(attack.uses>0&&attack.usesLeft<=0) {
+    showToast('Применения этой атаки закончились.',true);
+    return;
+  }
+  const preset=SCENE_PRESETS[enemy.scenePreset||'normal']||SCENE_PRESETS.normal,roll=rollEfficiencyPool(attack.pool,preset.dice),dice=roll.dice,ef=roll.ef,hit=ef>2;
+  if(attack.uses>0)attack.usesLeft--;
+  attack.lastRoll= {
+    dice,ef,hit,damage:hit?rollDamageExpression(attack.damage):null,at:new Date().toISOString()
+  };
+  persistLocal();
+  renderEnemyGrid();
+}
+function rollEnemyControl(id,index) {
+  const enemy=findEnemy(id),attack=enemy?.attacks?.[index];
+  if(!attack||enemy.typeKey!=='humanoid'||!attack.technical)return;
+  const die=rollDie(20);
+  attack.lastControl= {
+    die,total:die+clamp(Number(attack.controlBonus)||2,2,7),at:new Date().toISOString()
+  };
+  persistLocal();
+  renderEnemyGrid();
+}
+function rollEnemyDefense(id,kind) {
+  const enemy=findEnemy(id);
+  if(!enemy)return;
+  const physical=kind==='physical',pool=physical?enemy.physicalDefensePool:enemy.mentalDefensePool,preset=SCENE_PRESETS[enemy.scenePreset||'normal']||SCENE_PRESETS.normal,roll=rollEfficiencyPool(pool,preset.dice),result= {
+    ...roll,pool:clamp(Number(pool)||1,1,8),at:new Date().toISOString()
+  };
+  if(physical)enemy.lastPhysicalDefenseRoll=result;
+  else enemy.lastMentalDefenseRoll=result;
+  persistLocal();
+  renderEnemyGrid();
+}
+function toggleReaction(id,index,checked) {
+  const enemy=findEnemy(id),reaction=enemy?.reactions?.[index];
+  if(!reaction)return;
+  if(checked) {
+    if(reaction.uses>0&&reaction.usesLeft<=0) {
+      showToast('Применения этой реакции закончились.',true);
+      renderEnemyGrid();
+      return;
+    }
+    if(enemy.reactions.filter(r=>r.used).length>=enemy.reactionLimit) {
+      showToast(`Лимит реакций: ${enemy.reactionLimit}.`,true);
+      renderEnemyGrid();
+      return;
+    }
+    reaction.used=true;
+    if(reaction.uses>0)reaction.usesLeft--;
+  } else {
+    if(reaction.used&&reaction.uses>0)reaction.usesLeft=Math.min(reaction.uses,reaction.usesLeft+1);
+    reaction.used=false;
+  }
+  persistLocal();
+  renderEnemyGrid();
+}
+function toggleCondition(id,condition) {
+  const enemy=findEnemy(id);
+  if(!enemy||(enemy.immunities||[]).includes(condition))return;
+  if(condition==='Дезориентация'&&enemy.typeKey==='animal'&&!enemy.conditions.includes(condition)) {
+    const roll=rollDie(20);
+    if(roll<=3) {
+      showToast(`Животное игнорирует Дезориентацию: ${roll}.`);
+      return;
+    }
+  }
+  enemy.conditions=enemy.conditions.includes(condition)?enemy.conditions.filter(x=>x!==condition):[...enemy.conditions,condition];
+  persistLocal();
+  renderEnemyGrid();
+}
+function clearReactionUsage() {
+  state.enemies.forEach(e=>(e.reactions||[]).forEach(r=>r.used=false));
+}
+function nextRound() {
+  if(!state.enemies.length)return;
+  state.round++;
+  clearReactionUsage();
+  persistLocal();
+  render();
+  showToast(`Начался раунд ${state.round}.`);
+}
+function resetRoundReactions(show=true) {
+  clearReactionUsage();
+  persistLocal();
+  renderEnemyGrid();
+  if(show)showToast('Реакции восстановлены.');
+}
+function resetEncounterResources() {
+  if(!confirm('Восстановить ресурсы и очистить состояния?'))return;
+  state.round=1;
+  state.initiative.activeId=null;
+  state.enemies.forEach(e=> {
+    e.hp=e.maxHp; e.nerve=e.maxNerve; e.armor=e.maxArmor; e.conditions=[]; e.defeated=false; e.initiative=0; e.scenePreset='normal'; e.lastPhysicalDefenseRoll=null; e.lastMentalDefenseRoll=null; e.attacks=ensureTwoAttacks(e.attacks,e.typeKey).map(a=>( {
+      ...a,durability:a.maxDurability,usesLeft:a.uses,lastRoll:null,lastControl:null
+    })); e.reactions=normalizeReactions(e.reactions).map(r=>( {
+      ...r,usesLeft:r.uses,used:false
+    }));
+  });
+  persistLocal();
+  render();
+}
+function removeEnemy(id) {
+  state.enemies=state.enemies.filter(e=>e.id!==id);
+  if(state.initiative.activeId===id)state.initiative.activeId=null;
+  state.enemies.forEach((e,i)=>e.slot=i+1);
+  state.actionMultiplier=countMultiplier(state.enemies.length);
+  persistLocal();
+  render();
+}
+function initiativeParticipants() {
+  const players=state.players.map((p,i)=>( {
+    id:p.id,name:p.name,initiative:Number(p.initiative)||0,kind:'player',kindLabel:'Игрок',order:i,defeated:false
+  })),enemies=state.enemies.map((e,i)=>( {
+    id:e.id,name:e.name,initiative:Number(e.initiative)||0,kind:'enemy',kindLabel:e.typeLabel,order:100+i,defeated:e.hp<=0
+  }));
+  return[...players,...enemies].sort((a,b)=>b.initiative-a.initiative||(a.kind===b.kind?a.order-b.order:(a.kind==='player'?-1:1)));
+}
+function renderInitiative() {
+  const root=document.getElementById('initiativeList');
+  if(!root)return;
+  const list=initiativeParticipants();
+  root.innerHTML=list.length?list.map((p,i)=>`<div class="initiative-row ${state.initiative.activeId===p.id?'active':''}" ${p.defeated?'style="opacity:.5"':''}><div class="initiative-rank">${i+1}</div><div class="initiative-name">${p.kind==='player'?`<input value="${escapeHtml(p.name)}" onchange="updatePlayerName('${p.id}',this.value)">`:`<b>${escapeHtml(p.name)}</b>`}<div class="initiative-kind">${escapeHtml(p.kindLabel)}</div></div><input class="initiative-score" type="number" value="${p.initiative}" onchange="setInitiative('${p.id}',this.value)"><button class="small" onclick="setActiveInitiative('${p.id}')">Ход</button></div>`).join(''):'<div class="empty">Добавьте участников.</div>';
+  const active=list.find(p=>p.id===state.initiative.activeId);
+  document.getElementById('activeTurnLabel').textContent=active?`Сейчас ходит: ${active.name}`:'Ход ещё не начат.';
+}
+function setInitiative(id,value) {
+  const p=state.players.find(x=>x.id===id)||state.enemies.find(x=>x.id===id);
+  if(!p)return;
+  p.initiative=Number(value)||0;
+  persistLocal();
+  renderInitiative();
+}
+function setActiveInitiative(id) {
+  state.initiative.activeId=id;
+  persistLocal();
+  renderInitiative();
+}
+function resetInitiative() {
+  state.players.forEach(p=>p.initiative=0);
+  state.enemies.forEach(e=>e.initiative=0);
+  state.initiative.activeId=null;
+  persistLocal();
+  renderInitiative();
+}
+function nextInitiativeTurn() {
+  const list=initiativeParticipants().filter(p=>!p.defeated);
+  if(!list.length)return;
+  const current=list.findIndex(p=>p.id===state.initiative.activeId),next=current<0?0:(current+1)%list.length;
+  if(current>=0&&next===0) {
+    state.round++;
+    clearReactionUsage();
+    showToast(`Начался раунд ${state.round}.`);
+  }
+  state.initiative.activeId=list[next].id;
+  persistLocal();
+  render();
+}
+function renderCombatAddForm() {
+  const source=document.getElementById('combatAddSource').value;
+  document.getElementById('combatAddGenerated').classList.toggle('hidden',source!=='generated');
+  document.getElementById('combatAddLibrary').classList.toggle('hidden',source!=='library');
+  document.getElementById('combatAddClass').disabled=document.getElementById('combatAddType').value!=='humanoid';
+}
+function addEnemyDuringCombat() {
+  const source=document.getElementById('combatAddSource').value;
+  let enemy;
+  if(source==='library') {
+    const template=customEnemies.find(e=>e.id===document.getElementById('combatAddTemplate').value);
+    if(!template) {
+      showToast('Выберите статблок.',true);
+      return;
+    }
+    enemy=instantiateTemplate(template,state.enemies.length);
+  } else {
+    const typeKey=document.getElementById('combatAddType').value,tagKey=document.getElementById('combatAddTag').value,classKey=typeKey==='humanoid'?document.getElementById('combatAddClass').value:'none',bp=clamp(Number(document.getElementById('combatAddBp').value)||250,20,5000),level=state.settings?.level||Number(document.getElementById('level').value)||1;
+    enemy=buildEnemy(level,bp,typeKey,tagKey,classKey,state.enemies.length);
+  }
+  state.enemies.push(enemy);
+  state.actionMultiplier=countMultiplier(state.enemies.length);
+  persistLocal();
+  render();
+  showToast(`${enemy.name} добавлен.`);
+}
+/* ---------------- БИБЛИОТЕКА ---------------- */ async function loadEnemyLibrary(showMessage=false) {
+  ['prepLibrary','bestiaryLibrary'].forEach(id=> {
+    const root=document.getElementById(id); if(root)root.innerHTML='<div class="empty">Загрузка…</div>';
+  });
+  try {
+    customEnemies=(await serverCall('getEnemyLibrary')).map(normalizeLibraryTemplate);
+    state.manualDraft.forEach(row=> {
+      if(row.source==='library'&&!row.templateId&&customEnemies.length)row.templateId=customEnemies[0].id;
+    });
+    renderLibraries();
+    renderManualBuilder();
+    renderCombatLibrarySelect();
+    if(showMessage)showToast(`Загружено: ${customEnemies.length}.`);
+  } catch(error) {
+    renderLibraries(error.message);
+    if(showMessage)showToast(error.message,true);
+  }
+}
+function normalizeLibraryTemplate(enemy) {
+  const typeKey=TYPE_DATA[enemy.typeKey]?enemy.typeKey:'humanoid',tagKey=normalizeTagKey(enemy.tagKey||enemy.roleKey);
+  const attacks=ensureTwoAttacks(enemy.attacks,typeKey),fallback=attacks[0]?.pool||4;
+  return {
+    ...enemy,typeKey,tagKey,roleKey:tagKey,pz:clamp(Number(enemy.pz)||3,3,10),physicalDefensePool:clamp(Number(enemy.physicalDefensePool)||Number(enemy.pool)||fallback,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),mentalDefensePool:clamp(Number(enemy.mentalDefensePool)||Number(enemy.pool)||fallback,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),attacks,reactions:normalizeReactions(enemy.reactions)
+  };
+}
+function renderCombatLibrarySelect() {
+  const select=document.getElementById('combatAddTemplate');
+  if(!select)return;
+  select.innerHTML=customEnemies.length?optionList(customEnemies.map(e=>[e.id,`${e.name} — ${e.bp}‰`]),select.value):'<option value="">Библиотека пуста</option>';
+}
+function filterLibrary(prefix) {
+  const get=id=>document.getElementById(`${prefix}${id}`);
+  const text=String(get('FilterText')?.value||'').toLowerCase().trim(),type=get('FilterType')?.value||'',tag=get('FilterTag')?.value||'',classKey=get('FilterClass')?.value||'',levelMin=Number(get('FilterLevelMin')?.value)||1,levelMax=Number(get('FilterLevelMax')?.value)||20,bpMin=Number(get('FilterBpMin')?.value)||0,bpMax=Number(get('FilterBpMax')?.value)||5000;
+  return customEnemies.filter(e=> {
+    const hay=`${e.name} ${(e.properties||[]).join(' ')} ${e.notes||''}`.toLowerCase(); return(!text||hay.includes(text))&&(!type||e.typeKey===type)&&(!tag||normalizeTagKey(e.tagKey||e.roleKey)===tag)&&(!classKey||e.classKey===classKey)&&e.level>=levelMin&&e.level<=levelMax&&e.bp>=bpMin&&e.bp<=bpMax;
+  });
+}
+function libraryCard(enemy,context) {
+  const type=TYPE_DATA[enemy.typeKey]||TYPE_DATA.humanoid,tag=TAGS[normalizeTagKey(enemy.tagKey||enemy.roleKey)]||TAGS.chief,attacks=ensureTwoAttacks(enemy.attacks,enemy.typeKey),primary=attacks[0],reactions=normalizeReactions(enemy.reactions),actions=context==='bestiary'?`<button class="small" onclick="editLibraryEnemy('${enemy.id}')">Редактировать</button><button class="small" onclick="addLibraryEnemyToCombat('${enemy.id}')">В бой</button><button class="small danger" onclick="deleteLibraryEnemy('${enemy.id}')">Удалить</button>`:`<button class="small" onclick="useLibraryEnemyInManual('${enemy.id}')">В состав</button><button class="small" onclick="editLibraryEnemy('${enemy.id}')">Редактировать</button>`;
+  return`<div class="library-card"><h3>${escapeHtml(enemy.name)}</h3><div class="library-meta"><span class="badge">${type.label}</span><span class="badge">${tag.label}</span><span class="badge bp">${enemy.bp}‰</span><span class="badge">ур. ${enemy.level}</span><span class="badge">${attacks.length} атак</span><span class="badge">${reactions.length} реакций</span></div><div class="help">Тело ${enemy.hp}, Броня ${enemy.armor}, ПЗ ${enemy.pz}, ФЗ ${enemy.physicalDefensePool}d6, МЗ ${enemy.mentalDefensePool}d6; первая атака ${primary.pool}d6 / ${escapeHtml(primary.damage)}.</div><div class="library-actions">${actions}</div></div>`;
+}
+function renderLibraries(errorMessage='') {
+  const prep=document.getElementById('prepLibrary'),best=document.getElementById('bestiaryLibrary');
+  if(errorMessage) {
+    const html=`<div class="empty">Не удалось загрузить библиотеку.<br>${escapeHtml(errorMessage)}</div>`;
+    if(prep)prep.innerHTML=html;
+    if(best)best.innerHTML=html;
+    return;
+  }
+  const prepItems=filterLibrary('prep').slice(0,20),bestItems=filterLibrary('lib');
+  if(prep)prep.innerHTML=prepItems.length?prepItems.map(e=>libraryCard(e,'prep')).join(''):'<div class="empty">Ничего не найдено.</div>';
+  if(best)best.innerHTML=bestItems.length?bestItems.map(e=>libraryCard(e,'bestiary')).join(''):'<div class="empty">Ничего не найдено.</div>';
+}
+function useLibraryEnemyInManual(id) {
+  const template=customEnemies.find(e=>e.id===id);
+  if(!template)return;
+  document.getElementById('generationMode').value='manual';
+  addManualEnemy( {
+    source:'library',templateId:id,typeKey:template.typeKey,tagKey:template.tagKey,classKey:template.classKey
+  });
+  renderGenerationMode();
+  showScreen('prep');
+  showToast(`${template.name} добавлен в состав.`);
+}
+function addLibraryEnemyToCombat(id) {
+  const template=customEnemies.find(e=>e.id===id);
+  if(!template)return;
+  const enemy=instantiateTemplate(template,state.enemies.length);
+  state.enemies.push(enemy);
+  state.actionMultiplier=countMultiplier(state.enemies.length);
+  persistLocal();
+  render();
+  showScreen('combat');
+  showToast(`${enemy.name} добавлен.`);
+}
+async function deleteLibraryEnemy(id) {
+  const enemy=customEnemies.find(e=>e.id===id);
+  if(!enemy||!confirm(`Удалить «${enemy.name}»?`))return;
+  try {
+    await serverCall('deleteEnemyTemplate',id);
+    customEnemies=customEnemies.filter(e=>e.id!==id);
+    renderLibraries();
+    renderManualBuilder();
+    renderCombatLibrarySelect();
+    showToast('Статблок удалён.');
+  } catch(error) {
+    showToast(error.message,true);
+  }
+}
+/* ---------------- РЕДАКТОР ПРОТИВНИКОВ ---------------- */ function resetBestiaryDraft() {
+  state.bestiaryDraft=defaultBestiaryDraft();
+  document.getElementById('beId').value='';
+  document.getElementById('beName').value='';
+  document.getElementById('beType').value='humanoid';
+  document.getElementById('beTag').value='chief';
+  document.getElementById('beClass').value='none';
+  document.getElementById('beLevel').value=1;
+  document.getElementById('beDifficulty').value='medium';
+  document.getElementById('beBp').value=1000;
+  document.getElementById('beNotes').value='';
+  document.getElementById('beProperties').value='';
+  document.getElementById('bestiaryFormTitle').textContent='Новый противник';
+  generateBestiaryStats(false);
+  persistLocal();
+}
+function onBestiaryArchetypeChange() {
+  const typeKey=document.getElementById('beType').value;
+  document.getElementById('beClass').disabled=typeKey!=='humanoid';
+  state.bestiaryDraft.attacks=ensureTwoAttacks(state.bestiaryDraft.attacks,typeKey);
+  state.bestiaryDraft.attacks.forEach(a=> {
+    if(typeKey!=='humanoid') {
+      a.technical=false; a.controlBonus=0; a.maxDurability=0; a.durability=0;
+    } else if(a.technical||isTechnicalWeaponName(a.name)) {
+      a.technical=true; a.controlBonus=clamp(a.controlBonus||2,2,7); a.maxDurability=Math.max(2,a.maxDurability||2); a.durability=Math.max(0,a.durability||a.maxDurability);
+    }
+  });
+  state.bestiaryDraft.reactions=normalizeReactions(state.bestiaryDraft.reactions);
+  renderBuilderLibraryControls();
+  renderBestiaryEditors();
+  renderModelBreakdown();
+}
+function syncBestiaryBpFromDifficulty() {
+  document.getElementById('beBp').value=DIFFICULTIES[document.getElementById('beDifficulty').value].permille;
+}
+function setBestiaryStats(profile) {
+  document.getElementById('beHp').value=profile.hp;
+  document.getElementById('beNerve').value=profile.nerve;
+  document.getElementById('beArmor').value=profile.armor;
+  document.getElementById('bePz').value=profile.pz;
+  document.getElementById('bePhysicalDefensePool').value=profile.physicalDefensePool;
+  document.getElementById('beMentalDefensePool').value=profile.mentalDefensePool;
+  document.getElementById('beSpeed').value=profile.speed;
+  document.getElementById('beReactionLimit').value=profile.reactionLimit;
+}
+function generateBestiaryStats(show=true) {
+  const typeKey=document.getElementById('beType').value,tagKey=document.getElementById('beTag').value,classKey=typeKey==='humanoid'?document.getElementById('beClass').value:'none',level=clamp(Number(document.getElementById('beLevel').value)||1,1,20),bp=clamp(Number(document.getElementById('beBp').value)||1000,20,5000),profile=generatedProfile(level,bp,typeKey,tagKey,classKey);
+  setBestiaryStats(profile);
+  state.bestiaryDraft.attacks=profile.attacks.map(a=>( {
+    ...a,id:newId('a'),usesLeft:a.uses
+  }));
+  state.bestiaryDraft.reactions=profile.reactions.map(r=>( {
+    ...r,id:newId('r'),usesLeft:r.uses
+  }));
+  document.getElementById('beProperties').value=profile.properties.join('\n');
+  renderBuilderLibraryControls();
+  renderBestiaryEditors();
+  renderModelBreakdown();
+  persistLocal();
+  if(show)showToast(`Статы и пресеты сгенерированы: ${profile.attacks.length} атак, ${profile.reactions.length} реакций.`);
+}
+function collectBestiaryForm() {
+  const typeKey=document.getElementById('beType').value,attacks=ensureTwoAttacks(state.bestiaryDraft.attacks,typeKey).map(( {
+    id,lastRoll,lastControl,durability,usesLeft,...a
+  })=>( {
+    ...a,maxDurability:a.technical?Math.max(2,a.maxDurability||2):0
+  })),reactions=normalizeReactions(state.bestiaryDraft.reactions).map(( {
+    id,used,usesLeft,text,...r
+  })=>r).filter(r=>r.name.trim());
+  return {
+    id:document.getElementById('beId').value.trim(),name:document.getElementById('beName').value.trim(),typeKey,tagKey:document.getElementById('beTag').value,roleKey:document.getElementById('beTag').value,classKey:typeKey==='humanoid'?document.getElementById('beClass').value:'none',level:clamp(Number(document.getElementById('beLevel').value)||1,1,20),bp:clamp(Number(document.getElementById('beBp').value)||1000,20,5000),difficultyKey:document.getElementById('beDifficulty').value,hp:Math.max(1,Number(document.getElementById('beHp').value)||1),nerve:Math.max(0,Number(document.getElementById('beNerve').value)||0),armor:clamp(Number(document.getElementById('beArmor').value)||0,0,8),pz:clamp(Number(document.getElementById('bePz').value)||3,3,10),physicalDefensePool:clamp(Number(document.getElementById('bePhysicalDefensePool').value)||4,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),mentalDefensePool:clamp(Number(document.getElementById('beMentalDefensePool').value)||4,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),speed:clamp(Number(document.getElementById('beSpeed').value)||0,0,8),reactionLimit:clamp(Number(document.getElementById('beReactionLimit').value)||0,0,4),pool:attacks[0].pool,durability:Math.max(0,...attacks.map(a=>a.maxDurability||0)),attacks,reactions,properties:document.getElementById('beProperties').value.split('\n').map(x=>x.trim()).filter(Boolean),notes:document.getElementById('beNotes').value.trim()
+  };
+}
+function estimateBestiaryBp() {
+  const template=collectBestiaryForm(),analysis=evaluateCombatPower(template);
+  document.getElementById('beBp').value=analysis.bp;
+  document.getElementById('beDifficulty').value=difficultyForBp(analysis.bp);
+  renderModelBreakdown(template,analysis);
+  showToast(`Оценочная БС: ${analysis.bp}‰.`);
+}
+function difficultyForBp(bp) {
+  if(bp<=750)return'easy';
+  if(bp<=1150)return'medium';
+  if(bp<=1450)return'hard';
+  return'deadly';
+}
+function renderModelBreakdown(template=null,analysis=null) {
+  const root=document.getElementById('modelBreakdown');
+  if(!root)return;
+  try {
+    const data=template||collectBestiaryForm(),result=analysis||evaluateCombatPower(data),d=result.defense,o=result.offense,level=clamp(Number(data.level)||1,1,20),autoEffectPool=clamp(Number(PLAYER_LEVEL_PROFILES[level].attackPool)||4,1,8),testEffectPool=clamp(Number(document.getElementById('beTestEffectPool')?.value)||autoEffectPool,1,8),testPhysicalResistance=effectResistanceChance(data.physicalDefensePool,testEffectPool),testMentalResistance=effectResistanceChance(data.mentalDefensePool,testEffectPool);
+    root.innerHTML=`<div class="model-title"><b>Расчёт: ${result.bp}‰</b><span>защита ×${result.defenseRatio.toFixed(2)} · давление ×${result.offenseRatio.toFixed(2)}</span></div><div class="model-grid"><div class="model-cell"><b>${Math.round(d.hitChance*100)}%</b><span>попадание игроков по ПЗ ${d.pz}</span></div><div class="model-cell"><b>${Math.round(d.armor.reduction*100)}%</b><span>снижение урона бронёй</span></div><div class="model-cell"><b>${d.effectiveHp.toFixed(1)}</b><span>эффективное Тело</span></div><div class="model-cell"><b>${d.physicalDefensePool}d6</b><span>пул физической защиты</span></div><div class="model-cell"><b>${Math.round(testPhysicalResistance*100)}%</b><span>сопротивление физическому воздействию ${testEffectPool}d6</span></div><div class="model-cell"><b>${d.mentalDefensePool}d6</b><span>пул ментальной защиты</span></div><div class="model-cell"><b>${Math.round(testMentalResistance*100)}%</b><span>сопротивление ментальному воздействию ${testEffectPool}d6</span></div><div class="model-cell"><b>×${d.resistanceFactor.toFixed(2)}</b><span>вклад двух защитных пулов в БС</span></div><div class="model-cell"><b>${Math.round(o.hitChance*100)}%</b><span>попадание лучшей атаки</span></div><div class="model-cell"><b>${o.damageOnHit.toFixed(2)}</b><span>урон лучшей атаки после Брони</span></div><div class="model-cell"><b>${o.controlDefenseKind?`${Math.round(o.controlSuccessChance*100)}%`:'—'}</b><span>${o.controlDefenseKind?`эффект проходит против ${o.controlDefenseKind==='mental'?'ментальной':'физической'} защиты ${o.effectDefensePool}d6`:'у лучшей атаки нет защитной проверки'}</span></div><div class="model-cell"><b>${o.attackCount}</b><span>вариантов атак, учтены лимиты</span></div><div class="model-cell"><b>×${d.reactionFactor.toFixed(2)}</b><span>защитный вклад реакций</span></div><div class="model-cell"><b>×${o.reactionFactor.toFixed(2)}</b><span>атакующий вклад реакций</span></div><div class="model-cell"><b>×${o.variety.toFixed(2)}</b><span>гибкость набора атак</span></div><div class="model-cell"><b>×${d.nerveFactor.toFixed(2)}</b><span>защитный вклад Нерва</span></div><div class="model-cell"><b>×${o.speedFactor.toFixed(2)}</b><span>вклад скорости</span></div><div class="model-cell"><b>${o.roundPressure.toFixed(2)}</b><span>давление за действие на горизонте 6 раундов</span></div></div><p class="help">Физическая защита применяется против яда, опрокидывания, удержания и иных воздействий на тело; ментальная — против потери Нерва, подчинения, изменения Кубов сцены и сходных эффектов. Обе стороны используют пул d6 и обычную сцену d4+d6; воздействие проходит при ЭФ не ниже 3 и не ниже ЭФ защиты. В БС защитные пулы учитываются умеренно, поскольку ими проверяется лишь часть действий игроков.</p>`;
+  } catch(error) {
+    root.innerHTML=`<div class="help">Расчёт недоступен: ${escapeHtml(error.message)}</div>`;
+  }
+}
+function fillTypeProperties(show=true) {
+  const type=TYPE_DATA[document.getElementById('beType').value]||TYPE_DATA.humanoid,current=document.getElementById('beProperties').value.split('\n').map(x=>x.trim()).filter(Boolean);
+  document.getElementById('beProperties').value=[...new Set([...current,...type.rules])].join('\n');
+  renderModelBreakdown();
+  if(show)showToast('Свойства добавлены.');
+}
+function fillSuggestedReactions(show=true) {
+  const typeKey=document.getElementById('beType').value,classKey=typeKey==='humanoid'?document.getElementById('beClass').value:'none',need=MAX_REACTIONS-state.bestiaryDraft.reactions.length;
+  if(need<=0) {
+    showToast('Достигнут максимум 5 реакций.',true);
+    return;
+  }
+  const suggestions=chooseReactionTemplates(typeKey,classKey,need),existing=new Set(state.bestiaryDraft.reactions.map(r=>r.name));
+  for(const item of suggestions) {
+    if(state.bestiaryDraft.reactions.length>=MAX_REACTIONS)break;
+    if(!existing.has(item.name))state.bestiaryDraft.reactions.push(normalizeReaction( {
+      ...item,id:newId('r'),templateId:item.id||item.templateId
+    }));
+  }
+  renderBestiaryEditors();
+  renderModelBreakdown();
+  persistLocal();
+  if(show)showToast('Типовые реакции добавлены.');
+}
+function addBestiaryReaction() {
+  if(state.bestiaryDraft.reactions.length>=MAX_REACTIONS) {
+    showToast('Максимум 5 реакций.',true);
+    return;
+  }
+  state.bestiaryDraft.reactions.push(reactionTemplate());
+  renderBestiaryEditors();
+  renderModelBreakdown();
+  persistLocal();
+}
+function removeBestiaryReaction(id) {
+  state.bestiaryDraft.reactions=state.bestiaryDraft.reactions.filter(r=>r.id!==id);
+  renderBestiaryEditors();
+  renderModelBreakdown();
+  persistLocal();
+}
+function updateBestiaryReaction(id, field, value) {
+  const reaction = state.bestiaryDraft.reactions.find(item => item.id === id);
+  if (!reaction) return;
+  if (field === 'uses') {
+    value = clamp(Number(value) || 0, 0, 99);
+  }
+  reaction[field] = value;
+  if (field === 'uses') {
+    reaction.usesLeft = value;
+  }
+  reaction.text = combinedReactionText(reaction);
+  if (field === 'uses' || field === 'power') {
+    renderModelBreakdown();
+  }
+  persistLocal();
+}
+function updateBestiaryAttack(index, field, value) {
+  const typeKey = document.getElementById('beType').value;
+  state.bestiaryDraft.attacks = ensureTwoAttacks( state.bestiaryDraft.attacks, typeKey);
+  const attack = state.bestiaryDraft.attacks[index];
+  if (!attack) return;
+  if (['pool', 'controlBonus', 'maxDurability', 'uses'].includes(field)) {
+    value = Number(value);
+  }
+  if (['penetrating', 'technical'].includes(field)) {
+    value = Boolean(value);
+  }
+  attack[field] = value;
+  if (field === 'pool') {
+    attack.pool = clamp(Number(value) || 1, 1, 8);
+  }
+  if (field === 'uses') {
+    attack.uses = clamp(Number(value) || 0, 0, 99);
+    attack.usesLeft = attack.uses;
+  }
+  const becameTechnical = field === 'name' && typeKey === 'humanoid' && isTechnicalWeaponName(value) && !attack.technical;
+  if ( field === 'name' && typeKey === 'humanoid' && isTechnicalWeaponName(value)) {
+    attack.technical = true;
+    attack.controlBonus = clamp(attack.controlBonus || 2, 2, 7);
+    attack.maxDurability = Math.max(2, attack.maxDurability || 2);
+    attack.durability = Math.max( attack.durability || 0, attack.maxDurability);
+  }
+  if ( field === 'technical' && !value && !isTechnicalWeaponName(attack.name)) {
+    attack.controlBonus = 0;
+    attack.maxDurability = 0;
+    attack.durability = 0;
+  }
+  if (field === 'technical' && value) {
+    attack.controlBonus = clamp(attack.controlBonus || 2, 2, 7);
+    attack.maxDurability = Math.max(2, attack.maxDurability || 2);
+    attack.durability = Math.max( attack.durability || 0, attack.maxDurability);
+  }
+  if (field === 'maxDurability' && attack.technical) {
+    attack.maxDurability = Math.max(2, Number(value) || 2);
+  }
+  /* Перерисовываем форму только тогда, когда меняется набор видимых полей. */ if (field === 'technical' || becameTechnical) {
+    renderBestiaryEditors();
+  }
+  const affectsCombatModel = [ 'pool', 'damage', 'range', 'uses', 'penetrating', 'technical', 'controlBonus', 'maxDurability', 'category'].includes(field);
+  if (affectsCombatModel) {
+    renderModelBreakdown();
+  }
+  persistLocal();
+}
+function filteredAttackLibrary() {
+  const typeKey=document.getElementById('beType')?.value||'humanoid',query=String(document.getElementById('attackLibrarySearch')?.value||'').toLowerCase().trim();
+  return (ATTACK_LIBRARY[typeKey]||[]).filter(x=>!query||`${x.name} ${x.category} ${x.range} ${x.effect}`.toLowerCase().includes(query));
+}
+function filteredReactionLibrary() {
+  const typeKey=document.getElementById('beType')?.value||'humanoid',query=String(document.getElementById('reactionLibrarySearch')?.value||'').toLowerCase().trim();
+  return (REACTION_LIBRARY[typeKey]||[]).filter(x=>!query||`${x.name} ${x.trigger} ${x.effect}`.toLowerCase().includes(query));
+}
+function renderBuilderLibraryControls() {
+  const attacks=filteredAttackLibrary(),reactions=filteredReactionLibrary(),aSel=document.getElementById('attackLibrarySelect'),rSel=document.getElementById('reactionLibrarySelect');
+  if(aSel)aSel.innerHTML=attacks.length?optionList(attacks.map(x=>[x.id,`${x.name} — ${x.range}; ${x.limitText}`]),aSel.value):'<option value="">Ничего не найдено</option>';
+  if(rSel)rSel.innerHTML=reactions.length?optionList(reactions.map(x=>[x.id,`${x.name} — ${x.limitText}`]),rSel.value):'<option value="">Ничего не найдено</option>';
+  const ah=document.getElementById('attackLibraryHint'),rh=document.getElementById('reactionLibraryHint');
+  if(ah)ah.textContent=`Доступно шаблонов для типа: ${attacks.length}. Добавлено атак: ${state.bestiaryDraft.attacks.length}/${MAX_ATTACKS}.`;
+  if(rh)rh.textContent=`Доступно шаблонов для типа: ${reactions.length}. Добавлено реакций: ${state.bestiaryDraft.reactions.length}/${MAX_REACTIONS}.`;
+}
+function addAttackFromLibrary() {
+  if(state.bestiaryDraft.attacks.length>=MAX_ATTACKS) {
+    showToast('Максимум 5 атак.',true);
+    return;
+  }
+  const typeKey=document.getElementById('beType').value,id=document.getElementById('attackLibrarySelect').value,item=(ATTACK_LIBRARY[typeKey]||[]).find(x=>x.id===id);
+  if(!item) {
+    showToast('Выберите шаблон атаки.',true);
+    return;
+  }
+  const stats=recommendedAttackStats(document.getElementById('beLevel').value,document.getElementById('beBp').value,typeKey,document.getElementById('beTag').value,typeKey==='humanoid'?document.getElementById('beClass').value:'none');
+  state.bestiaryDraft.attacks.push( {
+    ...instantiateAttackLibraryItem(item,stats,typeKey,state.bestiaryDraft.attacks.length),id:newId('a')
+  });
+  renderBestiaryEditors();
+  renderModelBreakdown();
+  persistLocal();
+}
+function addBlankBestiaryAttack() {
+  if(state.bestiaryDraft.attacks.length>=MAX_ATTACKS) {
+    showToast('Максимум 5 атак.',true);
+    return;
+  }
+  state.bestiaryDraft.attacks.push(attackTemplate(state.bestiaryDraft.attacks.length,document.getElementById('beType').value));
+  renderBestiaryEditors();
+  renderModelBreakdown();
+  persistLocal();
+}
+function removeBestiaryAttack(index) {
+  if(state.bestiaryDraft.attacks.length<=1) {
+    showToast('Нужна хотя бы одна атака.',true);
+    return;
+  }
+  state.bestiaryDraft.attacks.splice(index,1);
+  renderBestiaryEditors();
+  renderModelBreakdown();
+  persistLocal();
+}
+function addReactionFromLibrary() {
+  if(state.bestiaryDraft.reactions.length>=MAX_REACTIONS) {
+    showToast('Максимум 5 реакций.',true);
+    return;
+  }
+  const typeKey=document.getElementById('beType').value,id=document.getElementById('reactionLibrarySelect').value,item=(REACTION_LIBRARY[typeKey]||[]).find(x=>x.id===id);
+  if(!item) {
+    showToast('Выберите шаблон реакции.',true);
+    return;
+  }
+  state.bestiaryDraft.reactions.push(normalizeReaction( {
+    ...item,id:newId('r'),templateId:item.id
+  }));
+  renderBestiaryEditors();
+  renderModelBreakdown();
+  persistLocal();
+}
+function renderBestiaryEditors() {
+  const attackRoot=document.getElementById('bestiaryAttacks'),reactionRoot=document.getElementById('bestiaryReactions');
+  if(!attackRoot||!reactionRoot)return;
+  const typeKey=document.getElementById('beType')?.value||'humanoid';
+  state.bestiaryDraft.attacks=ensureTwoAttacks(state.bestiaryDraft.attacks,typeKey);
+  state.bestiaryDraft.reactions=normalizeReactions(state.bestiaryDraft.reactions);
+  renderBuilderLibraryControls();
+  attackRoot.innerHTML=state.bestiaryDraft.attacks.map((a,index)=>`<div class="editor-row"><div class="editor-head"><div class="editor-meta"><b>Атака ${index+1}</b>${a.templateId?'<span class="badge">из библиотеки</span>':''}<span class="badge">${a.uses===0?'без лимита':`${a.uses} за бой`}</span></div><button class="small danger" onclick="removeBestiaryAttack(${index})">Убрать</button></div><div class="attack-editor-grid"><label>Название<input value="${escapeHtml(a.name)}" oninput="updateBestiaryAttack(${index},'name',this.value)"></label><label>Пул d6<input type="number" min="1" max="8" value="${a.pool}" oninput="updateBestiaryAttack(${index},'pool',this.value)"></label><label>Урон<input value="${escapeHtml(a.damage)}" placeholder="d8+1" oninput="updateBestiaryAttack(${index},'damage',this.value)"></label><label>Дальность<select onchange="updateBestiaryAttack(${index},'range',this.value)">${optionList(RANGE_OPTIONS.map(x=>[x,x]),a.range)}</select></label><label>Применений<input type="number" min="0" max="99" value="${a.uses||0}" title="0 — без ограничений" oninput="updateBestiaryAttack(${index},'uses',this.value)"></label></div><label>Тип / категория<input value="${escapeHtml(a.category)}" oninput="updateBestiaryAttack(${index},'category',this.value)"></label><div class="attack-flags"><label><input type="checkbox" ${a.penetrating?'checked':''} onchange="updateBestiaryAttack(${index},'penetrating',this.checked)"> Пробитие 1</label>${typeKey==='humanoid'?`<label><input type="checkbox" ${a.technical?'checked':''} onchange="updateBestiaryAttack(${index},'technical',this.checked)"> Техническое оружие</label>`:''}</div>${typeKey==='humanoid'&&a.technical?`<div class="technical-fields"><label>Бонус Контроля<input type="number" min="2" max="7" value="${a.controlBonus||2}" oninput="updateBestiaryAttack(${index},'controlBonus',this.value)"></label><label>Прочность оружия<input type="number" min="2" max="99" value="${Math.max(2,a.maxDurability||2)}" oninput="updateBestiaryAttack(${index},'maxDurability',this.value)"></label></div>`:''}<label class="top-gap">Эффект<textarea oninput="updateBestiaryAttack(${index},'text',this.value)">${escapeHtml(a.text)}</textarea></label><label>Ограничение<textarea oninput="updateBestiaryAttack(${index},'restriction',this.value)">${escapeHtml(a.restriction)}</textarea></label></div>`).join('');
+  reactionRoot.innerHTML=state.bestiaryDraft.reactions.length?state.bestiaryDraft.reactions.map((r,index)=>`<div class="editor-row"><div class="editor-head"><div class="editor-meta"><b>Реакция ${index+1}</b>${r.templateId?'<span class="badge">из библиотеки</span>':''}<span class="badge">${r.uses===0?'без лимита':`${r.uses} за бой`}</span></div><button class="small danger" onclick="removeBestiaryReaction('${r.id}')">Убрать</button></div><label>Название<input value="${escapeHtml(r.name)}" oninput="updateBestiaryReaction('${r.id}','name',this.value)"></label><label>Триггер<textarea oninput="updateBestiaryReaction('${r.id}','trigger',this.value)">${escapeHtml(r.trigger)}</textarea></label><label>Эффект<textarea oninput="updateBestiaryReaction('${r.id}','effect',this.value)">${escapeHtml(r.effect)}</textarea></label><label>Применений за бой<input type="number" min="0" max="99" value="${r.uses||0}" title="0 — без ограничений" oninput="updateBestiaryReaction('${r.id}','uses',this.value)"></label></div>`).join(''):'<div class="empty">Реакции не добавлены.</div>';
+}
+async function saveBestiaryEnemy() {
+  const template=collectBestiaryForm();
+  if(!template.name) {
+    showToast('Укажите название.',true);
+    return;
+  }
+  const analysis=evaluateCombatPower(template);
+  template.bp=analysis.bp;
+  document.getElementById('beBp').value=analysis.bp;
+  try {
+    const saved=normalizeLibraryTemplate(await serverCall('saveEnemyTemplate',template));
+    const index=customEnemies.findIndex(e=>e.id===saved.id);
+    if(index>=0)customEnemies[index]=saved;
+    else customEnemies.unshift(saved);
+    document.getElementById('beId').value=saved.id;
+    document.getElementById('bestiaryFormTitle').textContent=`Редактирование: ${saved.name}`;
+    renderLibraries();
+    renderManualBuilder();
+    renderCombatLibrarySelect();
+    showToast('Статблок сохранён.');
+  } catch(error) {
+    showToast(error.message,true);
+  }
+}
+function editLibraryEnemy(id) {
+  const enemy=customEnemies.find(e=>e.id===id);
+  if(!enemy)return;
+  document.getElementById('beId').value=enemy.id;
+  document.getElementById('beName').value=enemy.name;
+  document.getElementById('beType').value=enemy.typeKey;
+  document.getElementById('beTag').value=normalizeTagKey(enemy.tagKey||enemy.roleKey);
+  document.getElementById('beClass').value=enemy.classKey||'none';
+  document.getElementById('beLevel').value=enemy.level;
+  document.getElementById('beBp').value=enemy.bp;
+  document.getElementById('beDifficulty').value=enemy.difficultyKey||difficultyForBp(enemy.bp);
+  document.getElementById('beHp').value=enemy.hp;
+  document.getElementById('beNerve').value=enemy.nerve;
+  document.getElementById('beArmor').value=enemy.armor;
+  document.getElementById('bePz').value=clamp(enemy.pz,3,10);
+  document.getElementById('bePhysicalDefensePool').value=clamp(enemy.physicalDefensePool||enemy.pool||enemy.attacks?.[0]?.pool||4,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX);
+  document.getElementById('beMentalDefensePool').value=clamp(enemy.mentalDefensePool||enemy.pool||enemy.attacks?.[0]?.pool||4,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX);
+  document.getElementById('beSpeed').value=enemy.speed;
+  document.getElementById('beReactionLimit').value=enemy.reactionLimit;
+  document.getElementById('beProperties').value=(enemy.properties||[]).join('\n');
+  document.getElementById('beNotes').value=enemy.notes||'';
+  document.getElementById('bestiaryFormTitle').textContent=`Редактирование: ${enemy.name}`;
+  state.bestiaryDraft= {
+    id:enemy.id,attacks:ensureTwoAttacks(enemy.attacks,enemy.typeKey).map(a=>( {
+      ...a,id:newId('a')
+    })),reactions:normalizeReactions(enemy.reactions).map(r=>( {
+      ...r,id:newId('r')
+    }))
+  };
+  persistLocal();
+  onBestiaryArchetypeChange();
+  renderBestiaryEditors();
+  renderModelBreakdown();
+  showScreen('bestiary');
+}
+/* ---------------- СОХРАНЕНИЕ И МИГРАЦИЯ ---------------- */ function normalizeState(parsed) {
+  const base=defaultState(),out= {
+    ...base,...parsed,version:7
+  };
+  out.players=Array.isArray(parsed?.players)&&parsed.players.length?parsed.players:base.players;
+  out.players=out.players.map((p,i)=>( {
+    id:p.id||newId('p'),name:p.name||`Игрок ${i+1}`,initiative:Number(p.initiative)||0
+  }));
+  out.enemies=Array.isArray(parsed?.enemies)?parsed.enemies:[];
+  out.enemies=out.enemies.map((e,i)=> {
+    const typeKey=TYPE_DATA[e.typeKey]?e.typeKey:'humanoid',tagKey=normalizeTagKey(e.tagKey||e.roleKey); return {
+      ...e,id:e.id||newId('e'),slot:i+1,typeKey,typeLabel:TYPE_DATA[typeKey].label,tagKey,tagLabel:TAGS[tagKey].label,pz:clamp(Number(e.pz)||3,3,10),physicalDefensePool:clamp(Number(e.physicalDefensePool)||Number(e.pool)||ensureTwoAttacks(e.attacks,typeKey)[0].pool,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),mentalDefensePool:clamp(Number(e.mentalDefensePool)||Number(e.pool)||ensureTwoAttacks(e.attacks,typeKey)[0].pool,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),scenePreset:SCENE_PRESETS[e.scenePreset]?e.scenePreset:'normal',attacks:ensureTwoAttacks(e.attacks,typeKey),reactions:normalizeReactions(e.reactions),conditions:Array.isArray(e.conditions)?e.conditions:[],properties:Array.isArray(e.properties)?e.properties:(e.rules||[]),initiative:Number(e.initiative)||0,maxHp:Number(e.maxHp??e.hp)||1,hp:Number(e.hp)||0,maxNerve:Number(e.maxNerve??e.nerve)||0,nerve:Number(e.nerve)||0,maxArmor:Number(e.maxArmor??e.armor)||0,armor:Number(e.armor)||0
+    };
+  });
+  out.initiative=parsed?.initiative|| {
+    activeId:null
+  };
+  out.manualDraft=Array.isArray(parsed?.manualDraft)&&parsed.manualDraft.length?parsed.manualDraft.map(r=>( {
+    ...defaultManualEnemy(),...r,tagKey:normalizeTagKey(r.tagKey||r.roleKey)
+  })):[defaultManualEnemy()];
+  out.bestiaryDraft=parsed?.bestiaryDraft||defaultBestiaryDraft();
+  out.bestiaryDraft.attacks=ensureTwoAttacks(out.bestiaryDraft.attacks,'humanoid');
+  out.bestiaryDraft.reactions=normalizeReactions(out.bestiaryDraft.reactions);
+  while(out.bestiaryDraft.reactions.length<DEFAULT_REACTIONS)out.bestiaryDraft.reactions.push(reactionTemplate());
+  out.currentScreen=['prep','combat','bestiary'].includes(parsed?.currentScreen)?parsed.currentScreen:'prep';
+  return out;
+}
+function persistLocal() {
+  localStorage.setItem(LOCAL_KEY,JSON.stringify(state));
+}
+function restoreLocal() {
+  for(const key of[LOCAL_KEY,'mitriniumEncounterV6','mitriniumEncounterV5','mitriniumEncounterV4','mitriniumEncounterV3','mitriniumEncounterV2','mitriniumEncounterV1']) {
+    const raw=localStorage.getItem(key);
+    if(!raw)continue;
+    try {
+      state=normalizeState(JSON.parse(raw));
+      applySettings(state.settings);
+      return true;
+    } catch(error) {
+      console.error(error);
+    }
+  }
+  return false;
+}
+function applySettings(settings) {
+  if(!settings)return;
+  ['level','difficulty','generationMode','enemyCount','creatureType','humanoidClass','composition','typedHumanoidClass','typedFormation'].forEach(key=> {
+    const el=document.getElementById(key); if(el&&settings[key]!==undefined)el.value=settings[key];
+  });
+  if(settings.typedCounts)CREATURE_TYPES.forEach(k=> {
+    const el=document.getElementById(`count_${k}`); if(el)el.value=settings.typedCounts[k]||0;
+  });
+}
+async function saveToCloud() {
+  try {
+    const result=await serverCall('saveEncounter',JSON.stringify(state));
+    showToast(`Сохранено: ${new Date(result.savedAt).toLocaleString('ru-RU')}`);
+  } catch(error) {
+    showToast(error.message,true);
+  }
+}
+async function loadFromCloud() {
+  try {
+    const result=await serverCall('loadEncounter');
+    if(!result.found) {
+      showToast('Сохранение не найдено.',true);
+      return;
+    }
+    state=normalizeState(JSON.parse(result.payload));
+    applySettings(state.settings);
+    document.getElementById('players').value=state.players.length;
+    persistLocal();
+    render();
+    showScreen(state.currentScreen);
+    showToast('Сохранение загружено.');
+  } catch(error) {
+    showToast(error.message,true);
+  }
+}
+async function clearCloudSave() {
+  if(!confirm('Удалить серверное сохранение?'))return;
+  try {
+    await serverCall('clearEncounter');
+    showToast('Сохранение удалено.');
+  } catch(error) {
+    showToast(error.message,true);
+  }
+}
+function openExport() {
+  document.getElementById('jsonText').value=JSON.stringify(state,null,2);
+  document.getElementById('jsonDialog').showModal();
+}
+async function copyJson() {
+  const text=document.getElementById('jsonText').value;
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('JSON скопирован.');
+  } catch(error) {
+    document.getElementById('jsonText').select();
+    showToast('Текст выделен.');
+  }
+}
+function importJson() {
+  try {
+    state=normalizeState(JSON.parse(document.getElementById('jsonText').value));
+    applySettings(state.settings);
+    document.getElementById('players').value=state.players.length;
+    persistLocal();
+    render();
+    document.getElementById('jsonDialog').close();
+    showScreen(state.currentScreen);
+    showToast('Импорт завершён.');
+  } catch(error) {
+    showToast(`Ошибка: ${error.message}`,true);
+  }
+}
+function showScreen(name) {
+  state.currentScreen=name;
+  ['prep','combat','bestiary'].forEach(k=> {
+    document.getElementById(`screen-${k}`).classList.toggle('active',k===name); document.getElementById(`tab-${k}`).classList.toggle('active',k===name);
+  });
+  persistLocal();
+  window.scrollTo( {
+    top:0,behavior:'smooth'
+  });
+  if(name==='bestiary')renderModelBreakdown();
+}
+function render() {
+  renderPlayerSetup();
+  renderGenerationMode();
+  renderSummary();
+  renderInitiative();
+  renderEnemyGrid();
+  renderCombatAddForm();
+  renderLibraries();
+  renderBestiaryEditors();
+  document.getElementById('roundNumber').textContent=state.round;
+}
+function showToast(message,isError=false) {
+  const toast=document.getElementById('toast');
+  toast.textContent=message;
+  toast.className=`toast show${isError?' error':''}`;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>toast.className='toast',3500);
+}
+window.addEventListener('load',async()=> {
+  initializeControls(); const restored=restoreLocal(); document.getElementById('players').value=state.players.length; if(!restored)resetBestiaryDraft(); else {
+    document.getElementById('beId').value=state.bestiaryDraft.id||''; state.bestiaryDraft.attacks=ensureTwoAttacks(state.bestiaryDraft.attacks,document.getElementById('beType').value);
+  }
+  render(); showScreen(state.currentScreen||'prep'); onBestiaryArchetypeChange(); await loadEnemyLibrary(false);
+});
+</script>

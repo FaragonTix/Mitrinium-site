@@ -1,0 +1,1069 @@
+<script>
+  const attributes = {
+    napor: { name: 'Напор', value: 1 },
+    smetka: { name: 'Сметка', value: 1 },
+    nyuh: { name: 'Нюх', value: 1 },
+    zhila: { name: 'Жила', value: 1 },
+    losk: { name: 'Лоск', value: 1 }
+  };
+
+  const skills = {
+    napor: {
+      attributeName: 'Напор',
+      items: {
+        ugrozy: { name: 'Угрозы', value: 1 },
+        draka: { name: 'Фехтование', value: 1 },
+        stoikost: { name: 'Стойкость', value: 1 },
+        liderstvo: { name: 'Лидерство', value: 1 },
+        sila: { name: 'Драка', value: 1 }
+      }
+    },
+    smetka: {
+      attributeName: 'Сметка',
+      items: {
+        obman: { name: 'Обман', value: 1 },
+        skrytnost: { name: 'Скрытность', value: 1 },
+        mehanizmy: { name: 'Механизмы', value: 1 },
+        lovkostRuk: { name: 'Ловкость рук', value: 1 },
+        uklonenie: { name: 'Уклонение', value: 1 }
+      }
+    },
+    nyuh: {
+      attributeName: 'Нюх',
+      items: {
+        priroda: { name: 'Природа', value: 1 },
+        vnimatelnost: { name: 'Внимат.', value: 1 },
+        strelba: { name: 'Стрельба', value: 1 },
+        zakon: { name: 'Закон', value: 1 },
+        znanieUlits: { name: 'Знание улиц', value: 1 }
+      }
+    },
+    zhila: {
+      attributeName: 'Жила',
+      items: {
+        ekonomika: { name: 'Экономика', value: 1 },
+        himiya: { name: 'Химия', value: 1 },
+        atletika: { name: 'Атлетика', value: 1 },
+        disciplina: { name: 'Дисциплина', value: 1 },
+        medicina: { name: 'Медицина', value: 1 }
+      }
+    },
+    losk: {
+      attributeName: 'Лоск',
+      items: {
+        vnushenie: { name: 'Внушение', value: 1 },
+        ubezhdenie: { name: 'Убеждение', value: 1 },
+        psiho: { name: 'Психо', value: 1 },
+        scena: { name: 'Сцена', value: 1 },
+        etiket: { name: 'Этикет', value: 1 }
+      }
+    }
+  };
+
+  const maxAttributeValue = 3;
+  const totalExtraAttributePoints = 4;
+  const maxSkillValue = 2;
+  const totalExtraSkillPoints = 6;
+  const startingMoney = 1000;
+  const maxStartingAbilities = 3;
+  const maxAdvancedAttributeValue = 5;
+  const maxAdvancedSkillValue = 5;
+
+  const selectedEquipment = [];
+  const selectedAbilities = [];
+
+  let activeAbilityId = null;
+  let currentCharacterId = null;
+  let appMode = 'edit';
+  let advancedEditMode = false;
+  let savedCharactersCache = [];
+
+  function setAppMode(mode) {
+    appMode = mode;
+
+    const editMode = document.getElementById('editMode');
+    const viewMode = document.getElementById('viewMode');
+    const editButton = document.getElementById('editModeButton');
+    const viewButton = document.getElementById('viewModeButton');
+
+    if (editMode) editMode.classList.toggle('hidden', mode !== 'edit');
+    if (viewMode) viewMode.classList.toggle('hidden', mode !== 'view');
+    if (editButton) editButton.classList.toggle('active', mode === 'edit');
+    if (viewButton) viewButton.classList.toggle('active', mode === 'view');
+
+    if (mode === 'view' && typeof renderCharacterViewer === 'function') {
+      renderCharacterViewer();
+    }
+  }
+
+  function toggleAdvancedEditMode(isEnabled) {
+    setAdvancedEditMode(isEnabled);
+  }
+
+  function setAdvancedEditMode(isEnabled) {
+    advancedEditMode = Boolean(isEnabled);
+
+    const checkbox = document.getElementById('advancedEditMode');
+    if (checkbox) checkbox.checked = advancedEditMode;
+
+    renderAttributes();
+    renderSkills();
+    renderAbilities();
+  }
+
+  function getSpentAttributePoints() {
+    return Object.values(attributes).reduce((sum, attribute) => sum + (attribute.value - 1), 0);
+  }
+
+  function getAttributePointsLeft() {
+    return totalExtraAttributePoints - getSpentAttributePoints();
+  }
+
+  function changeAttribute(attributeKey, delta) {
+    const attribute = attributes[attributeKey];
+    const nextValue = attribute.value + delta;
+    const maxValue = advancedEditMode ? maxAdvancedAttributeValue : maxAttributeValue;
+
+    if (nextValue < 1) return;
+    if (nextValue > maxValue) return;
+    if (!advancedEditMode && delta > 0 && getAttributePointsLeft() <= 0) return;
+
+    attribute.value = nextValue;
+    renderAttributes();
+    refreshViewerIfOpen();
+  }
+
+  function renderAttributes() {
+    const grid = document.getElementById('attributesGrid');
+    const pointsLeft = document.getElementById('attributePointsLeft');
+    if (!grid || !pointsLeft) return;
+
+    pointsLeft.textContent = advancedEditMode ? 'режим развития' : getAttributePointsLeft();
+    grid.innerHTML = '';
+
+    Object.entries(attributes).forEach(([key, attribute]) => {
+      const item = document.createElement('div');
+      item.className = 'attribute-item';
+      item.innerHTML = `
+        <div class="attribute-name">${attribute.name}</div>
+        <div class="counter">
+          <button type="button" onclick="changeAttribute('${key}', -1)">−</button>
+          <strong>${attribute.value}</strong>
+          <button type="button" onclick="changeAttribute('${key}', 1)">+</button>
+        </div>`;
+      grid.appendChild(item);
+    });
+
+    renderResources();
+  }
+
+  function renderResources() {
+    const body = 4 + (attributes.napor.value + attributes.zhila.value) * 2;
+    const mainNerve = attributes.losk.value + attributes.nyuh.value;
+    const bonusNerve = 3;
+
+    const bodyValue = document.getElementById('bodyValue');
+    const mainNerveValue = document.getElementById('mainNerveValue');
+    const bonusNerveValue = document.getElementById('bonusNerveValue');
+
+    if (bodyValue) bodyValue.textContent = body;
+    if (mainNerveValue) mainNerveValue.textContent = mainNerve;
+    if (bonusNerveValue) bonusNerveValue.textContent = bonusNerve;
+  }
+
+  function getSpentSkillPoints() {
+    let spent = 0;
+    Object.values(skills).forEach(group => {
+      Object.values(group.items).forEach(skill => {
+        spent += skill.value - 1;
+      });
+    });
+    return spent;
+  }
+
+  function getSkillPointsLeft() {
+    return totalExtraSkillPoints - getSpentSkillPoints();
+  }
+
+  function changeSkill(groupKey, skillKey, delta) {
+    const skill = skills[groupKey].items[skillKey];
+    const nextValue = skill.value + delta;
+    const maxValue = advancedEditMode ? maxAdvancedSkillValue : maxSkillValue;
+
+    if (nextValue < 1) return;
+    if (nextValue > maxValue) return;
+    if (!advancedEditMode && delta > 0 && getSkillPointsLeft() <= 0) return;
+
+    skill.value = nextValue;
+    renderSkills();
+    refreshViewerIfOpen();
+  }
+
+  function renderSkills() {
+    const grid = document.getElementById('skillsGrid');
+    const pointsLeft = document.getElementById('skillPointsLeft');
+    if (!grid || !pointsLeft) return;
+
+    pointsLeft.textContent = advancedEditMode ? 'режим развития' : getSkillPointsLeft();
+    grid.innerHTML = '';
+
+    Object.entries(skills).forEach(([groupKey, group]) => {
+      const column = document.createElement('div');
+      column.className = 'skill-column';
+      let html = `<h3>${group.attributeName}</h3>`;
+
+      Object.entries(group.items).forEach(([skillKey, skill]) => {
+        html += `
+          <div class="skill-item">
+            <span>${skill.name}</span>
+            <div class="mini-counter">
+              <button type="button" onclick="changeSkill('${groupKey}', '${skillKey}', -1)">−</button>
+              <strong>${skill.value}</strong>
+              <button type="button" onclick="changeSkill('${groupKey}', '${skillKey}', 1)">+</button>
+            </div>
+          </div>`;
+      });
+
+      column.innerHTML = html;
+      grid.appendChild(column);
+    });
+  }
+
+  function getSelectedClassName() {
+    const select = document.getElementById('className');
+    return select ? select.value : '';
+  }
+
+  function getEquipmentById(equipmentId) {
+    return equipmentData.find(item => item.id === equipmentId);
+  }
+
+  function getSelectedEquipmentTotal() {
+    return selectedEquipment.reduce((sum, equipmentId) => {
+      const item = getEquipmentById(equipmentId);
+      return sum + (item ? Number(item.price || 0) : 0);
+    }, 0);
+  }
+
+  function getEquipmentMaintenance(item) {
+    return Number(item.maintenance || 0);
+  }
+
+  function getEquipmentMaintenanceText(item) {
+    const maintenance = getEquipmentMaintenance(item);
+    return maintenance > 0 ? `Обслуживание: ${maintenance} ф` : '';
+  }
+
+  function getSelectedEquipmentMaintenanceTotal() {
+    return selectedEquipment.reduce((sum, equipmentId) => {
+      const item = getEquipmentById(equipmentId);
+      return sum + (item ? getEquipmentMaintenance(item) : 0);
+    }, 0);
+  }
+
+  function isEquipmentSelected(equipmentId) {
+    return selectedEquipment.includes(equipmentId);
+  }
+
+  function addEquipment(equipmentId) {
+    if (isEquipmentSelected(equipmentId)) return;
+    selectedEquipment.push(equipmentId);
+    renderEquipment();
+    refreshViewerIfOpen();
+  }
+
+  function removeEquipment(equipmentId) {
+    const index = selectedEquipment.indexOf(equipmentId);
+    if (index === -1) return;
+    selectedEquipment.splice(index, 1);
+    renderEquipment();
+    refreshViewerIfOpen();
+  }
+
+  function getEquipmentDetails(item) {
+    const details = [];
+    if (item.armor) details.push(`Броня: ${item.armor}`);
+    if (item.pool) details.push(`Пул: ${item.pool}`);
+    if (item.damage) details.push(`Урон: ${item.damage}`);
+    if (item.durability) details.push(`Прочность: ${item.durability}`);
+    if (getEquipmentMaintenanceText(item)) details.push(getEquipmentMaintenanceText(item));
+    if (item.purpose) details.push(item.purpose);
+    if (item.tags && item.tags.length) details.push(`Теги: ${item.tags.join(', ')}`);
+    return details.join(' · ');
+  }
+
+  function getEquipmentSearchText(item) {
+    return [
+      item.name, item.category, item.price, item.priceText, item.maintenance,
+      item.pool, item.damage, item.armor, item.durability, item.purpose,
+      item.reliability, item.tags ? item.tags.join(' ') : ''
+    ].filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function renderEquipmentCard(item, isRecommended) {
+    const price = item.priceText || `${item.price} ф`;
+    const selected = isEquipmentSelected(item.id);
+    const details = getEquipmentDetails(item);
+
+    return `
+      <div class="equipment-card ${isRecommended ? 'recommended' : ''}">
+        <div class="equipment-card-main">
+          <div>
+            <div class="equipment-name">${item.name}</div>
+            <div class="equipment-meta">${item.category} · ${price}</div>
+            <div class="equipment-details">${details}</div>
+          </div>
+          <button type="button" class="equipment-button" onclick="${selected ? `removeEquipment('${item.id}')` : `addEquipment('${item.id}')`}">
+            ${selected ? '-' : '+'}
+          </button>
+        </div>
+      </div>`;
+  }
+
+  function renderSelectedEquipment() {
+    const container = document.getElementById('selectedEquipmentList');
+    if (!container) return;
+
+    if (selectedEquipment.length === 0) {
+      container.innerHTML = '<p class="empty-note">Пока ничего не выбрано.</p>';
+      return;
+    }
+
+    container.innerHTML = selectedEquipment.map(equipmentId => {
+      const item = getEquipmentById(equipmentId);
+      if (!item) return '';
+      const details = getEquipmentDetails(item);
+      return `
+        <div class="selected-equipment-item selected-equipment-item-detailed">
+          <div>
+            <div class="selected-equipment-name">${item.name}</div>
+            <div class="selected-equipment-details">${details || item.category}</div>
+          </div>
+          <strong>${item.priceText || `${item.price} ф`}</strong>
+          <button type="button" onclick="removeEquipment('${item.id}')">×</button>
+        </div>`;
+    }).join('');
+  }
+
+  function renderEquipmentSummary() {
+    const spent = getSelectedEquipmentTotal();
+    const maintenance = getSelectedEquipmentMaintenanceTotal();
+    const left = startingMoney - spent;
+
+    const spentElement = document.getElementById('equipmentSpent');
+    const leftElement = document.getElementById('equipmentLeft');
+    const maintenanceElement = document.getElementById('equipmentMaintenance');
+    const warning = document.getElementById('equipmentWarning');
+
+    if (spentElement) spentElement.textContent = `${spent} ф`;
+    if (leftElement) leftElement.textContent = `${left} ф`;
+    if (maintenanceElement) maintenanceElement.textContent = `${maintenance} ф`;
+
+    if (!warning) return;
+
+    if (left < 0) {
+      warning.classList.remove('hidden');
+      warning.textContent = `Бюджет превышен на ${Math.abs(left)} ф.`;
+    } else {
+      warning.classList.add('hidden');
+      warning.textContent = '';
+    }
+  }
+
+  function renderEquipment() {
+    const recommendedList = document.getElementById('recommendedEquipmentList');
+    const otherList = document.getElementById('otherEquipmentList');
+    if (!recommendedList || !otherList) return;
+
+    const className = getSelectedClassName();
+    const recommendedIds = classRecommendedEquipment[className] || [];
+    const searchInput = document.getElementById('equipmentSearch');
+    const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+    let recommendedItems = recommendedIds.map(getEquipmentById).filter(Boolean);
+    let otherItems = equipmentData
+      .filter(item => !recommendedIds.includes(item.id))
+      .sort((a, b) => {
+        if (a.category === b.category) return Number(a.price || 0) - Number(b.price || 0);
+        return a.category.localeCompare(b.category);
+      });
+
+    if (searchQuery) {
+      recommendedItems = recommendedItems.filter(item => getEquipmentSearchText(item).includes(searchQuery));
+      otherItems = otherItems.filter(item => getEquipmentSearchText(item).includes(searchQuery));
+    }
+
+    recommendedList.innerHTML = recommendedItems.length
+      ? recommendedItems.map(item => renderEquipmentCard(item, true)).join('')
+      : searchQuery
+        ? '<p class="empty-note">В рекомендациях ничего не найдено.</p>'
+        : '<p class="empty-note">Выберите класс, чтобы увидеть рекомендации.</p>';
+
+    otherList.innerHTML = otherItems.length
+      ? otherItems.map(item => renderEquipmentCard(item, false)).join('')
+      : '<p class="empty-note">В общем списке ничего не найдено.</p>';
+
+    renderSelectedEquipment();
+    renderEquipmentSummary();
+  }
+
+  function getAbilitiesForSelectedClass() {
+    const className = getSelectedClassName();
+    if (!className) return [];
+    return abilityData.filter(ability => ability.className === className);
+  }
+
+  function getAbilityById(abilityId) {
+    return abilityData.find(ability => ability.id === abilityId);
+  }
+
+  function isAbilitySelected(abilityId) {
+    return selectedAbilities.includes(abilityId);
+  }
+
+  function selectAbilityForDetails(abilityId) {
+    activeAbilityId = abilityId;
+    renderAbilities();
+  }
+
+  function toggleAbilitySelection(abilityId) {
+  const index = selectedAbilities.indexOf(abilityId);
+
+  if (index !== -1) {
+    selectedAbilities.splice(index, 1);
+    renderAbilities();
+    refreshViewerIfOpen();
+    return;
+  }
+
+  if (!advancedEditMode && selectedAbilities.length >= maxStartingAbilities) {
+    showAbilitiesWarning('На старте можно выбрать только 3 способности.');
+    return;
+  }
+
+  const ability = getAbilityById(abilityId);
+
+  if (!ability) {
+    return;
+  }
+
+  if (!advancedEditMode) {
+    const alreadySelectedSameCategory = selectedAbilities.some(selectedAbilityId => {
+      const selectedAbility = getAbilityById(selectedAbilityId);
+
+      return (
+        selectedAbility &&
+        selectedAbility.category === ability.category
+      );
+    });
+
+    if (alreadySelectedSameCategory) {
+      const categoryName =
+        abilityCategoryLabels[ability.category] || ability.category;
+
+      showAbilitiesWarning(
+        `На старте можно выбрать только одну способность из категории «${categoryName}».`
+      );
+
+      return;
+    }
+  }
+
+  selectedAbilities.push(abilityId);
+  renderAbilities();
+  refreshViewerIfOpen();
+}
+
+  function showAbilitiesWarning(message) {
+    const warning = document.getElementById('abilitiesWarning');
+    if (!warning) return;
+    warning.classList.remove('hidden');
+    warning.textContent = message;
+  }
+
+  function hideAbilitiesWarning() {
+    const warning = document.getElementById('abilitiesWarning');
+    if (!warning) return;
+    warning.classList.add('hidden');
+    warning.textContent = '';
+  }
+
+  function getAbilityShortMeta(ability) {
+    const parts = [];
+    if (ability.type) parts.push(ability.type);
+    if (ability.charges) parts.push(`${ability.charges} заряда`);
+    if (ability.reaction) parts.push(`реакция: ${ability.reaction}`);
+    if (ability.control) parts.push(`контроль: ${ability.control}`);
+    return parts.join(' · ');
+  }
+
+  function renderAbilityListItem(ability) {
+    const selected = isAbilitySelected(ability.id);
+    const active = activeAbilityId === ability.id;
+    return `
+      <div class="ability-list-item ${selected ? 'selected' : ''} ${active ? 'active' : ''}">
+        <button type="button" class="ability-title-button" onclick="selectAbilityForDetails('${ability.id}')">
+          <span>${ability.name}</span>
+          <small>${getAbilityShortMeta(ability)}</small>
+        </button>
+        <button type="button" class="ability-pick-button" onclick="toggleAbilitySelection('${ability.id}')">
+          ${selected ? '-' : '+'}
+        </button>
+      </div>`;
+  }
+
+  function renderAbilityDetails() {
+    const panel = document.getElementById('abilityDetailsPanel');
+    if (!panel) return;
+
+    if (!activeAbilityId) {
+      panel.innerHTML = 'Нажмите на способность в списке, чтобы увидеть описание.';
+      return;
+    }
+
+    const ability = getAbilityById(activeAbilityId);
+    if (!ability) {
+      panel.innerHTML = 'Способность не найдена.';
+      return;
+    }
+
+    const tags = ability.tags && ability.tags.length
+      ? `<div class="ability-tags">${ability.tags.map(tag => `<span>${tag}</span>`).join('')}</div>`
+      : '';
+
+    panel.innerHTML = `
+      <div class="ability-detail-title">${ability.name}</div>
+      <div class="ability-detail-meta">${getAbilityShortMeta(ability)}</div>
+      ${ability.pool ? `<div class="ability-detail-block"><strong>Пул:</strong><p>${ability.pool}</p></div>` : ''}
+      ${ability.effect ? `<div class="ability-detail-block"><strong>Эффект:</strong><p>${ability.effect}</p></div>` : ''}
+      ${ability.breakthrough ? `<div class="ability-detail-block"><strong>Прорыв:</strong><p>${ability.breakthrough}</p></div>` : ''}
+      ${ability.complications ? `<div class="ability-detail-block"><strong>Осложнения:</strong><p>${ability.complications}</p></div>` : ''}
+      ${tags}`;
+  }
+
+  function renderAbilities() {
+    const abilities = getAbilitiesForSelectedClass();
+    const list = document.getElementById('abilitiesList');
+    const counter = document.getElementById('abilitiesSelectedCount');
+    if (!list || !counter) return;
+
+    counter.textContent = advancedEditMode
+      ? `${selectedAbilities.length} / развитие`
+      : `${selectedAbilities.length} / ${maxStartingAbilities}`;
+
+    if (advancedEditMode || selectedAbilities.length < maxStartingAbilities) hideAbilitiesWarning();
+
+    if (!getSelectedClassName()) {
+      list.innerHTML = '<p class="empty-note">Сначала выберите класс.</p>';
+      activeAbilityId = null;
+      renderAbilityDetails();
+      return;
+    }
+
+    if (abilities.length === 0) {
+      list.innerHTML = '<p class="empty-note">Для этого класса пока нет способностей в библиотеке.</p>';
+      activeAbilityId = null;
+      renderAbilityDetails();
+      return;
+    }
+
+    const abilitiesByCategory = { ultimate: [], favorite: [], common: [] };
+    abilities.forEach(ability => {
+      if (!abilitiesByCategory[ability.category]) abilitiesByCategory[ability.category] = [];
+      abilitiesByCategory[ability.category].push(ability);
+    });
+
+    list.innerHTML = Object.entries(abilitiesByCategory)
+      .filter(([, items]) => items.length > 0)
+      .map(([category, items]) => `
+        <div class="ability-category">
+          <h4>${abilityCategoryLabels[category] || category}</h4>
+          ${items.map(renderAbilityListItem).join('')}
+        </div>`)
+      .join('');
+
+    if (activeAbilityId && !abilities.some(ability => ability.id === activeAbilityId)) {
+      activeAbilityId = null;
+    }
+
+    renderAbilityDetails();
+  }
+
+  function collectAttributesForSave() {
+    const result = {};
+    Object.entries(attributes).forEach(([key, attribute]) => {
+      result[key] = attribute.value;
+    });
+    return result;
+  }
+
+  function collectSkillsForSave() {
+    const result = {};
+    Object.entries(skills).forEach(([groupKey, group]) => {
+      result[groupKey] = {};
+      Object.entries(group.items).forEach(([skillKey, skill]) => {
+        result[groupKey][skillKey] = skill.value;
+      });
+    });
+    return result;
+  }
+
+  function collectResourcesForSave() {
+  return {
+    body: 10 + (attributes.napor.value + attributes.zhila.value) * 5,
+    mainNerve: attributes.losk.value + attributes.nyuh.value,
+    bonusNerve: 3,
+  };
+}
+
+  function collectCharacterForSave() {
+    return {
+      id: currentCharacterId,
+      name: document.getElementById('characterName').value.trim(),
+      player: document.getElementById('playerName').value.trim(),
+      className: document.getElementById('className').value,
+      concept: document.getElementById('concept').value.trim(),
+      advancedEditMode: advancedEditMode,
+      attributes: collectAttributesForSave(),
+      skills: collectSkillsForSave(),
+      resources: collectResourcesForSave(),
+      abilities: [...selectedAbilities],
+      equipment: [...selectedEquipment],
+      equipmentSpent: getSelectedEquipmentTotal(),
+      equipmentMaintenance: getSelectedEquipmentMaintenanceTotal()
+    };
+  }
+
+  function validateCharacterOnClient(character) {
+    const errors = [];
+    if (!character.name) errors.push('Укажите имя персонажа.');
+    if (!character.className) errors.push('Выберите класс.');
+    if (!advancedEditMode && getAttributePointsLeft() !== 0) errors.push('Распределите все очки Атрибутов.');
+    if (!advancedEditMode && getSkillPointsLeft() !== 0) errors.push('Распределите все очки Навыков.');
+    if (!advancedEditMode) {
+  if (character.abilities.length !== 3) {
+    errors.push('Выберите ровно 3 способности.');
+  }
+
+  const selectedCategories = character.abilities
+    .map(abilityId => getAbilityById(abilityId))
+    .filter(Boolean)
+    .map(ability => ability.category);
+
+  const uniqueCategories = new Set(selectedCategories);
+
+  if (
+    uniqueCategories.size !== 3 ||
+    !uniqueCategories.has('ultimate') ||
+    !uniqueCategories.has('favorite') ||
+    !uniqueCategories.has('common')
+  ) {
+    errors.push('На старте выберите по одной способности из каждой категории: Ультимативная, Любимый приём, Обычное дело.');
+  }
+}
+    if (character.equipmentSpent > startingMoney) errors.push('Стоимость снаряжения превышает 1000 ф.');
+    return errors;
+  }
+
+  function setSaveStatus(message, isError) {
+    const status = document.getElementById('saveStatus');
+    if (!status) return;
+    status.textContent = message;
+    status.className = isError ? 'save-status error' : 'save-status success';
+  }
+
+  function saveCurrentCharacter() {
+    const character = collectCharacterForSave();
+    const errors = validateCharacterOnClient(character);
+
+    if (errors.length > 0) {
+      setSaveStatus(errors.join(' '), true);
+      return;
+    }
+
+    setSaveStatus('Сохраняю...', false);
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        currentCharacterId = result.id;
+        setSaveStatus('Персонаж сохранён.', false);
+        loadSavedCharactersList();
+      })
+      .withFailureHandler(function (error) {
+        setSaveStatus(error.message || 'Ошибка сохранения.', true);
+      })
+      .saveCharacter(character);
+  }
+
+  function setLoadStatus(message, isError) {
+    const status = document.getElementById('loadStatus');
+    if (!status) return;
+    status.textContent = message || '';
+    status.className = isError ? 'save-status error' : 'save-status success';
+  }
+
+  function ensureSavedCharacterSearch() {
+    const list = document.getElementById('savedCharactersList');
+    const status = document.getElementById('loadStatus');
+
+    if (!list || document.getElementById('savedCharacterSearch')) {
+      return;
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'saved-character-search';
+    wrapper.innerHTML = `
+      <label for="savedCharacterSearch">
+        Поиск по сохранённым персонажам
+        <input
+          type="search"
+          id="savedCharacterSearch"
+          placeholder="Имя, игрок, класс или email"
+          autocomplete="off"
+        >
+      </label>`;
+
+    if (status && status.parentNode) {
+      status.parentNode.insertBefore(wrapper, status);
+    } else if (list.parentNode) {
+      list.parentNode.insertBefore(wrapper, list);
+    }
+
+    const searchInput = document.getElementById('savedCharacterSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', filterSavedCharactersList);
+    }
+
+    if (!document.getElementById('savedCharacterSearchStyles')) {
+      const style = document.createElement('style');
+      style.id = 'savedCharacterSearchStyles';
+      style.textContent = `
+        .saved-character-search {
+          max-width: 520px;
+          margin: 0 0 12px;
+        }
+
+        .saved-character-search input {
+          width: 100%;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }
+
+  function escapeSavedCharacterText(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function filterSavedCharactersList() {
+    renderSavedCharactersList();
+  }
+
+  function renderSavedCharactersList() {
+    const list = document.getElementById('savedCharactersList');
+    const searchInput = document.getElementById('savedCharacterSearch');
+
+    if (!list) return;
+
+    const query = String(searchInput ? searchInput.value : '')
+      .trim()
+      .toLocaleLowerCase('ru-RU');
+
+    const filteredCharacters = savedCharactersCache.filter(function (character) {
+      if (!query) return true;
+
+      const searchableText = [
+        character.name,
+        character.player,
+        character.className,
+        character.ownerEmail
+      ]
+        .join(' ')
+        .toLocaleLowerCase('ru-RU');
+
+      return searchableText.indexOf(query) !== -1;
+    });
+
+    if (savedCharactersCache.length === 0) {
+      setLoadStatus('Сохранённых персонажей пока нет.', false);
+      list.innerHTML = '';
+      return;
+    }
+
+    if (filteredCharacters.length === 0) {
+      setLoadStatus('По запросу ничего не найдено.', false);
+      list.innerHTML = '<div class="empty-note">Попробуйте другое имя, класс, игрока или email.</div>';
+      return;
+    }
+
+    if (query) {
+      setLoadStatus(
+        'Показано персонажей: ' + filteredCharacters.length +
+        ' из ' + savedCharactersCache.length,
+        false
+      );
+    } else {
+      setLoadStatus(
+        'Найдено персонажей: ' + savedCharactersCache.length,
+        false
+      );
+    }
+
+    list.innerHTML = filteredCharacters.map(function (character) {
+      const characterId = String(character.id || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'");
+
+      const name = escapeSavedCharacterText(
+        character.name || 'Без имени'
+      );
+
+      const className = escapeSavedCharacterText(
+        character.className || 'Класс не указан'
+      );
+
+      const player = character.player
+        ? ' · игрок: ' + escapeSavedCharacterText(character.player)
+        : '';
+
+      const ownerEmail = character.ownerEmail
+        ? ' · ' + escapeSavedCharacterText(character.ownerEmail)
+        : '';
+
+      return `
+        <div class="saved-character-item">
+          <div>
+            <div class="saved-character-name">${name}</div>
+            <div class="saved-character-meta">
+              ${className}${player}${ownerEmail}
+            </div>
+          </div>
+          <button
+            type="button"
+            class="equipment-button"
+            onclick="loadCharacterForEdit('${characterId}')"
+          >
+            Загрузить
+          </button>
+        </div>`;
+    }).join('');
+  }
+
+  function loadSavedCharactersList() {
+    const list = document.getElementById('savedCharactersList');
+    if (!list) return;
+
+    ensureSavedCharacterSearch();
+    setLoadStatus('Загружаю список...', false);
+    list.innerHTML = '';
+
+    google.script.run
+      .withSuccessHandler(function (characters) {
+        savedCharactersCache = Array.isArray(characters)
+          ? characters
+          : [];
+
+        renderSavedCharactersList();
+      })
+      .withFailureHandler(function (error) {
+        savedCharactersCache = [];
+        setLoadStatus(error.message || 'Ошибка загрузки списка.', true);
+      })
+      .listSavedCharacters();
+  }
+
+  function loadCharacterForEdit(characterId) {
+    setLoadStatus('Загружаю персонажа...', false);
+
+    google.script.run
+      .withSuccessHandler(function (character) {
+        applyCharacterToForm(character);
+        setLoadStatus('Персонаж загружен для редактирования.', false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      })
+      .withFailureHandler(function (error) {
+        setLoadStatus(error.message || 'Ошибка загрузки персонажа.', true);
+      })
+      .loadCharacter(characterId);
+  }
+
+  function applyCharacterToForm(character) {
+    currentCharacterId = character.id || null;
+
+    document.getElementById('characterName').value = character.name || '';
+    document.getElementById('playerName').value = character.player || '';
+    document.getElementById('className').value = character.className || '';
+    document.getElementById('concept').value = character.concept || '';
+
+    setAdvancedEditMode(Boolean(character.advancedEditMode));
+    applyAttributes(character.attributes || {});
+    applySkills(character.skills || {});
+
+    selectedAbilities.length = 0;
+    (character.abilities || []).forEach(abilityId => selectedAbilities.push(abilityId));
+    activeAbilityId = selectedAbilities[0] || null;
+
+    selectedEquipment.length = 0;
+    (character.equipment || []).forEach(equipmentId => selectedEquipment.push(equipmentId));
+
+    if (typeof setViewerStateFromCharacter === 'function') {
+      setViewerStateFromCharacter(character);
+    }
+
+    renderAttributes();
+    renderSkills();
+    renderAbilities();
+    renderEquipment();
+    refreshViewerIfOpen();
+  }
+
+  function applyAttributes(savedAttributes) {
+    Object.entries(attributes).forEach(([key, attribute]) => {
+      attribute.value = savedAttributes[key] !== undefined ? Number(savedAttributes[key]) || 1 : 1;
+    });
+  }
+
+  function applySkills(savedSkills) {
+    Object.entries(skills).forEach(([groupKey, group]) => {
+      Object.entries(group.items).forEach(([skillKey, skill]) => {
+        skill.value = savedSkills[groupKey] && savedSkills[groupKey][skillKey] !== undefined
+          ? Number(savedSkills[groupKey][skillKey]) || 1
+          : 1;
+      });
+    });
+  }
+
+  function resetAttributes() {
+    Object.values(attributes).forEach(attribute => attribute.value = 1);
+  }
+
+  function resetSkills() {
+    Object.values(skills).forEach(group => {
+      Object.values(group.items).forEach(skill => skill.value = 1);
+    });
+  }
+
+  function startNewCharacter() {
+    currentCharacterId = null;
+    document.getElementById('characterName').value = '';
+    document.getElementById('playerName').value = '';
+    document.getElementById('className').value = '';
+    document.getElementById('concept').value = '';
+
+    setAdvancedEditMode(false);
+    resetAttributes();
+    resetSkills();
+    selectedAbilities.length = 0;
+    activeAbilityId = null;
+    selectedEquipment.length = 0;
+
+    if (typeof setViewerStateFromCharacter === 'function') {
+      setViewerStateFromCharacter({ id: null, resources: collectResourcesForSave(), state: {} });
+    }
+
+    renderAttributes();
+    renderSkills();
+    renderAbilities();
+    renderEquipment();
+    setLoadStatus('Создана пустая форма.', false);
+    setSaveStatus('', false);
+  }
+
+  function debugCharacters() {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        console.log('DEBUG CHARACTERS:', result);
+        alert(JSON.stringify(result, null, 2));
+      })
+      .withFailureHandler(function (error) {
+        alert(error.message || 'Ошибка debugCharacters');
+      })
+      .debugCharactersSheet();
+  }
+
+  function refreshViewerIfOpen() {
+    if (appMode === 'view' && typeof renderCharacterViewer === 'function') {
+      renderCharacterViewer();
+    }
+  }
+  function getEquipmentArmor(item) {
+  if (!item || item.armor === null || item.armor === undefined) {
+    return 0;
+  }
+
+  if (typeof item.armor === 'number') {
+    return Math.max(0, item.armor);
+  }
+
+  const match = String(item.armor).match(/\d+/);
+
+  return match ? Math.max(0, Number(match[0])) : 0;
+}
+
+function getSelectedArmorTotal() {
+  return selectedEquipment.reduce((total, equipmentId) => {
+    const item = getEquipmentById(equipmentId);
+
+    return total + getEquipmentArmor(item);
+  }, 0);
+}
+function syncViewerArmorWithEquipment() {
+  if (!viewerState || typeof getSelectedArmorTotal !== 'function') {
+    return;
+  }
+
+  const maxArmor = getSelectedArmorTotal();
+
+  if (viewerState.currentArmor === undefined) {
+    viewerState.currentArmor = maxArmor;
+  }
+
+  if (viewerState.currentArmor > maxArmor) {
+    viewerState.currentArmor = maxArmor;
+  }
+}
+
+  document.addEventListener('DOMContentLoaded', function () {
+    renderAttributes();
+    renderSkills();
+    renderAbilities();
+    renderEquipment();
+    loadSavedCharactersList();
+
+    
+
+    const equipmentSearch = document.getElementById('equipmentSearch');
+    if (equipmentSearch) {
+      equipmentSearch.addEventListener('input', renderEquipment);
+    }
+
+    setAppMode('edit');
+  });
+  (function () {
+  const classSelect = document.getElementById('className');
+
+  if (!classSelect) return;
+
+  classSelect.onchange = function () {
+    const selectedClass = this.value;
+
+    window.setTimeout(function () {
+      classSelect.value = selectedClass;
+
+      selectedAbilities.length = 0;
+      activeAbilityId = null;
+
+      renderAbilities();
+      renderEquipment();
+
+      // Некоторые функции перерисовки могли сбросить select.
+      classSelect.value = selectedClass;
+    }, 0);
+  };
+})();
+</script>
