@@ -933,7 +933,7 @@ const MITRINIUM_HIDDEN_KEY = 'mitrinium.hiddenCharacters.v1';
 const MITRINIUM_ROLL_LOG_SHEET = 'RollLog';
 const MITRINIUM_CLASS_ICONS = {
   'Психопат': '⚗', 'Кустарь': '⚙', 'Воротила': '⚿',
-  'Рекрут': '⌖', 'Менталист': 'Ψ', 'Натуралист': '◉'
+  'Рекрут': '⯐', 'Менталист': 'Ψ', 'Натуралист': '◉'
 };
 
 /* =========================
