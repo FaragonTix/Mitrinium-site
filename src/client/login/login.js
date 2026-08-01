@@ -48,12 +48,12 @@ async function initialize() {
     google.accounts.id.disableAutoSelect();
   }
   google.accounts.id.renderButton(buttonElement, {
-    theme: "filled_black",
+    theme: "outline",
     size: "large",
     shape: "rectangular",
     text: "signin_with",
     locale: "ru",
-    width: 300,
+    width: Math.min(320, Math.max(200, buttonElement.clientWidth || 300)),
   });
   showStatus("");
 }

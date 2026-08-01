@@ -689,6 +689,12 @@ function validateCharacterForSave(character) {
     throw new Error('Выберите класс.');
   }
 
+  const level = Number(character.level == null ? 1 : character.level);
+
+  if (!Number.isInteger(level) || level < 1 || level > 20) {
+    throw new Error('Уровень должен быть целым числом от 1 до 20.');
+  }
+
   validateAttributes_(
     character.attributes,
     isAdvancedEditMode
@@ -1996,6 +2002,13 @@ function rollControl_(
       'fixed1'
     );
 
+  const methodName =
+    sanitizeRollText_(
+      controlRequest.methodName,
+      '',
+      30
+    );
+
   const methodSidesMap = {
     d4: 4,
     d6: 6,
@@ -2043,7 +2056,7 @@ function rollControl_(
       controlRequest.difficulty,
       1,
       50,
-      12
+      10
     );
 
   const total =
@@ -2052,6 +2065,9 @@ function rollControl_(
     flatBonus;
 
   return {
+    methodName:
+      methodName,
+
     d20:
       d20,
 

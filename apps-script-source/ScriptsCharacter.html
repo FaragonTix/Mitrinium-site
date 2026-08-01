@@ -430,9 +430,19 @@
       id: currentCharacterId,
       name: document.getElementById('characterName').value.trim(),
       player: document.getElementById('playerName').value.trim(),
+      level: Math.max(
+        1,
+        Math.min(
+          20,
+          Math.round(
+            Number(document.getElementById('characterLevel').value) || 1
+          )
+        )
+      ),
       className: document.getElementById('className').value,
       concept: document.getElementById('concept').value.trim(),
       biography: collectBiographyForSave(),
+      control: collectCharacterControl(),
       advancedEditMode: advancedEditMode,
       attributes: collectAttributesForSave(),
       skills: collectSkillsForSave(),
@@ -457,6 +467,14 @@
 
     if (!character.className) {
       errors.push('Выберите класс.');
+    }
+
+    if (
+      !Number.isInteger(Number(character.level)) ||
+      Number(character.level) < 1 ||
+      Number(character.level) > 20
+    ) {
+      errors.push('Уровень должен быть целым числом от 1 до 20.');
     }
 
     const biographyValidation = validateBiography(
@@ -536,11 +554,22 @@
     document.getElementById('playerName').value =
       character.player || '';
 
+    document.getElementById('characterLevel').value =
+      Math.max(
+        1,
+        Math.min(20, Math.round(Number(character.level) || 1))
+      );
+
     document.getElementById('className').value =
       character.className || '';
 
     document.getElementById('concept').value =
       character.concept || '';
+
+    setCharacterControl(
+      character.control,
+      character.className || ''
+    );
 
     setAdvancedEditMode(
       Boolean(character.advancedEditMode)
@@ -619,6 +648,7 @@
 
     document.getElementById('characterName').value = '';
     document.getElementById('playerName').value = '';
+    document.getElementById('characterLevel').value = '1';
     document.getElementById('className').value = '';
     document.getElementById('concept').value = '';
 
@@ -626,6 +656,7 @@
     resetAttributes();
     resetSkills();
     resetBiography();
+    resetCharacterControlForClass('');
 
     selectedAbilities.length = 0;
     activeAbilityId = null;

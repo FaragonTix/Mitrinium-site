@@ -1336,6 +1336,13 @@ function mitriniumRollControl_(
       'fixed1'
     );
 
+  const methodName =
+    mitriniumSanitizeText_(
+      request.methodName,
+      '',
+      30
+    );
+
   /*
     d20 здесь оставляем:
     это основной куб Контроля,
@@ -1378,7 +1385,7 @@ function mitriniumRollControl_(
       request.difficulty,
       1,
       50,
-      12
+      10
     );
 
   const total =
@@ -1387,6 +1394,9 @@ function mitriniumRollControl_(
     flatBonus;
 
   return {
+    methodName:
+      methodName,
+
     d20:
       d20,
 
@@ -1428,6 +1438,13 @@ function mitriniumSanitizeExistingControl_(
   }
 
   return {
+    methodName:
+      mitriniumSanitizeText_(
+        control.methodName,
+        '',
+        30
+      ),
+
     d20:
       mitriniumClampInteger_(
         control.d20,
@@ -1472,7 +1489,7 @@ function mitriniumSanitizeExistingControl_(
         control.difficulty,
         1,
         50,
-        12
+        10
       ),
 
     total:

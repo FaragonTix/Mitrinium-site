@@ -68,6 +68,24 @@
     };
   }
 
+  function applyCharacterControlMethodToRoll() {
+    const typeSelect = document.getElementById('rollControlType');
+    const methodSelect = document.getElementById('rollControlMethod');
+    const bonusInput = document.getElementById('rollControlFlatBonus');
+
+    if (!typeSelect || !methodSelect || !bonusInput) return;
+
+    const className = document.getElementById('className')?.value || '';
+    const control = normalizeCharacterControl(characterControl, className);
+    const method = control.methods[typeSelect.value];
+
+    if (!method) return;
+
+    methodSelect.value = controlMethodLevels[method.level].methodKey;
+    bonusInput.value = String(method.bonus);
+    syncRollBuilderControls();
+  }
+
   /* =========================
      Компоненты
   ========================= */
@@ -980,6 +998,11 @@
         enabled:
           controlEnabled,
 
+        methodName:
+          document.getElementById(
+            'rollControlType'
+          )?.value || '',
+
         methodKey:
           document.getElementById(
             'rollControlMethod'
@@ -998,7 +1021,7 @@
             document.getElementById(
               'rollControlDifficulty'
             )?.value,
-            12
+            10
           )
       }
     };
@@ -1479,6 +1502,10 @@
         )
         : 'фиксированный +1';
 
+    const methodLabel = control.methodName
+      ? control.methodName + ', ' + methodText
+      : methodText;
+
     let naturalText = '';
 
     if (control.natural20) {
@@ -1518,7 +1545,7 @@
 
           Методика:
           ${rollEscapeHtml(
-            methodText
+            methodLabel
           )};
 
           бонус:
@@ -1639,7 +1666,8 @@
                 class="class-icon-inline"
                 aria-hidden="true"
               >
-                ${rollEscapeHtml(
+                ${renderClassIconGlyph(
+                  entry.className,
                   entry.classIcon
                 )}
               </span>
@@ -1881,6 +1909,7 @@
       renderRollComponentOptions();
       toggleRollControlFields();
       setRollEditorMode('select');
+      applyCharacterControlMethodToRoll();
       startRollLogPolling();
     }
   );

@@ -95,16 +95,18 @@ function component(input, fallback) {
 
 function rollControl(input = {}) {
   const methodSides = { d4: 4, d6: 6, d8: 8, d10: 10 };
+  const methodName = text(input.methodName, "", 30);
   const methodKey = text(input.methodKey, "fixed1", 20);
   const sides = methodSides[methodKey] || 0;
   const d20 = die(20);
   const methodValue = sides ? die(sides) : 1;
   const flatBonus = integer(input.flatBonus, -20, 20, 0);
-  const difficulty = integer(input.difficulty, 1, 50, 12);
+  const difficulty = integer(input.difficulty, 1, 50, 10);
   const total = d20 + methodValue + flatBonus;
 
   return {
     d20,
+    methodName,
     methodKey,
     methodSides: sides,
     methodValue,

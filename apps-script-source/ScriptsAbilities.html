@@ -87,7 +87,6 @@
     if (ability.type) parts.push(ability.type);
     if (ability.charges) parts.push(`${ability.charges} заряда`);
     if (ability.reaction) parts.push(`реакция: ${ability.reaction}`);
-    if (ability.control) parts.push(`контроль: ${ability.control}`);
     return parts.join(' · ');
   }
 
@@ -121,18 +120,17 @@
       return;
     }
 
-    const tags = ability.tags && ability.tags.length
-      ? `<div class="ability-tags">${ability.tags.map(tag => `<span>${tag}</span>`).join('')}</div>`
-      : '';
-
     panel.innerHTML = `
       <div class="ability-detail-title">${ability.name}</div>
       <div class="ability-detail-meta">${getAbilityShortMeta(ability)}</div>
-      ${ability.pool ? `<div class="ability-detail-block"><strong>Пул:</strong><p>${ability.pool}</p></div>` : ''}
-      ${ability.effect ? `<div class="ability-detail-block"><strong>Эффект:</strong><p>${ability.effect}</p></div>` : ''}
-      ${ability.breakthrough ? `<div class="ability-detail-block"><strong>Прорыв:</strong><p>${ability.breakthrough}</p></div>` : ''}
-      ${ability.complications ? `<div class="ability-detail-block"><strong>Осложнения:</strong><p>${ability.complications}</p></div>` : ''}
-      ${tags}`;
+      <div class="ability-description-block">
+        <div class="ability-description-row"><strong>Пререквизит:</strong><p>${ability.prerequisite || 'Нет'}</p></div>
+        ${ability.pool ? `<div class="ability-description-row"><strong>Пул:</strong><p>${ability.pool}</p></div>` : ''}
+        ${ability.control ? `<div class="ability-description-row"><strong>Контроль:</strong><p>${ability.control}</p></div>` : ''}
+        ${ability.effect ? `<div class="ability-description-row"><strong>Эффект:</strong><p>${ability.effect}</p></div>` : ''}
+        ${ability.breakthrough ? `<div class="ability-description-row"><strong>Прорыв:</strong><p>${ability.breakthrough}</p></div>` : ''}
+        ${ability.complications ? `<div class="ability-description-row"><strong>Осложнения:</strong><p>${ability.complications}</p></div>` : ''}
+      </div>`;
   }
 
   function renderAbilities() {

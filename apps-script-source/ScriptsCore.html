@@ -206,6 +206,30 @@
     'Натуралист': '◉'
   };
 
+  const controlMethodDefinitions = [
+    { name: 'Порох', key: 'gunpowder' },
+    { name: 'Пар', key: 'steam' },
+    { name: 'Кристаллы', key: 'crystals' },
+    { name: 'Реагенты', key: 'reagents' }
+  ];
+
+  const controlMethodLevels = {
+    1: { roman: 'I', die: 'фикс +1', methodKey: 'fixed1' },
+    2: { roman: 'II', die: 'd4', methodKey: 'd4' },
+    3: { roman: 'III', die: 'd6', methodKey: 'd6' },
+    4: { roman: 'IV', die: 'd8', methodKey: 'd8' },
+    5: { roman: 'V', die: 'd10', methodKey: 'd10' }
+  };
+
+  const classControlBonuses = {
+    'Психопат': { 'Реагенты': 3, 'Порох': 2 },
+    'Кустарь': { 'Пар': 3, 'Кристаллы': 2 },
+    'Воротила': { 'Порох': 2, 'Реагенты': 1, 'Кристаллы': 2 },
+    'Рекрут': { 'Порох': 3, 'Пар': 2 },
+    'Менталист': { 'Кристаллы': 3, 'Реагенты': 1, 'Порох': 1 },
+    'Натуралист': { 'Реагенты': 2, 'Кристаллы': 2, 'Порох': 1 }
+  };
+
   const selectedEquipment = [];
   const selectedAbilities = [];
 
@@ -214,11 +238,202 @@
   let appMode = 'edit';
   let advancedEditMode = false;
   let savedCharactersCache = [];
+  let characterControl = createDefaultCharacterControl('');
+
+  function clampControlInteger(value, minimum, maximum, fallback) {
+    const parsed = Number(value);
+    const safe = Number.isFinite(parsed) ? Math.round(parsed) : fallback;
+    return Math.max(minimum, Math.min(maximum, safe));
+  }
+
+  function createDefaultCharacterControl(className) {
+    const classBonuses = classControlBonuses[String(className || '')] || {};
+    const methods = {};
+
+    controlMethodDefinitions.forEach(function (definition) {
+      methods[definition.name] = {
+        level: 1,
+        bonus: Number(classBonuses[definition.name] || 0)
+      };
+    });
+
+    return { methods: methods };
+  }
+
+  function normalizeCharacterControl(value, className) {
+    const defaults = createDefaultCharacterControl(className);
+    const source = value && typeof value === 'object'
+      ? (value.methods && typeof value.methods === 'object' ? value.methods : value)
+      : {};
+
+    controlMethodDefinitions.forEach(function (definition) {
+      const saved = source[definition.name];
+      const savedObject = saved && typeof saved === 'object'
+        ? saved
+        : {};
+
+      defaults.methods[definition.name] = {
+        level: clampControlInteger(savedObject.level, 1, 5, 1),
+        bonus: clampControlInteger(
+          savedObject.bonus,
+          -20,
+          20,
+          defaults.methods[definition.name].bonus
+        )
+      };
+    });
+
+    return defaults;
+  }
+
+  function resetCharacterControlForClass(className) {
+    characterControl = createDefaultCharacterControl(className);
+    renderControlEditor();
+
+    if (typeof applyCharacterControlMethodToRoll === 'function') {
+      applyCharacterControlMethodToRoll();
+    }
+  }
+
+  function setCharacterControl(value, className) {
+    characterControl = normalizeCharacterControl(value, className);
+    renderControlEditor();
+  }
+
+  function collectCharacterControl() {
+    return normalizeCharacterControl(
+      characterControl,
+      document.getElementById('className')?.value || ''
+    );
+  }
+
+  function updateCharacterControlMethod(methodName, field, value) {
+    const method = characterControl.methods[methodName];
+    if (!method) return;
+
+    if (field === 'level') {
+      method.level = clampControlInteger(value, 1, 5, 1);
+    } else if (field === 'bonus') {
+      method.bonus = clampControlInteger(value, -20, 20, 0);
+    }
+
+    renderControlEditor();
+    refreshViewerIfOpen();
+
+    if (typeof applyCharacterControlMethodToRoll === 'function') {
+      applyCharacterControlMethodToRoll();
+    }
+  }
+
+  function renderControlEditor() {
+    const grid = document.getElementById('controlMethodsEditor');
+    if (!grid) return;
+
+    grid.innerHTML = controlMethodDefinitions.map(function (definition) {
+      const method = characterControl.methods[definition.name];
+      const levelOptions = Object.entries(controlMethodLevels)
+        .map(function (entry) {
+          const level = Number(entry[0]);
+          const info = entry[1];
+          return `<option value="${level}" ${method.level === level ? 'selected' : ''}>${info.roman} — ${info.die}</option>`;
+        })
+        .join('');
+
+      return `
+        <div class="control-method-editor-row">
+          <strong>${definition.name}</strong>
+
+          <label class="field">
+            <span>Уровень</span>
+            <select onchange="updateCharacterControlMethod('${definition.name}', 'level', this.value)">
+              ${levelOptions}
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Классовый бонус</span>
+            <input
+              type="number"
+              min="-20"
+              max="20"
+              step="1"
+              value="${method.bonus}"
+              onchange="updateCharacterControlMethod('${definition.name}', 'bonus', this.value)"
+            >
+          </label>
+        </div>
+      `;
+    }).join('');
+  }
 
   function getClassIcon(className) {
     return classIcons[
       String(className || '')
     ] || '';
+  }
+
+  function isRecruitClassIcon(
+    className,
+    iconValue
+  ) {
+    return String(className || '') ===
+      'Рекрут' || String(iconValue || '') === '⯐';
+  }
+
+  function setClassIconGlyph(
+    element,
+    className,
+    iconValue
+  ) {
+    if (!element) return;
+
+    element.textContent = '';
+
+    if (
+      isRecruitClassIcon(
+        className,
+        iconValue
+      )
+    ) {
+      const recruitSymbol =
+        document.createElement('span');
+
+      recruitSymbol.className =
+        'recruit-symbol';
+
+      recruitSymbol.setAttribute(
+        'aria-hidden',
+        'true'
+      );
+
+      element.appendChild(recruitSymbol);
+      return;
+    }
+
+    element.textContent = String(
+      iconValue || ''
+    );
+  }
+
+  function renderClassIconGlyph(
+    className,
+    iconValue
+  ) {
+    if (
+      isRecruitClassIcon(
+        className,
+        iconValue
+      )
+    ) {
+      return '<span class="recruit-symbol" aria-hidden="true"></span>';
+    }
+
+    return String(iconValue || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
   /* =========================
@@ -649,8 +864,11 @@
         'true'
       );
 
-      symbol.textContent =
-        iconValue;
+      setClassIconGlyph(
+        symbol,
+        className,
+        iconValue
+      );
 
       const check =
         document.createElement(
@@ -787,16 +1005,37 @@
       });
 
     if (label) {
-      label.textContent =
-        selectedClass
-          ? (
-            getClassIcon(
-              selectedClass
-            ) +
-            ' ' +
-            selectedClass
-          )
-          : 'Класс не выбран';
+      label.textContent = '';
+
+      if (selectedClass) {
+        const icon =
+          document.createElement('span');
+
+        icon.className =
+          'selected-class-label-icon';
+
+        icon.setAttribute(
+          'aria-hidden',
+          'true'
+        );
+
+        setClassIconGlyph(
+          icon,
+          selectedClass,
+          getClassIcon(selectedClass)
+        );
+
+        const name =
+          document.createElement('span');
+
+        name.textContent = selectedClass;
+
+        label.appendChild(icon);
+        label.appendChild(name);
+      } else {
+        label.textContent =
+          'Класс не выбран';
+      }
     }
   }
 
@@ -812,6 +1051,10 @@
 
     const selectedClass =
       select.value;
+
+    resetCharacterControlForClass(
+      selectedClass
+    );
 
     selectedAbilities.length = 0;
     activeAbilityId = null;
@@ -883,6 +1126,8 @@
       ) {
         renderEquipment();
       }
+
+      renderControlEditor();
 
       const equipmentSearch =
         document.getElementById(

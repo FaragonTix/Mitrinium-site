@@ -3,7 +3,8 @@ const elements = Object.fromEntries(
     "identity", "summary", "notice", "characterList", "searchInput",
     "visibilityFilter", "refreshButton", "createButton", "characterDialog",
     "characterForm", "cancelButton", "dialogEyebrow", "dialogTitle",
-    "characterId", "characterName", "playerName", "className", "ownerEmail",
+    "characterId", "characterName", "playerName", "className",
+    "characterLevel", "ownerEmail",
     "currentBody", "currentMainNerve", "currentBonusNerve", "currentArmor",
     "maxArmor", "gold", "farthings", "pekkels", "notes", "hidden",
     "characterJson",
@@ -50,7 +51,13 @@ function filteredCharacters() {
   return characters.filter((item) => {
     if (visibility === "visible" && item.hidden) return false;
     if (visibility === "hidden" && !item.hidden) return false;
-    return !query || [item.name, item.player, item.ownerEmail, item.className]
+    return !query || [
+      item.name,
+      item.player,
+      item.ownerEmail,
+      item.className,
+      item.level,
+    ]
       .some((value) => String(value || "").toLowerCase().includes(query));
   });
 }
@@ -74,6 +81,7 @@ function render() {
           ${item.hidden ? '<span class="badge">скрыт</span>' : ""}
         </h3>
         <div class="meta">${escapeHtml(item.className || "Без класса")}
+          · уровень ${escapeHtml(item.level || 1)}
           · игрок: ${escapeHtml(item.player || "не указан")}</div>
       </div>
       <div class="owner">
@@ -125,6 +133,7 @@ function openDialog(character = null) {
   elements.characterName.value = character?.name || "";
   elements.playerName.value = character?.player || "";
   elements.className.value = character?.className || "Рекрут";
+  elements.characterLevel.value = character?.level || data.level || 1;
   elements.ownerEmail.value = character?.ownerEmail || "";
   elements.hidden.checked = Boolean(character?.hidden);
   elements.currentBody.value = state.currentBody ?? "";
@@ -168,6 +177,7 @@ elements.characterForm.addEventListener("submit", async (event) => {
       name: elements.characterName.value,
       player: elements.playerName.value,
       className: elements.className.value,
+      level: numberValue(elements.characterLevel),
       ownerEmail: elements.ownerEmail.value,
       hidden: elements.hidden.checked,
       data,

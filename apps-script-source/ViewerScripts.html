@@ -187,6 +187,10 @@
     const resources = character.resources || {};
     const characterName = character.name || 'Без имени';
     const className = character.className || 'Класс не выбран';
+    const characterLevel = Math.max(
+      1,
+      Math.min(20, Math.round(Number(character.level) || 1))
+    );
     const classIcon = typeof getClassIcon === 'function' ? getClassIcon(className) : '';
     const playerName = character.player || '';
     const concept = character.concept || '';
@@ -197,8 +201,9 @@
           <h2>${escapeViewerHtml(characterName)}</h2>
 
           <p>
-            ${classIcon ? `<span class="class-icon-inline">${escapeViewerHtml(classIcon)}</span>` : ''}
+            ${classIcon ? `<span class="class-icon-inline">${renderClassIconGlyph(className, classIcon)}</span>` : ''}
             ${escapeViewerHtml(className)}
+            · уровень ${characterLevel}
             ${
               playerName
                 ? ` · игрок: ${escapeViewerHtml(playerName)}`
@@ -266,6 +271,11 @@
       <section class="viewer-card">
         <h3>Навыки</h3>
         ${renderViewerSkills(character.skills || {})}
+      </section>
+
+      <section class="viewer-card">
+        <h3>Контроль</h3>
+        ${renderViewerControl(character.control, className)}
       </section>
 
       <section class="viewer-card">
@@ -881,6 +891,30 @@
      Способности
   ========================= */
 
+  function renderViewerControl(value, className) {
+    const control = normalizeCharacterControl(value, className);
+
+    return `
+      <div class="viewer-control-grid">
+        ${controlMethodDefinitions.map(function (definition) {
+          const method = control.methods[definition.name];
+          const level = controlMethodLevels[method.level];
+
+          return `
+            <div class="viewer-control-method ${method.bonus ? 'active' : ''}">
+              <div>
+                <strong>${escapeViewerHtml(definition.name)}</strong>
+                <span>Уровень ${level.roman} · ${level.die}</span>
+              </div>
+
+              <strong>${method.bonus >= 0 ? '+' : ''}${method.bonus}</strong>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
   function renderViewerAbilities(abilityIds) {
     if (!abilityIds || abilityIds.length === 0) {
       return `
@@ -909,53 +943,18 @@
             </span>
           </summary>
 
-          ${
-            ability.pool
-              ? `
-                <p>
-                  <strong>Пул:</strong>
-                  ${escapeViewerHtml(ability.pool)}
-                </p>
-              `
-              : ''
-          }
+          <div class="ability-description-block viewer-ability-description-block">
+            <div class="ability-description-row">
+              <strong>Пререквизит:</strong>
+              <p>${escapeViewerHtml(ability.prerequisite || 'Нет')}</p>
+            </div>
 
-          ${
-            ability.effect
-              ? `
-                <p>
-                  <strong>Эффект:</strong>
-                  ${escapeViewerHtml(ability.effect)}
-                </p>
-              `
-              : ''
-          }
-
-          ${
-            ability.breakthrough
-              ? `
-                <p>
-                  <strong>Прорыв:</strong>
-                  ${escapeViewerHtml(
-                    ability.breakthrough
-                  )}
-                </p>
-              `
-              : ''
-          }
-
-          ${
-            ability.complications
-              ? `
-                <p>
-                  <strong>Осложнения:</strong>
-                  ${escapeViewerHtml(
-                    ability.complications
-                  )}
-                </p>
-              `
-              : ''
-          }
+            ${ability.pool ? `<div class="ability-description-row"><strong>Пул:</strong><p>${escapeViewerHtml(ability.pool)}</p></div>` : ''}
+            ${ability.control ? `<div class="ability-description-row"><strong>Контроль:</strong><p>${escapeViewerHtml(ability.control)}</p></div>` : ''}
+            ${ability.effect ? `<div class="ability-description-row"><strong>Эффект:</strong><p>${escapeViewerHtml(ability.effect)}</p></div>` : ''}
+            ${ability.breakthrough ? `<div class="ability-description-row"><strong>Прорыв:</strong><p>${escapeViewerHtml(ability.breakthrough)}</p></div>` : ''}
+            ${ability.complications ? `<div class="ability-description-row"><strong>Осложнения:</strong><p>${escapeViewerHtml(ability.complications)}</p></div>` : ''}
+          </div>
         </details>
       `)
       .join('');

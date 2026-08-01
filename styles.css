@@ -840,7 +840,7 @@ section {
   opacity: 0.95;
 }
 
-.class-mark span {
+.class-mark > div > span {
   display: block;
 
   margin-top: 14px;
@@ -850,6 +850,40 @@ section {
   font-size: 0.74rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+.recruit-symbol {
+  position: relative;
+  display: inline-block;
+  width: 0.72em;
+  height: 0.72em;
+  box-sizing: border-box;
+  border: 0.1em solid currentColor;
+  color: inherit;
+  vertical-align: 0.02em;
+}
+
+.recruit-symbol::before,
+.recruit-symbol::after {
+  content: "";
+  position: absolute;
+  background: currentColor;
+}
+
+.recruit-symbol::before {
+  top: -0.28em;
+  bottom: -0.28em;
+  left: 50%;
+  width: 0.1em;
+  transform: translateX(-50%);
+}
+
+.recruit-symbol::after {
+  top: 50%;
+  left: -0.28em;
+  right: -0.28em;
+  height: 0.1em;
+  transform: translateY(-50%);
 }
 
 .class-copy {

@@ -43,8 +43,25 @@ body {
 }
 h1 { margin: 8px 0 12px; font: 500 38px/1.1 Georgia, serif; }
 .lead { margin: 0 auto 28px; color: #aaa292; }
-.google-button { min-height: 44px; display: flex; justify-content: center; }
+.google-button {
+  width: min(320px, 100%);
+  min-height: 44px;
+  margin-inline: auto;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #fff;
+}
+.google-button > div,
+.google-button iframe { max-width: 100% !important; }
 .status { min-height: 24px; margin: 16px 0; color: #aaa292; font-size: 13px; }
 .status.error { color: #ff9e94; }
 .back { color: #aaa292; text-decoration: none; font-size: 13px; }
 .back:hover { color: #f4ead7; }
+
+@media (max-width: 480px) {
+  body { padding: 12px; }
+  .login-card { padding: 32px 20px; }
+  h1 { font-size: 32px; }
+}

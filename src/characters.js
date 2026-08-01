@@ -11,6 +11,52 @@ function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, value));
 }
 
+export function normalizeCharacterLevel(value) {
+  if (value === null || value === undefined || value === "") return 1;
+  const level = Number(value);
+  if (!Number.isInteger(level) || level < 1 || level > 20) {
+    throw new Error("Уровень должен быть целым числом от 1 до 20.");
+  }
+  return level;
+}
+
+const CONTROL_METHOD_NAMES = ["Порох", "Пар", "Кристаллы", "Реагенты"];
+
+const CLASS_CONTROL_BONUSES = {
+  Психопат: { Реагенты: 3, Порох: 2 },
+  Кустарь: { Пар: 3, Кристаллы: 2 },
+  Воротила: { Порох: 2, Реагенты: 1, Кристаллы: 2 },
+  Рекрут: { Порох: 3, Пар: 2 },
+  Менталист: { Кристаллы: 3, Реагенты: 1, Порох: 1 },
+  Натуралист: { Реагенты: 2, Кристаллы: 2, Порох: 1 },
+};
+
+export function normalizeCharacterControl(value, className = "") {
+  const classBonuses = CLASS_CONTROL_BONUSES[String(className || "")] || {};
+  const source =
+    value && typeof value === "object"
+      ? value.methods && typeof value.methods === "object"
+        ? value.methods
+        : value
+      : {};
+  const methods = {};
+
+  for (const name of CONTROL_METHOD_NAMES) {
+    const saved =
+      source[name] && typeof source[name] === "object" ? source[name] : {};
+    methods[name] = {
+      level: clamp(Math.round(numberOr(saved.level, 1)), 1, 5),
+      bonus: clamp(
+        Math.round(numberOr(saved.bonus, classBonuses[name] || 0)),
+        -20,
+        20,
+      ),
+    };
+  }
+
+  return { methods };
+}
+
 function validateCharacter(character) {
   if (!character || typeof character !== "object") {
     throw new Error("Данные персонажа отсутствуют.");
@@ -19,6 +65,8 @@ function validateCharacter(character) {
   if (!String(character.name || "").trim()) {
     throw new Error("Укажите имя персонажа.");
   }
+
+  normalizeCharacterLevel(character.level);
 
   for (const value of Object.values(character.attributes || {})) {
     const stat = numberOr(value, NaN);
@@ -76,7 +124,7 @@ function sanitizeState(state, resources) {
 async function getRecord(db, id) {
   return db
     .prepare(
-      `SELECT id, created_at, updated_at, owner_email, data_json, hidden
+      `SELECT id, created_at, updated_at, owner_email, level, data_json, hidden
        FROM characters WHERE id = ?1`,
     )
     .bind(String(id))
@@ -105,7 +153,9 @@ function normalizeEmail(value) {
 }
 
 export async function saveCharacter(db, user, input) {
-  validateCharacter(input);
+  const level = normalizeCharacterLevel(input?.level);
+  const control = normalizeCharacterControl(input?.control, input?.className);
+  validateCharacter({ ...input, level, control });
 
   const id = String(input.id || crypto.randomUUID());
   const existing = await getRecord(db, id);
@@ -118,6 +168,8 @@ export async function saveCharacter(db, user, input) {
   const data = {
     ...input,
     id,
+    level,
+    control,
     ownerEmail,
   };
   delete data.state;
@@ -125,14 +177,15 @@ export async function saveCharacter(db, user, input) {
   await db
     .prepare(
       `INSERT INTO characters (
-         id, created_at, updated_at, name, player, class_name,
+         id, created_at, updated_at, name, player, class_name, level,
          owner_email, data_json, hidden
-       ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0)
+       ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 0)
        ON CONFLICT(id) DO UPDATE SET
          updated_at = excluded.updated_at,
          name = excluded.name,
          player = excluded.player,
          class_name = excluded.class_name,
+         level = excluded.level,
          data_json = excluded.data_json`,
     )
     .bind(
@@ -142,6 +195,7 @@ export async function saveCharacter(db, user, input) {
       String(input.name || ""),
       String(input.player || ""),
       String(input.className || ""),
+      level,
       ownerEmail,
       JSON.stringify(data),
     )
@@ -157,9 +211,9 @@ export async function saveCharacter(db, user, input) {
 
 export async function listVisibleCharacters(db, user) {
   const query = user.isAdmin
-    ? `SELECT id, created_at, updated_at, name, player, class_name, owner_email
+    ? `SELECT id, created_at, updated_at, name, player, class_name, level, owner_email
        FROM characters WHERE hidden = 0 ORDER BY updated_at DESC`
-    : `SELECT id, created_at, updated_at, name, player, class_name, owner_email
+    : `SELECT id, created_at, updated_at, name, player, class_name, level, owner_email
        FROM characters
        WHERE hidden = 0 AND owner_email = ?1
        ORDER BY updated_at DESC`;
@@ -183,6 +237,7 @@ export async function listVisibleCharacters(db, user) {
       name: row.name,
       player: row.player,
       className: row.class_name,
+      level: normalizeCharacterLevel(row.level),
       ownerEmail: row.owner_email,
     })),
     isAdmin: user.isAdmin,
@@ -200,6 +255,14 @@ export async function loadCharacter(db, user, id) {
   } catch {
     throw new Error("Не удалось прочитать JSON персонажа.");
   }
+
+  character.level = normalizeCharacterLevel(
+    character.level ?? record.level,
+  );
+  character.control = normalizeCharacterControl(
+    character.control,
+    character.className,
+  );
 
   const stateRow = await db
     .prepare("SELECT data_json FROM character_states WHERE character_id = ?1")
@@ -275,7 +338,7 @@ export async function adminListCharacters(db, user) {
   const { results = [] } = await db
     .prepare(
       `SELECT c.id, c.created_at, c.updated_at, c.name, c.player,
-              c.class_name, c.owner_email, c.hidden, c.data_json,
+              c.class_name, c.level, c.owner_email, c.hidden, c.data_json,
               s.data_json AS state_json
        FROM characters c
        LEFT JOIN character_states s ON s.character_id = c.id
@@ -284,18 +347,25 @@ export async function adminListCharacters(db, user) {
     .all();
 
   return {
-    characters: results.map((row) => ({
-      id: row.id,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      name: row.name,
-      player: row.player,
-      className: row.class_name,
-      ownerEmail: row.owner_email,
-      hidden: Boolean(row.hidden),
-      data: JSON.parse(row.data_json || "{}"),
-      state: row.state_json ? JSON.parse(row.state_json) : null,
-    })),
+    characters: results.map((row) => {
+      const data = JSON.parse(row.data_json || "{}");
+      const level = normalizeCharacterLevel(data.level ?? row.level);
+      data.level = level;
+      data.control = normalizeCharacterControl(data.control, data.className);
+      return {
+        id: row.id,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        name: row.name,
+        player: row.player,
+        className: row.class_name,
+        level,
+        ownerEmail: row.owner_email,
+        hidden: Boolean(row.hidden),
+        data,
+        state: row.state_json ? JSON.parse(row.state_json) : null,
+      };
+    }),
   };
 }
 
@@ -323,8 +393,12 @@ export async function adminSaveCharacter(db, user, input = {}) {
         currentData.className ??
         "Рекрут",
     ).trim(),
+    level: normalizeCharacterLevel(
+      input.level ?? suppliedData.level ?? currentData.level,
+    ),
     ownerEmail,
   };
+  data.control = normalizeCharacterControl(data.control, data.className);
   delete data.state;
   validateCharacter(data);
 
@@ -332,14 +406,15 @@ export async function adminSaveCharacter(db, user, input = {}) {
   await db
     .prepare(
       `INSERT INTO characters (
-         id, created_at, updated_at, name, player, class_name,
+         id, created_at, updated_at, name, player, class_name, level,
          owner_email, data_json, hidden
-       ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+       ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
        ON CONFLICT(id) DO UPDATE SET
          updated_at = excluded.updated_at,
          name = excluded.name,
          player = excluded.player,
          class_name = excluded.class_name,
+         level = excluded.level,
          owner_email = excluded.owner_email,
          data_json = excluded.data_json,
          hidden = excluded.hidden`,
@@ -351,6 +426,7 @@ export async function adminSaveCharacter(db, user, input = {}) {
       data.name,
       data.player,
       data.className,
+      data.level,
       ownerEmail,
       JSON.stringify(data),
       input.hidden ? 1 : 0,

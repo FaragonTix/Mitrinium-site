@@ -244,6 +244,20 @@
           <h3>Контроль</h3>
 
           <div class="roll-form-grid">
+            <label class="field">
+              <span>Методика</span>
+
+              <select
+                id="rollControlType"
+                onchange="applyCharacterControlMethodToRoll()"
+              >
+                <option value="Порох">Порох</option>
+                <option value="Пар">Пар</option>
+                <option value="Кристаллы">Кристаллы</option>
+                <option value="Реагенты">Реагенты</option>
+              </select>
+            </label>
+
             <!-- Методика в режиме списков -->
 
             <label class="field roll-select-only">
@@ -358,7 +372,7 @@
                 type="number"
                 min="1"
                 max="50"
-                value="12"
+                value="10"
               >
             </label>
           </div>

@@ -308,6 +308,14 @@
                 'Класс не указан'
             );
 
+          const level = Math.max(
+            1,
+            Math.min(
+              20,
+              Math.round(Number(character.level) || 1)
+            )
+          );
+
           const icon =
             typeof getClassIcon ===
             'function'
@@ -358,7 +366,8 @@
                           class="class-icon-inline"
                           aria-hidden="true"
                         >
-                          ${escapeSavedCharacterText(
+                          ${renderClassIconGlyph(
+                            character.className,
                             icon
                           )}
                         </span>
@@ -371,6 +380,7 @@
 
                 <div class="saved-character-meta">
                   ${className}
+                  · уровень ${level}
                   ${player}
                   ${ownerEmail}
                 </div>

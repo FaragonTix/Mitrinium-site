@@ -140,6 +140,19 @@
               >
             </label>
 
+            <label class="field">
+              <span>Уровень</span>
+
+              <input
+                id="characterLevel"
+                type="number"
+                min="1"
+                max="20"
+                step="1"
+                value="1"
+              >
+            </label>
+
             <label class="field class-select-field">
               <span>Класс</span>
 
@@ -179,6 +192,24 @@
               placeholder="Краткое описание, происхождение, характер и цели персонажа"
             ></textarea>
           </label>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <div>
+              <h2>Контроль</h2>
+
+              <p class="helper-note">
+                Контроль = d20 + куб Методики + классовый бонус.
+                Стандартная сложность — 10.
+              </p>
+            </div>
+          </div>
+
+          <div
+            id="controlMethodsEditor"
+            class="control-methods-editor"
+          ></div>
         </section>
 
         <section class="card">
