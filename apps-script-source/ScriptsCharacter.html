@@ -150,8 +150,13 @@
   function renderSkills() {
     const grid = document.getElementById('skillsGrid');
     const pointsLeft = document.getElementById('skillPointsLeft');
+    const recommendationToggle = document.getElementById('showRecommendedSkills');
 
     if (!grid || !pointsLeft) return;
+
+    const selectedClass = document.getElementById('className')?.value || '';
+    const recommendedSkills = new Set(classRecommendedSkills[selectedClass] || []);
+    const showRecommended = Boolean(recommendationToggle?.checked && selectedClass);
 
     pointsLeft.textContent = advancedEditMode
       ? 'режим развития'
@@ -170,10 +175,14 @@
       Object.entries(group.items).forEach(function(skillEntry) {
         const skillKey = skillEntry[0];
         const skill = skillEntry[1];
+        const isRecommended = showRecommended && recommendedSkills.has(`${groupKey}:${skillKey}`);
 
         html += `
-          <div class="skill-item">
-            <span>${skill.name}</span>
+          <div class="skill-item ${isRecommended ? 'recommended' : ''}">
+            <span class="skill-name">
+              ${skill.name}
+              ${isRecommended ? '<span class="skill-recommended-mark" aria-label="Рекомендовано классу" title="Рекомендовано классу">★</span>' : ''}
+            </span>
 
             <div class="mini-counter">
               <button

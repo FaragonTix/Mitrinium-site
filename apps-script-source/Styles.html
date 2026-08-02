@@ -401,6 +401,11 @@
      Навыки
   ========================= */
 
+  .skill-recommendation-toggle {
+    width: fit-content;
+    margin: 0 0 14px;
+  }
+
   .skills-grid {
     display: grid;
     grid-template-columns: repeat(5, minmax(150px, 1fr));
@@ -441,6 +446,28 @@
   .skill-item > span {
     min-width: 0;
     line-height: 1.2;
+  }
+
+  .skill-item.recommended {
+    margin-right: -6px;
+    margin-left: -6px;
+    border: 1px solid #b8872f;
+    border-radius: 9px;
+    background: #f2d99f;
+    padding: 6px;
+  }
+
+  .skill-name {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .skill-recommended-mark {
+    flex: 0 0 auto;
+    color: #7a160f;
+    font-size: 12px;
+    line-height: 1;
   }
 
   /* =========================

@@ -197,6 +197,47 @@
   const maxAdvancedAttributeValue = 3;
   const maxAdvancedSkillValue = 3;
 
+  const classRecommendedSkills = {
+    'Психопат': [
+      'zhila:himiya',
+      'napor:ugrozy',
+      'napor:stoikost',
+      'nyuh:vnimatelnost'
+    ],
+    'Кустарь': [
+      'smetka:mehanizmy',
+      'nyuh:vnimatelnost',
+      'zhila:disciplina',
+      'zhila:atletika'
+    ],
+    'Воротила': [
+      'napor:ugrozy',
+      'losk:ubezhdenie',
+      'nyuh:znanieUlits',
+      'zhila:ekonomika'
+    ],
+    'Рекрут': [
+      'napor:draka',
+      'napor:sila',
+      'nyuh:strelba',
+      'zhila:atletika',
+      'napor:stoikost',
+      'nyuh:vnimatelnost'
+    ],
+    'Менталист': [
+      'losk:vnushenie',
+      'losk:psiho',
+      'nyuh:vnimatelnost',
+      'zhila:disciplina'
+    ],
+    'Натуралист': [
+      'nyuh:priroda',
+      'zhila:medicina',
+      'zhila:himiya',
+      'nyuh:vnimatelnost'
+    ]
+  };
+
   const classIcons = {
     'Психопат': '⚗',
     'Кустарь': '⚙',
@@ -1055,6 +1096,13 @@
     resetCharacterControlForClass(
       selectedClass
     );
+
+    if (
+      typeof renderSkills ===
+      'function'
+    ) {
+      renderSkills();
+    }
 
     selectedAbilities.length = 0;
     activeAbilityId = null;

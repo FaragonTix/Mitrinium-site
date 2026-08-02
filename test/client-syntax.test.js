@@ -13,6 +13,7 @@ test("клиентские скрипты редактора синтаксич�
   const scripts = await Promise.all([
     readClassicScript("../apps-script-source/AbilitiesData.html"),
     readClassicScript("../apps-script-source/ScriptsCore.html"),
+    readClassicScript("../apps-script-source/ScriptsCharacter.html"),
     readClassicScript("../apps-script-source/ScriptsAbilities.html"),
     readClassicScript("../apps-script-source/ScriptsStorage.html"),
     readClassicScript("../apps-script-source/ViewerScripts.html"),
@@ -37,4 +38,29 @@ test("у каждой способности есть пререквизит, а
   assert.equal(abilities.length, 84);
   assert.ok(abilities.every((ability) => ability.prerequisite));
   assert.doesNotMatch(abilityRenderer, /ability\.tags/);
+});
+
+test("recommended skills are configured for every class", async () => {
+  const coreSource = await readFile(
+    new URL("../apps-script-source/ScriptsCore.html", import.meta.url),
+    "utf8",
+  );
+  const editorSource = await readFile(
+    new URL("../apps-script-source/Index.html", import.meta.url),
+    "utf8",
+  );
+
+  for (const className of [
+    "Психопат",
+    "Кустарь",
+    "Воротила",
+    "Рекрут",
+    "Менталист",
+    "Натуралист",
+  ]) {
+    assert.match(coreSource, new RegExp(`'${className}': \\[`));
+  }
+
+  assert.match(editorSource, /id="showRecommendedSkills"/);
+  assert.match(coreSource, /'Рекрут': \[[\s\S]*?'nyuh:strelba'/);
 });
