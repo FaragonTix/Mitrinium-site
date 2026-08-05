@@ -1,0 +1,138 @@
+<script>
+  function pickNameGeneratorItem(items) {
+    return items[Math.floor(Math.random() * items.length)];
+  }
+
+  function getNameGeneratorGender(gender) {
+    if (gender === 'male' || gender === 'female' || gender === 'neutral') {
+      return gender;
+    }
+
+    return pickNameGeneratorItem(['male', 'female', 'neutral']);
+  }
+
+  function joinNameGeneratorParts(start, end) {
+    const left = String(start || '');
+    const right = String(end || '');
+    return left + right;
+  }
+
+  function generateNameFromCompatibleParts(parts) {
+    const starts = Object.keys(parts);
+    const start = pickNameGeneratorItem(starts);
+    return joinNameGeneratorParts(start, pickNameGeneratorItem(parts[start]));
+  }
+
+  function generateLibraryCharacterName(regionKey, gender) {
+    const extendedRegion = extendedNameLibrary[regionKey] || extendedNameLibrary.plex;
+    const library = extendedRegion.library;
+    const genderLists = {
+      male: library.masculine,
+      female: library.feminine,
+      neutral: library.neutral_or_unisex
+    };
+    const firstNames = gender === 'any'
+      ? [...genderLists.male, ...genderLists.female, ...genderLists.neutral]
+      : genderLists[gender] || genderLists.neutral;
+    const firstName = pickNameGeneratorItem(firstNames);
+    let surname;
+
+    if (regionKey === 'rellek') {
+      surname = Math.random() < 0.4
+        ? pickNameGeneratorItem(library.community_byname_suffixes)
+        : pickNameGeneratorItem(library.surnames);
+    } else if (regionKey === 'shelloun') {
+      surname = Math.random() < 0.4
+        ? pickNameGeneratorItem(library.workplace_byname_suffixes)
+        : pickNameGeneratorItem(library.surnames_and_nicknames);
+    } else {
+      surname = Math.random() < 0.25
+        ? pickNameGeneratorItem(library.double_surnames)
+        : pickNameGeneratorItem(library.surnames);
+    }
+
+    return `${firstName} ${surname}`;
+  }
+
+  function generateProceduralCharacterName(regionKey, gender) {
+    const region = nameGeneratorData[regionKey] || nameGeneratorData.plex;
+    const resolvedGender = getNameGeneratorGender(gender);
+    const rules = region.procedural;
+    const firstName = resolvedGender === 'neutral'
+      ? pickNameGeneratorItem(
+        (extendedNameLibrary[regionKey] || extendedNameLibrary.plex)
+          .library.neutral_or_unisex
+      )
+      : generateNameFromCompatibleParts(rules[`${resolvedGender}Parts`]);
+
+    if (regionKey === 'rellek') {
+      const byline = Math.random() < 0.45
+        ? pickNameGeneratorItem(rules.homeBylines)
+        : pickNameGeneratorItem(rules.officialSurnames);
+      return `${firstName} ${byline}`;
+    }
+
+    if (regionKey === 'shelloun') {
+      const byline = Math.random() < 0.35
+        ? pickNameGeneratorItem(rules.workplaces)
+        : pickNameGeneratorItem(rules.nicknames);
+      return `${firstName} ${byline}`;
+    }
+
+    let surname = generateNameFromCompatibleParts(rules.surnameParts);
+    let attempts = 0;
+
+    while (surname === firstName && attempts < 4) {
+      surname = generateNameFromCompatibleParts(rules.surnameParts);
+      attempts += 1;
+    }
+
+    return `${firstName} ${surname}`;
+  }
+
+  function showGeneratedCharacterName(name, modeLabel) {
+    const panel = document.getElementById('nameGeneratorResultPanel');
+    const result = document.getElementById('nameGeneratorResult');
+    const mode = document.getElementById('nameGeneratorResultMode');
+
+    if (!panel || !result || !mode) return;
+
+    result.textContent = name;
+    mode.textContent = modeLabel;
+    panel.hidden = false;
+  }
+
+  function generateCharacterName(mode) {
+    const regionKey = document.getElementById('nameGeneratorRegion')?.value || 'plex';
+    const gender = document.getElementById('nameGeneratorGender')?.value || 'any';
+    const region = nameGeneratorData[regionKey] || nameGeneratorData.plex;
+    const name = mode === 'library'
+      ? generateLibraryCharacterName(regionKey, gender)
+      : generateProceduralCharacterName(regionKey, gender);
+    const modeLabel = mode === 'library'
+      ? `${region.label} · из библиотеки книги`
+      : `${region.label} · составлено по правилам книги`;
+
+    showGeneratedCharacterName(name, modeLabel);
+  }
+
+  function useGeneratedCharacterName() {
+    const input = document.getElementById('characterName');
+    const result = document.getElementById('nameGeneratorResult');
+
+    if (!input || !result || !result.textContent.trim()) return;
+
+    input.value = result.textContent.trim();
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+  }
+
+  function updateNameGeneratorGuide() {
+    const regionKey = document.getElementById('nameGeneratorRegion')?.value || 'plex';
+    const guide = document.getElementById('nameGeneratorGuide');
+
+    if (guide) {
+      guide.textContent = (nameGeneratorData[regionKey] || nameGeneratorData.plex).guide;
+    }
+  }
+</script>

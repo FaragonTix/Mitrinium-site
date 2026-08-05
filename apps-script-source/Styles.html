@@ -298,6 +298,76 @@
     margin: 0;
   }
 
+  .name-generator {
+    margin-top: 14px;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-medium);
+    background: var(--panel-soft);
+  }
+
+  .name-generator summary {
+    padding: 12px 14px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  .name-generator[open] summary {
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .name-generator-body {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .name-generator-body .helper-note {
+    margin: 0;
+  }
+
+  .name-generator-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .name-generator-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .name-generator-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-small);
+    background: var(--panel-light);
+    padding: 12px;
+  }
+
+  .name-generator-result[hidden] {
+    display: none;
+  }
+
+  .name-generator-result > div {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .name-generator-result-mode {
+    opacity: 0.72;
+    font-size: 12px;
+  }
+
+  .name-generator-result strong {
+    overflow-wrap: anywhere;
+    font-size: 18px;
+  }
+
   /* =========================
      Атрибуты и ресурсы
   ========================= */
@@ -1124,6 +1194,7 @@
     }
 
     .form-grid,
+    .name-generator-controls,
     .attributes-grid,
     .resources-grid,
     .skills-grid,
@@ -1133,6 +1204,17 @@
     .viewer-state-grid,
     .viewer-money-grid {
       grid-template-columns: minmax(0, 1fr);
+    }
+
+    .name-generator-actions,
+    .name-generator-result {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .name-generator-actions button,
+    .name-generator-result button {
+      width: 100%;
     }
 
     /* iOS не увеличивает страницу при выборе и оставляет нативный picker. */

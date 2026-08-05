@@ -183,6 +183,74 @@
             </label>
           </div>
 
+          <details class="name-generator">
+            <summary>Генератор имени и фамилии</summary>
+
+            <div class="name-generator-body">
+              <p id="nameGeneratorGuide" class="helper-note">
+                Личное имя из двух-трёх слогов, с мягкими согласными и плавным окончанием; фамилия короткая и удобная для документов.
+              </p>
+
+              <div class="name-generator-controls">
+                <label class="field">
+                  <span>Происхождение</span>
+                  <select id="nameGeneratorRegion" onchange="updateNameGeneratorGuide()">
+                    <option value="plex">Плекс</option>
+                    <option value="rellek">Реллек</option>
+                    <option value="shelloun">Шеллоун</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Имя</span>
+                  <select id="nameGeneratorGender">
+                    <option value="any">Любое</option>
+                    <option value="male">Мужское</option>
+                    <option value="female">Женское</option>
+                    <option value="neutral">Нейтральное</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="name-generator-actions">
+                <button
+                  type="button"
+                  class="secondary-button"
+                  onclick="generateCharacterName('library')"
+                >
+                  Из библиотеки
+                </button>
+
+                <button
+                  type="button"
+                  onclick="generateCharacterName('procedural')"
+                >
+                  Составить новое
+                </button>
+              </div>
+
+              <div
+                id="nameGeneratorResultPanel"
+                class="name-generator-result"
+                aria-live="polite"
+                hidden
+              >
+                <div>
+                  <span id="nameGeneratorResultMode" class="name-generator-result-mode"></span>
+                  <strong id="nameGeneratorResult"></strong>
+                </div>
+
+                <button
+                  type="button"
+                  class="secondary-button"
+                  onclick="useGeneratedCharacterName()"
+                >
+                  Использовать
+                </button>
+              </div>
+            </div>
+          </details>
+
           <label class="field field-full">
             <span>Концепт</span>
 
@@ -519,10 +587,13 @@
   <?!= include('EquipmentMaintenanceData'); ?>
   <?!= include('AbilitiesData'); ?>
   <?!= include('BiographyData'); ?>
+  <?!= include('ExtendedNameLibraryData'); ?>
+  <?!= include('NameGeneratorData'); ?>
 
   <!-- Логика: порядок важен -->
   <?!= include('ScriptsCore'); ?>
   <?!= include('ScriptsCharacter'); ?>
+  <?!= include('ScriptsNameGenerator'); ?>
   <?!= include('ScriptsAbilities'); ?>
   <?!= include('ScriptsEquipment'); ?>
   <?!= include('ScriptsStorage'); ?>

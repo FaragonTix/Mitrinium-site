@@ -14,6 +14,9 @@ test("клиентские скрипты редактора синтаксич�
     readClassicScript("../apps-script-source/AbilitiesData.html"),
     readClassicScript("../apps-script-source/ScriptsCore.html"),
     readClassicScript("../apps-script-source/ScriptsCharacter.html"),
+    readClassicScript("../apps-script-source/ExtendedNameLibraryData.html"),
+    readClassicScript("../apps-script-source/NameGeneratorData.html"),
+    readClassicScript("../apps-script-source/ScriptsNameGenerator.html"),
     readClassicScript("../apps-script-source/ScriptsAbilities.html"),
     readClassicScript("../apps-script-source/ScriptsStorage.html"),
     readClassicScript("../apps-script-source/ViewerScripts.html"),
@@ -63,4 +66,38 @@ test("recommended skills are configured for every class", async () => {
 
   assert.match(editorSource, /id="showRecommendedSkills"/);
   assert.match(coreSource, /'Рекрут': \[[\s\S]*?'nyuh:strelba'/);
+});
+
+test("name generator supports the three regions and both modes", async () => {
+  const extendedDataSource = await readClassicScript(
+    "../apps-script-source/ExtendedNameLibraryData.html",
+  );
+  const dataSource = await readClassicScript(
+    "../apps-script-source/NameGeneratorData.html",
+  );
+  const generatorSource = await readClassicScript(
+    "../apps-script-source/ScriptsNameGenerator.html",
+  );
+  const generator = new Function(
+    `${extendedDataSource}; ${dataSource}; ${generatorSource}; return {
+      data: nameGeneratorData,
+      libraryData: extendedNameLibrary,
+      library: generateLibraryCharacterName,
+      procedural: generateProceduralCharacterName
+    };`,
+  )();
+
+  assert.deepEqual(Object.keys(generator.data), ["plex", "rellek", "shelloun"]);
+
+  const libraryEntryCount = Object.values(generator.libraryData)
+    .flatMap((region) => Object.values(region.library))
+    .reduce((total, entries) => total + entries.length, 0);
+  assert.equal(libraryEntryCount, 2478);
+
+  for (const region of Object.keys(generator.data)) {
+    for (const gender of ["male", "female", "neutral"]) {
+      assert.match(generator.library(region, gender), /^\S.+\s.+$/);
+      assert.match(generator.procedural(region, gender), /^\S.+\s.+$/);
+    }
+  }
 });
