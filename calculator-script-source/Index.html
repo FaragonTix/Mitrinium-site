@@ -164,8 +164,14 @@
 
         <section class="panel">
           <h2>Сохранение</h2>
-          <label class="logging-toggle"><input id="sharedRollLogging" type="checkbox" onchange="setSharedRollLogging(this.checked)"> <span>Записывать броски боя в общий лог редактора</span></label>
-          <p class="help">Опционально: атаки, Контроль и защитные проверки противников появятся в разделе «Броски».</p>
+          <div class="logging-control">
+            <div class="logging-control-title">Логирование событий</div>
+            <label class="logging-toggle"><input id="combatLogRolls" type="checkbox" onchange="setCombatLogOption('rolls',this.checked)"> <span>Броски врагов: атаки, Контроль и защита</span></label>
+            <label class="logging-toggle"><input id="combatLogResources" type="checkbox" onchange="setCombatLogOption('resources',this.checked)"> <span>Изменения Тела и Нерва врагов</span></label>
+            <label class="logging-toggle"><input id="combatLogReactions" type="checkbox" onchange="setCombatLogOption('reactions',this.checked)"> <span>Использование реакций врагами</span></label>
+            <label class="logging-toggle logging-visibility"><input id="combatLogVisibleToPlayers" type="checkbox" onchange="setCombatLogOption('visibleToPlayers',this.checked)"> <span>Показывать записи калькулятора игрокам</span></label>
+            <p class="help">Если последняя опция выключена, записи калькулятора видны только администраторам в общем логе «Бросков» и его экспорте.</p>
+          </div>
           <div class="buttons vertical">
             <button onclick="saveToCloud()">Сохранить в Apps Script</button>
             <button onclick="loadFromCloud()">Загрузить</button>

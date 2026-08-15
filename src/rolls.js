@@ -252,14 +252,19 @@ function resultFromPrevious(previous, dice, evaluation, additions = {}) {
 
 async function appendLog(db, user, result) {
   const efficiency = result.type === "efficiency";
+  const finalResult = efficiency
+    ? result.finalEf
+    : (result.finalResult ?? result.total ?? "");
   await db
     .prepare(
       `INSERT INTO roll_log (
          id, created_at, user_email, character_id, character_name,
          class_name, class_icon, type, title, final_result, ef,
-         complication, breakthrough, dice_json, control_json
+         complication, breakthrough, dice_json, control_json, admin_only,
+         details_json
        ) VALUES (
-         ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15
+         ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15,
+         ?16, ?17
        )`,
     )
     .bind(
@@ -272,18 +277,24 @@ async function appendLog(db, user, result) {
       result.classIcon || "",
       result.type,
       result.title || "",
-      String(efficiency ? result.finalEf : result.total),
+      String(finalResult),
       efficiency ? result.finalEf : null,
       efficiency ? result.complication || "" : "",
       efficiency ? result.breakthrough || "" : "",
       JSON.stringify(result.dice || []),
       result.control ? JSON.stringify(result.control) : null,
+      result.adminOnly ? 1 : 0,
+      result.details ? JSON.stringify(result.details) : null,
     )
     .run();
 }
 
 export async function appendExternalRoll(db, user, request = {}) {
-  const type = request.type === "random" ? "random" : "efficiency";
+  const type = request.type === "event"
+    ? "event"
+    : request.type === "random"
+      ? "random"
+      : "efficiency";
   const dice = Array.isArray(request.dice)
     ? request.dice.slice(0, 30).map((item, index) => ({
         sides: integer(item?.sides, 2, 1000, 6),
@@ -291,12 +302,43 @@ export async function appendExternalRoll(db, user, request = {}) {
         source: text(item?.source, `Куб ${index + 1}`, 120),
       }))
     : [];
-  if (!dice.length) throw new Error("В переданном броске нет кубов.");
+  if (type !== "event" && !dice.length) {
+    throw new Error("В переданном броске нет кубов.");
+  }
 
   const ef = type === "efficiency"
     ? integer(request.ef, -1000, 1000, 0)
     : null;
-  const total = integer(request.finalResult, -100000, 100000, ef || 0);
+  const total = type === "event"
+    ? text(request.finalResult, "", 160)
+    : integer(request.finalResult, -100000, 100000, ef || 0);
+  const rawDetails = request.details && typeof request.details === "object"
+    ? request.details
+    : {};
+  const details = {
+    ...(rawDetails.damage === null || rawDetails.damage === undefined
+      ? {}
+      : { damage: integer(rawDetails.damage, 0, 100000, 0) }),
+    ...(rawDetails.hit === undefined ? {} : { hit: Boolean(rawDetails.hit) }),
+    ...(rawDetails.targetPz === undefined
+      ? {}
+      : { targetPz: integer(rawDetails.targetPz, 0, 1000, 0) }),
+    ...(rawDetails.eventKind
+      ? { eventKind: text(rawDetails.eventKind, "", 40) }
+      : {}),
+    ...(rawDetails.resource
+      ? { resource: text(rawDetails.resource, "", 40) }
+      : {}),
+    ...(rawDetails.reaction
+      ? { reaction: text(rawDetails.reaction, "", 160) }
+      : {}),
+    ...(["amount", "before", "after"].reduce((values, key) => {
+      if (rawDetails[key] !== undefined) {
+        values[key] = integer(rawDetails[key], 0, 100000, 0);
+      }
+      return values;
+    }, {})),
+  };
   const result = {
     id: crypto.randomUUID(),
     timestamp: new Date().toISOString(),
@@ -305,13 +347,20 @@ export async function appendExternalRoll(db, user, request = {}) {
     className: text(request.className, "Противник", 120),
     classIcon: text(request.classIcon, "", 30),
     type,
-    title: text(request.title, "Бросок из калькулятора боя", 240),
+    title: text(
+      request.title,
+      type === "event" ? "Событие боя" : "Бросок из калькулятора боя",
+      240,
+    ),
     dice,
     finalEf: ef,
     total,
     complication: request.complication ? "Осложнение" : "",
     breakthrough: request.breakthrough ? "Прорыв" : "",
     control: null,
+    adminOnly: request.visibleToPlayers !== true,
+    details,
+    finalResult: total,
   };
   await appendLog(db, user, result);
   return { success: true, id: result.id };
@@ -456,9 +505,11 @@ export async function getRollLog(db, user, limit) {
   const safeLimit = integer(limit, 1, 5000, 100);
   const { results = [] } = await db
     .prepare(
-      `SELECT * FROM roll_log ORDER BY created_at DESC LIMIT ?1`,
+      `SELECT * FROM roll_log
+       WHERE (?1 = 1 OR admin_only = 0)
+       ORDER BY created_at DESC LIMIT ?2`,
     )
-    .bind(safeLimit)
+    .bind(user.isAdmin ? 1 : 0, safeLimit)
     .all();
 
   return {
@@ -478,6 +529,8 @@ export async function getRollLog(db, user, limit) {
       breakthrough: row.breakthrough,
       dice: JSON.parse(row.dice_json || "[]"),
       control: row.control_json ? JSON.parse(row.control_json) : null,
+      adminOnly: Boolean(row.admin_only),
+      details: row.details_json ? JSON.parse(row.details_json) : null,
     })),
     isAdmin: user.isAdmin,
   };

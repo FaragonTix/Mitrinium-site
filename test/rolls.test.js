@@ -47,10 +47,11 @@ test("сцена всегда добавляет три куба новой ге
 
 test("калькулятор может добавить бросок противника в общий лог", async () => {
   let writes = 0;
+  let bound = [];
   const db = {
     prepare() {
       return {
-        bind() { return this; },
+        bind(...values) { bound = values; return this; },
         async run() { writes += 1; },
       };
     },
@@ -62,6 +63,7 @@ test("калькулятор может добавить бросок проти
     ef: 7,
     finalResult: 7,
     breakthrough: true,
+    details: { damage: 5, hit: true, targetPz: 4 },
     dice: [
       { sides: 4, value: 3, source: "Куб сцены 1" },
       { sides: 4, value: 3, source: "Куб сцены 2" },
@@ -71,6 +73,51 @@ test("калькулятор может добавить бросок проти
   });
   assert.equal(result.success, true);
   assert.equal(writes, 1);
+  assert.equal(bound[15], 1);
+  assert.deepEqual(JSON.parse(bound[16]), { damage: 5, hit: true, targetPz: 4 });
+});
+
+test("событие калькулятора сохраняется без кубов и только для администраторов", async () => {
+  let bound = [];
+  const db = {
+    prepare() {
+      return {
+        bind(...values) { bound = values; return this; },
+        async run() {},
+      };
+    },
+  };
+
+  const result = await appendExternalRoll(db, testUser, {
+    type: "event",
+    characterName: "Часовой",
+    title: "Потеря ресурса: Тело −2 (8 → 6)",
+    details: { eventKind: "resource-loss", resource: "Тело", amount: 2, before: 8, after: 6 },
+  });
+
+  assert.equal(result.success, true);
+  assert.equal(bound[7], "event");
+  assert.equal(bound[15], 1);
+});
+
+test("запись калькулятора можно сделать видимой игрокам", async () => {
+  let bound = [];
+  const db = {
+    prepare() {
+      return {
+        bind(...values) { bound = values; return this; },
+        async run() {},
+      };
+    },
+  };
+
+  await appendExternalRoll(db, testUser, {
+    type: "event",
+    title: "Использована реакция",
+    visibleToPlayers: true,
+  });
+
+  assert.equal(bound[15], 0);
 });
 
 test("Эффективность — сумма двух лучших минус сумма двух худших", () => {

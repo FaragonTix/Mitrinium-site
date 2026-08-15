@@ -103,8 +103,6 @@
   equipmentData.forEach(item => {
     const maintenance = equipmentMaintenanceById[item.id];
 
-    item.maintenance = maintenance !== undefined
-      ? maintenance
-      : Number(item.maintenance || 0);
+    item.maintenance = Number(item.maintenance ?? maintenance ?? 0);
   });
 </script>

@@ -113,7 +113,7 @@ function defaultBestiaryDraft() {
 }
 function defaultState() {
   return {
-    version:8,currentScreen:'prep',round:1,combatTargetPz:4,sharedRollLogging:false,players:[1,2,3].map(i=>( {
+    version:8,currentScreen:'prep',round:1,combatTargetPz:4,combatLogging:{rolls:false,resources:false,reactions:false,visibleToPlayers:false},players:[1,2,3].map(i=>( {
       id:newId('p'),name:`Игрок ${i}`,initiative:0
     })),settings:null,targetBp:0,actionMultiplier:1,enemies:[],initiative: {
       activeId:null
@@ -121,6 +121,7 @@ function defaultState() {
   };
 }
 let state=defaultState();
+const pendingResourceLogs=new Map();
 /* ---------------- МОДЕЛЬ БОЕСПОСОБНОСТИ ---------------- */
 function sceneEvent(sceneValues) {
   const frequencies=new Map();
@@ -884,7 +885,7 @@ function renderEnemyCard(enemy, {
     const immune=(enemy.immunities||[]).includes(c),active=(enemy.conditions||[]).includes(c); return`<button class="condition ${immune?'immune':''} ${active?'active':''}" ${immune?'disabled':''} onclick="toggleCondition('${enemy.id}','${c}')">${escapeHtml(c)}</button>`;
   }).join(''):'';
   const properties=(enemy.properties||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join('');
-  return`<article class="enemy-card ${enemy.hp<=0?'defeated':''}"><div class="enemy-head"><div class="enemy-title-row"><div><div class="enemy-name">${escapeHtml(enemy.name)}</div><div class="badges"><span class="badge">${escapeHtml(type.label)}</span><span class="badge">${escapeHtml(TAGS[enemy.tagKey]?.label||'Главарь')}</span>${enemy.classLabel?`<span class="badge">${escapeHtml(enemy.classLabel)}</span>`:''}<span class="badge bp">${Math.round(enemy.bp||0)}‰</span></div></div>${interactive?`<button class="small danger" onclick="removeEnemy('${enemy.id}')">Убрать</button>`:''}</div></div><div class="enemy-body"><div class="statline"><div class="statbox"><b>${enemy.maxHp}</b><span>Тело</span></div><div class="statbox"><b>${enemy.maxArmor}</b><span>Броня</span></div><div class="statbox"><b>${enemy.pz}</b><span>ПЗ</span></div><div class="statbox"><b>${enemy.physicalDefensePool}</b><span>Физ. защ.</span></div><div class="statbox"><b>${enemy.mentalDefensePool}</b><span>Мент. защ.</span></div><div class="statbox"><b>${enemy.speed}</b><span>Скорость</span></div></div><div class="badges"><span class="badge">Реакций ${enemy.reactionLimit}/раунд</span><span class="badge">Атак ${attacks.length}</span>${enemy.maxNerve>0?`<span class="badge">Нерв ${enemy.maxNerve}</span>`:''}</div>${interactive?`<div class="tracker">${resourceRow(enemy,'hp','Тело','')}${resourceRow(enemy,'nerve','Нерв','nerve')}${resourceRow(enemy,'armor','Броня','armor')}</div><label class="scene-control"><span>Кубы сцены</span><select onchange="setScenePreset('${enemy.id}',this.value)">${sceneOptions(enemy.scenePreset||'normal')}</select></label><div class="defense-rolls"><button class="small" onclick="rollEnemyDefense('${enemy.id}','physical')">Физическая защита ${enemy.physicalDefensePool}d6</button><button class="small" onclick="rollEnemyDefense('${enemy.id}','mental')">Ментальная защита ${enemy.mentalDefensePool}d6</button>${defenseRollHtml(enemy,'physical')}${defenseRollHtml(enemy,'mental')}</div>`:''}${properties?`<div class="section"><b>Свойства</b><ul class="rules">${properties}</ul></div>`:''}<div class="section"><b>Атаки</b><div class="attack-list">${attacks.map((a,i)=>attackHtml(enemy,a,i,interactive)).join('')}</div></div>${reactions?`<div class="section"><b>Реакции</b><div class="reactions">${reactions}</div></div>`:''}${conditions?`<div class="section"><b>Состояния</b><div class="conditions">${conditions}</div></div>`:''}</div></article>`;
+  return`<article class="enemy-card ${enemy.hp<=0?'defeated':''}"><div class="enemy-head"><div class="enemy-title-row"><div><input class="enemy-name-input" value="${escapeHtml(enemy.name)}" aria-label="Имя противника" onchange="renameCombatEnemy('${enemy.id}',this.value)"><div class="badges"><span class="badge">${escapeHtml(type.label)}</span><span class="badge">${escapeHtml(TAGS[enemy.tagKey]?.label||'Главарь')}</span>${enemy.classLabel?`<span class="badge">${escapeHtml(enemy.classLabel)}</span>`:''}<span class="badge bp">${Math.round(enemy.bp||0)}‰</span></div></div>${interactive?`<button class="small danger" onclick="removeEnemy('${enemy.id}')">Убрать</button>`:''}</div>${interactive?`<div class="enemy-card-actions"><button class="small" onclick="saveCombatEnemyPreset('${enemy.id}')">Сохранить как пресет</button><button class="small" onclick="sendCombatEnemyToEditor('${enemy.id}')">В редактор</button></div>`:''}</div><div class="enemy-body"><div class="statline"><div class="statbox"><b>${enemy.maxHp}</b><span>Тело</span></div><div class="statbox"><b>${enemy.maxArmor}</b><span>Броня</span></div><div class="statbox"><b>${enemy.pz}</b><span>ПЗ</span></div><div class="statbox"><b>${enemy.physicalDefensePool}</b><span>Физ. защ.</span></div><div class="statbox"><b>${enemy.mentalDefensePool}</b><span>Мент. защ.</span></div><div class="statbox"><b>${enemy.speed}</b><span>Скорость</span></div></div><div class="badges"><span class="badge">Реакций ${enemy.reactionLimit}/раунд</span><span class="badge">Атак ${attacks.length}</span>${enemy.maxNerve>0?`<span class="badge">Нерв ${enemy.maxNerve}</span>`:''}</div>${interactive?`<div class="tracker">${resourceRow(enemy,'hp','Тело','')}${resourceRow(enemy,'nerve','Нерв','nerve')}${resourceRow(enemy,'armor','Броня','armor')}</div><label class="scene-control"><span>Кубы сцены</span><select onchange="setScenePreset('${enemy.id}',this.value)">${sceneOptions(enemy.scenePreset||'normal')}</select></label><div class="defense-rolls"><button class="small" onclick="rollEnemyDefense('${enemy.id}','physical')">Физическая защита ${enemy.physicalDefensePool}d6</button><button class="small" onclick="rollEnemyDefense('${enemy.id}','mental')">Ментальная защита ${enemy.mentalDefensePool}d6</button>${defenseRollHtml(enemy,'physical')}${defenseRollHtml(enemy,'mental')}</div>`:''}${properties?`<div class="section"><b>Свойства</b><ul class="rules">${properties}</ul></div>`:''}<div class="section"><b>Атаки</b><div class="attack-list">${attacks.map((a,i)=>attackHtml(enemy,a,i,interactive)).join('')}</div></div>${reactions?`<div class="section"><b>Реакции</b><div class="reactions">${reactions}</div></div>`:''}${conditions?`<div class="section"><b>Состояния</b><div class="conditions">${conditions}</div></div>`:''}</div></article>`;
 }
 function renderEnemyGrid() {
   const root=document.getElementById('enemyGrid');
@@ -895,6 +896,36 @@ function renderEnemyGrid() {
 function findEnemy(id) {
   return state.enemies.find(e=>e.id===id);
 }
+function renameCombatEnemy(id,value) {
+  const enemy=findEnemy(id),name=String(value||'').trim().slice(0,120);
+  if(!enemy)return;
+  if(!name) {
+    renderEnemyGrid();
+    showToast('Имя противника не может быть пустым.',true);
+    return;
+  }
+  enemy.name=name;
+  persistLocal();
+  renderInitiative();
+}
+function flushResourceLog(key) {
+  const pending=pendingResourceLogs.get(key);
+  if(!pending)return;
+  pendingResourceLogs.delete(key);
+  const change=pending.after-pending.before;
+  if(!change)return;
+  const resource=pending.field==='hp'?'Тело':'Нерв',increase=change>0,amount=Math.abs(change);
+  logCalculatorEvent('resources',{characterId:pending.enemyId,characterName:pending.enemyName,title:`${increase?'Восстановление':'Потеря'} ресурса: ${resource} ${increase?'+':'−'}${amount} (${pending.before} → ${pending.after})`,details:{eventKind:'resource-change',resource,amount,before:pending.before,after:pending.after}});
+}
+function queueResourceLog(enemy,field,before,after) {
+  if(!state.combatLogging?.resources||before===after)return;
+  const key=`${enemy.id}:${field}`,pending=pendingResourceLogs.get(key)||{enemyId:enemy.id,enemyName:enemy.name,field,before,after,timer:null};
+  pending.enemyName=enemy.name;
+  pending.after=after;
+  clearTimeout(pending.timer);
+  pending.timer=setTimeout(()=>flushResourceLog(key),1200);
+  pendingResourceLogs.set(key,pending);
+}
 function adjustResource(id,field,delta) {
   const enemy=findEnemy(id);
   if(!enemy)return;
@@ -902,11 +933,13 @@ function adjustResource(id,field,delta) {
     hp:'maxHp',nerve:'maxNerve',armor:'maxArmor'
   }
   [field];
-  enemy[field]=clamp((Number(enemy[field])||0)+delta,0,Number(enemy[maxField])||0);
+  const before=Number(enemy[field])||0;
+  enemy[field]=clamp(before+delta,0,Number(enemy[maxField])||0);
   if(field==='hp')enemy.defeated=enemy.hp<=0;
   persistLocal();
   renderEnemyGrid();
   renderInitiative();
+  if(field==='hp'||field==='nerve')queueResourceLog(enemy,field,before,enemy[field]);
 }
 function adjustAttackDurability(id,index,delta) {
   const enemy=findEnemy(id),attack=enemy?.attacks?.[index];
@@ -944,8 +977,9 @@ function rollDamageExpression(expression) {
   for(let i=0; i<count; i++)total+=rollDie(sides);
   return Math.max(0,total);
 }
-function setSharedRollLogging(enabled) {
-  state.sharedRollLogging=Boolean(enabled);
+function setCombatLogOption(option,enabled) {
+  if(!['rolls','resources','reactions','visibleToPlayers'].includes(option))return;
+  state.combatLogging={rolls:false,resources:false,reactions:false,visibleToPlayers:false,...state.combatLogging,[option]:Boolean(enabled)};
   persistLocal();
 }
 function calculatorDiceForLog(roll) {
@@ -955,8 +989,12 @@ function calculatorDiceForLog(roll) {
   ];
 }
 function logCalculatorRoll(payload) {
-  if(!state.sharedRollLogging)return;
-  serverCall('mitriniumAppendExternalRoll',payload).catch(error=>showToast(`Не удалось записать бросок в общий лог: ${error.message}`,true));
+  if(!state.combatLogging?.rolls)return;
+  serverCall('mitriniumAppendExternalRoll',{...payload,visibleToPlayers:Boolean(state.combatLogging.visibleToPlayers)}).catch(error=>showToast(`Не удалось записать бросок в общий лог: ${error.message}`,true));
+}
+function logCalculatorEvent(option,payload) {
+  if(!state.combatLogging?.[option])return;
+  serverCall('mitriniumAppendExternalRoll',{...payload,type:'event',className:'Противник',visibleToPlayers:Boolean(state.combatLogging.visibleToPlayers)}).catch(error=>showToast(`Не удалось записать событие в общий лог: ${error.message}`,true));
 }
 function rollEnemyAttack(id,index) {
   const enemy=findEnemy(id),attack=enemy?.attacks?.[index];
@@ -972,7 +1010,7 @@ function rollEnemyAttack(id,index) {
   };
   persistLocal();
   renderEnemyGrid();
-  logCalculatorRoll({type:'efficiency',characterId:enemy.id,characterName:enemy.name,className:'Противник',title:`Атака «${attack.name}» против ПЗ ${targetPz}: ${hit?`попадание, урон ${attack.lastRoll.damage}`:'промах'}`,ef,dice:calculatorDiceForLog(roll),complication:roll.complication,breakthrough:attack.lastRoll.breakthrough,finalResult:ef});
+  logCalculatorRoll({type:'efficiency',characterId:enemy.id,characterName:enemy.name,className:'Противник',title:`Атака «${attack.name}» против ПЗ ${targetPz}: ${hit?'попадание':'промах'}`,ef,dice:calculatorDiceForLog(roll),complication:roll.complication,breakthrough:attack.lastRoll.breakthrough,finalResult:ef,details:{damage:attack.lastRoll.damage,hit,targetPz}});
 }
 function rollEnemyControl(id,index) {
   const enemy=findEnemy(id),attack=enemy?.attacks?.[index];
@@ -1013,6 +1051,7 @@ function toggleReaction(id,index,checked) {
     }
     reaction.used=true;
     if(reaction.uses>0)reaction.usesLeft--;
+    logCalculatorEvent('reactions',{characterId:enemy.id,characterName:enemy.name,title:`Использована реакция «${reaction.name}»`,details:{eventKind:'reaction',reaction:reaction.name}});
   } else {
     if(reaction.used&&reaction.uses>0)reaction.usesLeft=Math.min(reaction.uses,reaction.usesLeft+1);
     reaction.used=false;
@@ -1235,6 +1274,59 @@ async function deleteLibraryEnemy(id) {
   } catch(error) {
     showToast(error.message,true);
   }
+}
+function combatEnemyTemplate(enemy) {
+  const typeKey=TYPE_DATA[enemy.typeKey]?enemy.typeKey:'humanoid';
+  return {
+    id:'',name:enemy.name,typeKey,tagKey:normalizeTagKey(enemy.tagKey||enemy.roleKey),roleKey:normalizeTagKey(enemy.tagKey||enemy.roleKey),classKey:typeKey==='humanoid'?(enemy.classKey||'none'):'none',level:clamp(Number(enemy.level)||1,1,20),bp:clamp(Number(enemy.bp)||1000,20,5000),difficultyKey:enemy.difficultyKey||difficultyForBp(enemy.bp),hp:Math.max(1,Number(enemy.maxHp??enemy.hp)||1),nerve:Math.max(0,Number(enemy.maxNerve??enemy.nerve)||0),armor:clamp(Number(enemy.maxArmor??enemy.armor)||0,0,8),pz:clamp(Number(enemy.pz)||3,3,10),physicalDefensePool:clamp(Number(enemy.physicalDefensePool)||4,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),mentalDefensePool:clamp(Number(enemy.mentalDefensePool)||4,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),speed:clamp(Number(enemy.speed)||0,0,8),reactionLimit:clamp(Number(enemy.reactionLimit)||0,0,4),attacks:ensureTwoAttacks(enemy.attacks,typeKey),reactions:normalizeReactions(enemy.reactions),properties:Array.isArray(enemy.properties)?enemy.properties:[],notes:enemy.notes||''
+  };
+}
+async function saveCombatEnemyPreset(id) {
+  const enemy=findEnemy(id);
+  if(!enemy)return;
+  try {
+    const saved=normalizeLibraryTemplate(await serverCall('saveEnemyTemplate',combatEnemyTemplate(enemy)));
+    customEnemies.unshift(saved);
+    renderLibraries();
+    renderManualBuilder();
+    renderCombatLibrarySelect();
+    showToast(`Пресет «${saved.name}» сохранён.`);
+  } catch(error) {
+    showToast(error.message,true);
+  }
+}
+function fillBestiaryFormFromEnemy(enemy,preserveId) {
+  document.getElementById('beId').value=preserveId?(enemy.id||''):'';
+  document.getElementById('beName').value=enemy.name;
+  document.getElementById('beType').value=enemy.typeKey;
+  document.getElementById('beTag').value=normalizeTagKey(enemy.tagKey||enemy.roleKey);
+  document.getElementById('beClass').value=enemy.classKey||'none';
+  document.getElementById('beLevel').value=enemy.level;
+  document.getElementById('beBp').value=enemy.bp;
+  document.getElementById('beDifficulty').value=enemy.difficultyKey||difficultyForBp(enemy.bp);
+  document.getElementById('beHp').value=enemy.hp;
+  document.getElementById('beNerve').value=enemy.nerve;
+  document.getElementById('beArmor').value=enemy.armor;
+  document.getElementById('bePz').value=clamp(enemy.pz,3,10);
+  document.getElementById('bePhysicalDefensePool').value=clamp(enemy.physicalDefensePool||enemy.pool||enemy.attacks?.[0]?.pool||4,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX);
+  document.getElementById('beMentalDefensePool').value=clamp(enemy.mentalDefensePool||enemy.pool||enemy.attacks?.[0]?.pool||4,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX);
+  document.getElementById('beSpeed').value=enemy.speed;
+  document.getElementById('beReactionLimit').value=enemy.reactionLimit;
+  document.getElementById('beProperties').value=(enemy.properties||[]).join('\n');
+  document.getElementById('beNotes').value=enemy.notes||'';
+  document.getElementById('bestiaryFormTitle').textContent=preserveId?`Редактирование: ${enemy.name}`:`Новый пресет: ${enemy.name}`;
+  state.bestiaryDraft={id:preserveId?(enemy.id||''):'',attacks:ensureTwoAttacks(enemy.attacks,enemy.typeKey).map(a=>({...a,id:newId('a')})),reactions:normalizeReactions(enemy.reactions).map(r=>({...r,id:newId('r')}))};
+  persistLocal();
+  onBestiaryArchetypeChange();
+  renderBestiaryEditors();
+  renderModelBreakdown();
+}
+function sendCombatEnemyToEditor(id) {
+  const enemy=findEnemy(id);
+  if(!enemy)return;
+  fillBestiaryFormFromEnemy(combatEnemyTemplate(enemy),false);
+  showScreen('bestiary');
+  showToast(`Пресет «${enemy.name}» передан в редактор.`);
 }
 /* ---------------- РЕДАКТОР ПРОТИВНИКОВ ---------------- */ function resetBestiaryDraft() {
   state.bestiaryDraft=defaultBestiaryDraft();
@@ -1544,41 +1636,18 @@ async function saveBestiaryEnemy() {
 function editLibraryEnemy(id) {
   const enemy=customEnemies.find(e=>e.id===id);
   if(!enemy)return;
-  document.getElementById('beId').value=enemy.id;
-  document.getElementById('beName').value=enemy.name;
-  document.getElementById('beType').value=enemy.typeKey;
-  document.getElementById('beTag').value=normalizeTagKey(enemy.tagKey||enemy.roleKey);
-  document.getElementById('beClass').value=enemy.classKey||'none';
-  document.getElementById('beLevel').value=enemy.level;
-  document.getElementById('beBp').value=enemy.bp;
-  document.getElementById('beDifficulty').value=enemy.difficultyKey||difficultyForBp(enemy.bp);
-  document.getElementById('beHp').value=enemy.hp;
-  document.getElementById('beNerve').value=enemy.nerve;
-  document.getElementById('beArmor').value=enemy.armor;
-  document.getElementById('bePz').value=clamp(enemy.pz,3,10);
-  document.getElementById('bePhysicalDefensePool').value=clamp(enemy.physicalDefensePool||enemy.pool||enemy.attacks?.[0]?.pool||4,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX);
-  document.getElementById('beMentalDefensePool').value=clamp(enemy.mentalDefensePool||enemy.pool||enemy.attacks?.[0]?.pool||4,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX);
-  document.getElementById('beSpeed').value=enemy.speed;
-  document.getElementById('beReactionLimit').value=enemy.reactionLimit;
-  document.getElementById('beProperties').value=(enemy.properties||[]).join('\n');
-  document.getElementById('beNotes').value=enemy.notes||'';
-  document.getElementById('bestiaryFormTitle').textContent=`Редактирование: ${enemy.name}`;
-  state.bestiaryDraft= {
-    id:enemy.id,attacks:ensureTwoAttacks(enemy.attacks,enemy.typeKey).map(a=>( {
-      ...a,id:newId('a')
-    })),reactions:normalizeReactions(enemy.reactions).map(r=>( {
-      ...r,id:newId('r')
-    }))
-  };
-  persistLocal();
-  onBestiaryArchetypeChange();
-  renderBestiaryEditors();
-  renderModelBreakdown();
+  fillBestiaryFormFromEnemy(enemy,true);
   showScreen('bestiary');
 }
 /* ---------------- СОХРАНЕНИЕ И МИГРАЦИЯ ---------------- */ function normalizeState(parsed) {
   const base=defaultState(),out= {
     ...base,...parsed,version:8
+  };
+  out.combatLogging={
+    rolls:Boolean(parsed?.combatLogging?.rolls??parsed?.sharedRollLogging),
+    resources:Boolean(parsed?.combatLogging?.resources),
+    reactions:Boolean(parsed?.combatLogging?.reactions),
+    visibleToPlayers:Boolean(parsed?.combatLogging?.visibleToPlayers)
   };
   out.combatTargetPz=clamp(Number(parsed?.combatTargetPz)||4,3,10);
   out.players=Array.isArray(parsed?.players)&&parsed.players.length?parsed.players:base.players;
@@ -1707,8 +1776,10 @@ function showScreen(name) {
 function render() {
   const targetPzInput=document.getElementById('combatTargetPz');
   if(targetPzInput)targetPzInput.value=clamp(Number(state.combatTargetPz)||4,3,10);
-  const loggingInput=document.getElementById('sharedRollLogging');
-  if(loggingInput)loggingInput.checked=Boolean(state.sharedRollLogging);
+  ['rolls','resources','reactions','visibleToPlayers'].forEach(option=> {
+    const input=document.getElementById(`combatLog${option[0].toUpperCase()}${option.slice(1)}`);
+    if(input)input.checked=Boolean(state.combatLogging?.[option]);
+  });
   renderPlayerSetup();
   renderGenerationMode();
   renderSummary();

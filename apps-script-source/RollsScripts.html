@@ -1821,7 +1821,7 @@
   function downloadRollLogCsv(entries) {
     const columns = [
       'timestamp','userEmail','characterName','className','type','title',
-      'finalResult','ef','complication','breakthrough','dice','control'
+      'finalResult','ef','damage','complication','breakthrough','adminOnly','dice','control','details'
     ];
     const quote = function(value) {
       return '"' + String(value ?? '').replace(/"/g, '""') + '"';
@@ -1830,7 +1830,9 @@
       (entries || []).map(function(entry) {
         const row = Object.assign({}, entry, {
           dice: JSON.stringify(entry.dice || []),
-          control: entry.control ? JSON.stringify(entry.control) : ''
+          damage: entry.details && entry.details.damage !== undefined ? entry.details.damage : '',
+          control: entry.control ? JSON.stringify(entry.control) : '',
+          details: entry.details ? JSON.stringify(entry.details) : ''
         });
         return columns.map(function(key) { return quote(row[key]); }).join(',');
       })
@@ -1946,6 +1948,23 @@
           }
         `;
 
+        const damage = entry.details && entry.details.damage !== undefined
+          ? entry.details.damage
+          : null;
+        const highlights = entry.type === 'efficiency' || damage !== null
+          ? `
+            <div class="roll-log-highlights">
+              ${entry.type === 'efficiency'
+                ? `<div class="roll-log-highlight ef"><span>ЭФ</span><strong>${rollEscapeHtml(entry.ef)}</strong></div>`
+                : ''}
+              ${damage !== null
+                ? `<div class="roll-log-highlight damage"><span>Урон</span><strong>${rollEscapeHtml(damage)}</strong></div>`
+                : ''}
+            </div>
+          `
+          : '';
+        const isEvent = entry.type === 'event';
+
         return `
           <article class="roll-log-entry${
             hasComplication
@@ -1964,6 +1983,7 @@
                   entry.characterName ||
                   'Без имени'
                 )}
+                ${entry.adminOnly ? '<span class="roll-admin-only-badge">Только админам</span>' : ''}
               </div>
 
               <time class="roll-log-entry-time">
@@ -1981,20 +2001,16 @@
                 'Бросок'
               )}
 
-              · <strong>
-                ${resultText}
-              </strong>
+              ${isEvent ? '' : `· <strong>${resultText}</strong>`}
 
               <span class="roll-event-badges">
                 ${eventBadges}
               </span>
             </div>
 
-            <div class="roll-dice">
-              ${renderRollDice(
-                entry.dice || []
-              )}
-            </div>
+            ${highlights}
+
+            ${(entry.dice || []).length ? `<div class="roll-dice">${renderRollDice(entry.dice || [])}</div>` : ''}
 
             ${controlHtml}
           </article>

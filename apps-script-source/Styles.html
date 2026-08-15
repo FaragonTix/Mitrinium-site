@@ -2059,6 +2059,34 @@
     background: #f4d4c4;
   }
 
+  .roll-die.selectable {
+    position: relative;
+    cursor: pointer;
+    transition: box-shadow 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  }
+
+  .roll-die.selectable.selected {
+    border-color: #356f9f;
+    background: #e4f1fb;
+    box-shadow: 0 0 0 2px rgba(53, 111, 159, 0.22);
+  }
+
+  .roll-die.selectable.selected::after {
+    content: '✓';
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #356f9f;
+    color: #fff;
+    font-size: 11px;
+    line-height: 1;
+  }
+
 
   .roll-summary-grid {
     display: grid;
@@ -2144,6 +2172,53 @@
     margin-top: 4px;
     font-size: 12px;
     opacity: 0.78;
+  }
+
+  .roll-log-highlights {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 9px 0 4px;
+  }
+
+  .roll-log-highlight {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 7px;
+    min-width: 88px;
+    border: 2px solid var(--border, #6b4c2f);
+    border-radius: 10px;
+    background: #fff8e7;
+    padding: 6px 10px;
+  }
+
+  .roll-log-highlight span {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+
+  .roll-log-highlight strong {
+    font-size: 25px;
+    line-height: 1;
+  }
+
+  .roll-log-highlight.damage {
+    border-color: #8b2921;
+    background: #f5d9cc;
+    color: #641b16;
+  }
+
+  .roll-admin-only-badge {
+    display: inline-block;
+    margin-left: 6px;
+    border-radius: 999px;
+    background: #342d44;
+    color: #fff;
+    padding: 2px 6px;
+    font-size: 9px;
+    font-weight: normal;
+    vertical-align: middle;
   }
 
 

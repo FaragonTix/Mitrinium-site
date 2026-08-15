@@ -32,8 +32,21 @@
     return selectedEquipment.includes(equipmentId);
   }
 
+  function isConsumableEquipment(item) {
+    return Boolean(item && String(item.purpose || '').toLowerCase().includes('расходник'));
+  }
+
+  function isHiddenEquipmentItem(item) {
+    return Boolean(item && getEquipmentSearchText(item).includes('особое'));
+  }
+
+  function getSelectedEquipmentCount(equipmentId) {
+    return selectedEquipment.filter(id => id === equipmentId).length;
+  }
+
   function addEquipment(equipmentId) {
-    if (isEquipmentSelected(equipmentId)) return;
+    const item = getEquipmentById(equipmentId);
+    if (!item || (isEquipmentSelected(equipmentId) && !isConsumableEquipment(item))) return;
     selectedEquipment.push(equipmentId);
     renderEquipment();
     refreshViewerIfOpen();
@@ -70,18 +83,20 @@
   function renderEquipmentCard(item, isRecommended) {
     const price = item.priceText || `${item.price} ф`;
     const selected = isEquipmentSelected(item.id);
+    const canHaveSeveral = isConsumableEquipment(item);
+    const selectedCount = getSelectedEquipmentCount(item.id);
     const details = getEquipmentDetails(item);
 
     return `
       <div class="equipment-card ${isRecommended ? 'recommended' : ''}">
         <div class="equipment-card-main">
           <div>
-            <div class="equipment-name">${item.name}</div>
+            <div class="equipment-name">${item.name}${selectedCount > 1 ? ` ×${selectedCount}` : ''}</div>
             <div class="equipment-meta">${item.category} · ${price}</div>
             <div class="equipment-details">${details}</div>
           </div>
-          <button type="button" class="equipment-button" onclick="${selected ? `removeEquipment('${item.id}')` : `addEquipment('${item.id}')`}">
-            ${selected ? '-' : '+'}
+          <button type="button" class="equipment-button" onclick="${selected && !canHaveSeveral ? `removeEquipment('${item.id}')` : `addEquipment('${item.id}')`}">
+            ${selected && !canHaveSeveral ? '-' : '+'}
           </button>
         </div>
       </div>`;
@@ -147,9 +162,9 @@
     const searchInput = document.getElementById('equipmentSearch');
     const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
-    let recommendedItems = recommendedIds.map(getEquipmentById).filter(Boolean);
+    let recommendedItems = recommendedIds.map(getEquipmentById).filter(item => item && !isHiddenEquipmentItem(item));
     let otherItems = equipmentData
-      .filter(item => !recommendedIds.includes(item.id))
+      .filter(item => !recommendedIds.includes(item.id) && !isHiddenEquipmentItem(item))
       .sort((a, b) => {
         if (a.category === b.category) return Number(a.price || 0) - Number(b.price || 0);
         return a.category.localeCompare(b.category);

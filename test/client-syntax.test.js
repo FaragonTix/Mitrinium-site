@@ -12,6 +12,8 @@ async function readClassicScript(path) {
 test("клиентские скрипты редактора синтаксически корректны", async () => {
   const scripts = await Promise.all([
     readClassicScript("../apps-script-source/AbilitiesData.html"),
+    readClassicScript("../apps-script-source/EquipmentData.html"),
+    readClassicScript("../apps-script-source/ScriptsEquipment.html"),
     readClassicScript("../apps-script-source/ScriptsCore.html"),
     readClassicScript("../apps-script-source/ScriptsCharacter.html"),
     readClassicScript("../apps-script-source/ExtendedNameLibraryData.html"),
@@ -54,7 +56,7 @@ test("у каждой способности есть пререквизит, а
     "utf8",
   );
 
-  assert.equal(abilities.length, 84);
+  assert.equal(abilities.length, 88);
   assert.ok(abilities.every((ability) => ability.prerequisite));
   assert.doesNotMatch(abilityRenderer, /ability\.tags/);
 
@@ -67,12 +69,46 @@ test("у каждой способности есть пререквизит, а
   );
   assert.equal(
     byName["Нет, подожди"].effect,
-    "В случае победы Воротилы, цель не может заявлять уклонение и использовать реакции в следующих 2 раундах.",
+    "Действие. В случае победы Воротилы, цель не может заявлять уклонение и использовать реакции в следующих 2 раундах.",
   );
   assert.equal(
     byName["Двухзарядный мушкет"].effect,
-    "Позволяет держать два заряда в оружии. После первого выстрела Рекрут может сделать второй выстрел за ход. Второй выстрел получает Помеху и наносит d6 урона. Если персонаж использует второй заряд мушкета, в этом раунде он уже не может использовать Реакции.",
+    "Реакция после атаки крупнокалиберным оружием. Рекрут может сделать второй выстрел следом в этот же ход. Второй выстрел получает Помеху и наносит d6 урона.",
   );
+});
+
+test("снаряжение использует актуальный каталог, расходники и рекомендации", async () => {
+  const [equipmentSource, equipmentUiSource] = await Promise.all([
+    readClassicScript("../apps-script-source/EquipmentData.html"),
+    readClassicScript("../apps-script-source/ScriptsEquipment.html"),
+  ]);
+  const { equipmentData, classRecommendedEquipment } = new Function(
+    `${equipmentSource}; return { equipmentData, classRecommendedEquipment };`,
+  )();
+  const helpers = new Function(
+    `${equipmentUiSource}; return { isConsumableEquipment, isHiddenEquipmentItem };`,
+  )();
+  const watch = equipmentData.find((item) => item.name === "Простые карманные часы");
+
+  assert.equal(equipmentData.length, 81);
+  assert.ok(watch);
+  assert.ok(equipmentData.some((item) => item.name === "Дермопластическая мазь №7 («Семёрка»)"));
+  assert.ok(equipmentData.every((item) => item.name !== "Механический ассистент"));
+  assert.equal(
+    helpers.isConsumableEquipment(equipmentData.find((item) => item.name === "Слабый яд")),
+    true,
+  );
+  assert.equal(
+    helpers.isConsumableEquipment(equipmentData.find((item) => item.name === "Кислотная склянка")),
+    false,
+  );
+  assert.equal(
+    helpers.isHiddenEquipmentItem(equipmentData.find((item) => item.name === "Тяжёлый меч")),
+    true,
+  );
+  for (const recommended of Object.values(classRecommendedEquipment)) {
+    assert.ok(recommended.includes(watch.id));
+  }
 });
 
 test("основные и вторичные рекомендованные навыки настроены для каждого класса", async () => {
@@ -179,6 +215,42 @@ test("интерфейс бросков использует новые дейс
   assert.doesNotMatch(`${view}\n${scripts}`, /замен(?:а|ить).*на 4/i);
 });
 
+test("опции общего лога находятся в панели сохранения калькулятора", async () => {
+  const [calculator, calculatorScripts] = await Promise.all([
+    readFile(new URL("../calculator-script-source/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../calculator-script-source/Script.html", import.meta.url), "utf8"),
+  ]);
+  const savingPanel = calculator.slice(
+    calculator.indexOf('<h2>Сохранение</h2>'),
+    calculator.indexOf('</section>', calculator.indexOf('<h2>Сохранение</h2>')),
+  );
+
+  assert.match(savingPanel, /Логирование событий/);
+  assert.match(savingPanel, /id="combatLogRolls"/);
+  assert.match(savingPanel, /id="combatLogResources"/);
+  assert.match(savingPanel, /id="combatLogReactions"/);
+  assert.match(savingPanel, /id="combatLogVisibleToPlayers"/);
+  assert.match(savingPanel, /Показывать записи калькулятора игрокам/);
+  assert.match(savingPanel, /Изменения Тела и Нерва врагов/);
+  assert.match(calculatorScripts, /const pendingResourceLogs=new Map\(\)/);
+  assert.match(calculatorScripts, /setTimeout\(\(\)=>flushResourceLog\(key\),1200\)/);
+  assert.match(calculatorScripts, /Восстановление/);
+  assert.match(calculatorScripts, /Сохранить как пресет/);
+  assert.match(calculatorScripts, /sendCombatEnemyToEditor/);
+  assert.match(calculatorScripts, /renameCombatEnemy/);
+});
+
+test("выбор куба для переброса остаётся компактным", async () => {
+  const [scripts, styles] = await Promise.all([
+    readFile(new URL("../apps-script-source/RollsScripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/Styles.html", import.meta.url), "utf8"),
+  ]);
+
+  assert.doesNotMatch(scripts, /roll-die-selected-label/);
+  assert.match(styles, /roll-die\.selectable\.selected::after/);
+  assert.doesNotMatch(styles, /translateY\(-3px\) scale\(1\.06\)/);
+});
+
 test("редактор использует Атрибуты, Навыки и ограничения версии 0.4.9", async () => {
   const core = await readFile(
     new URL("../apps-script-source/ScriptsCore.html", import.meta.url),
@@ -189,7 +261,7 @@ test("редактор использует Атрибуты, Навыки и о
     "utf8",
   );
 
-  assert.match(core, /const totalExtraSkillPoints = 21/);
+  assert.match(core, /const totalExtraSkillPoints = 18/);
   assert.match(core, /const maxStartingSkillGroupTotal = 5/);
   assert.match(core, /skill\.value = 0/);
   assert.match(editor, /Все Навыки начинаются с 0/);
