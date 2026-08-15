@@ -492,6 +492,10 @@
   }
 
   .skill-column {
+    display: grid;
+    grid-template-rows: auto repeat(5, 62px);
+    align-content: start;
+    gap: 10px;
     min-width: 0;
     border: 1px solid var(--field-border);
     border-radius: var(--radius-medium);
@@ -500,7 +504,7 @@
   }
 
   .skill-column h3 {
-    margin: 0 0 12px;
+    margin: 0;
     border-bottom: 1px solid var(--border-soft);
     padding-bottom: 8px;
     text-align: center;
@@ -509,12 +513,20 @@
   }
 
   .skill-item {
-    display: flex;
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
     min-width: 0;
-    margin-bottom: 10px;
+    height: 62px;
+    margin-right: -6px;
+    margin-left: -6px;
+    margin-bottom: 0;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    padding: 6px;
     font-size: 14px;
   }
 
@@ -528,26 +540,19 @@
   }
 
   .skill-item.recommended-primary {
-    margin-right: -6px;
-    margin-left: -6px;
-    border: 1px solid #b8872f;
-    border-radius: 9px;
+    border-color: #b8872f;
     background: #f2d99f;
-    padding: 6px;
   }
 
   .skill-item.recommended-secondary {
-    margin-right: -6px;
-    margin-left: -6px;
-    border: 1px solid #8b929b;
-    border-radius: 9px;
+    border-color: #8b929b;
     background: linear-gradient(135deg, #e7e8e8, #c8cbd0);
-    padding: 6px;
   }
 
   .skill-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
   .skill-recommendation-toggle { margin-right: auto; }
   .skill-recommendation-legend { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+  .skill-recommendation-legend[hidden] { display: none; }
   .skill-recommendation-legend i { width: 13px; height: 13px; border-radius: 3px; }
   .skill-recommendation-legend .primary { background: #f2d99f; border: 1px solid #b8872f; }
   .skill-recommendation-legend .secondary { background: #d6d8dc; border: 1px solid #8b929b; }
@@ -556,16 +561,44 @@
     display: flex;
     align-items: center;
     gap: 5px;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .skill-name-text {
+    min-width: 0;
+    overflow-wrap: normal;
+    word-break: normal;
+    white-space: normal;
+    -webkit-hyphens: auto;
+    hyphens: auto;
   }
 
   .skill-recommended-mark {
-    flex: 0 0 auto;
+    position: absolute;
+    top: 3px;
+    right: 4px;
     color: #7a160f;
     font-size: 12px;
     line-height: 1;
   }
 
   .skill-recommended-mark.secondary { color: #4e5660; }
+
+  .skill-item .mini-counter {
+    gap: 3px;
+  }
+
+  .skill-item .mini-counter button {
+    width: 26px;
+    height: 26px;
+  }
+
+  .skill-item .mini-counter strong {
+    min-width: 14px;
+  }
 
   /* =========================
      Способности
@@ -1809,10 +1842,10 @@
   .equipment-quick-filters button {
     min-height: 34px;
     padding: 6px 11px;
-    border: 1px solid #72a6c9;
+    border: 1px solid #8aa0aa;
     border-radius: 999px;
-    background: #e6f3fb;
-    color: #1f526f;
+    background: #dce5e8;
+    color: #354a52;
     font: inherit;
     font-size: 14px;
     line-height: 1.1;
@@ -1821,22 +1854,22 @@
 
   .equipment-quick-filters button:hover,
   .equipment-quick-filters button.active {
-    border-color: #397fae;
-    background: #bddff3;
-    color: #143f59;
+    border-color: #668996;
+    background: #c5d7dd;
+    color: #263e47;
   }
 
   .equipment-quick-filters .equipment-filter-reset {
-    border-color: #c66a5f;
-    background: #f8e0dc;
-    color: #7f2920;
+    border-color: #aa7b70;
+    background: #eadbd6;
+    color: #6e3e35;
   }
 
   .equipment-quick-filters .equipment-filter-reset:hover,
   .equipment-quick-filters .equipment-filter-reset.active {
-    border-color: #a9463b;
-    background: #efc1ba;
-    color: #612018;
+    border-color: #95665b;
+    background: #ddc0b8;
+    color: #583129;
   }
 
   .control-method-editor-row {

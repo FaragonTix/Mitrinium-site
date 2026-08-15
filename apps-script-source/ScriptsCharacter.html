@@ -159,6 +159,7 @@
     const grid = document.getElementById('skillsGrid');
     const pointsLeft = document.getElementById('skillPointsLeft');
     const recommendationToggle = document.getElementById('showRecommendedSkills');
+    const recommendationLegend = document.getElementById('skillRecommendationLegend');
 
     if (!grid || !pointsLeft) return;
 
@@ -171,6 +172,10 @@
       })
     );
     const showRecommended = Boolean(recommendationToggle?.checked && selectedClass);
+
+    if (recommendationLegend) {
+      recommendationLegend.hidden = !recommendationToggle?.checked;
+    }
 
     pointsLeft.textContent = advancedEditMode
       ? 'режим развития'
@@ -196,7 +201,7 @@
         html += `
           <div class="skill-item ${isPrimary ? 'recommended-primary' : ''} ${isSecondary ? 'recommended-secondary' : ''}">
             <span class="skill-name">
-              ${skill.name}
+              <span class="skill-name-text">${hyphenateSkillName(skill.name)}</span>
               ${isPrimary ? '<span class="skill-recommended-mark primary" aria-label="Основной навык класса" title="Основной навык класса">★</span>' : ''}
               ${isSecondary ? '<span class="skill-recommended-mark secondary" aria-label="Спас класса" title="Спас класса">◆</span>' : ''}
             </span>
@@ -225,6 +230,30 @@
       column.innerHTML = html;
       grid.appendChild(column);
     });
+  }
+
+  function hyphenateSkillName(name) {
+    const namesWithBreaks = {
+      'Фехтование': 'Фех&shy;то&shy;ва&shy;ние',
+      'Атлетика': 'Ат&shy;ле&shy;ти&shy;ка',
+      'Стойкость': 'Стой&shy;кость',
+      'Выживание': 'Вы&shy;жи&shy;ва&shy;ние',
+      'Уклонение': 'Ук&shy;ло&shy;не&shy;ние',
+      'Скрытность': 'Скрыт&shy;ность',
+      'Ловкость рук': 'Лов&shy;кость рук',
+      'Внимательность': 'Вни&shy;ма&shy;тель&shy;ность',
+      'Стрельба': 'Стрель&shy;ба',
+      'Знание улиц': 'Зна&shy;ние улиц',
+      'Психология': 'Пси&shy;хо&shy;ло&shy;гия',
+      'Механизмы': 'Ме&shy;ха&shy;низ&shy;мы',
+      'Медицина': 'Ме&shy;ди&shy;ци&shy;на',
+      'Эрудиция': 'Эру&shy;ди&shy;ция',
+      'Убеждение': 'Убеж&shy;де&shy;ние',
+      'Командование': 'Ко&shy;ман&shy;до&shy;ва&shy;ние',
+      'Дисциплина': 'Дис&shy;цип&shy;ли&shy;на'
+    };
+
+    return namesWithBreaks[name] || name;
   }
 
   function getSelectedClassName() {

@@ -126,8 +126,12 @@ test("каталоги снаряжения имеют независимые б
 
   assert.equal((editor.match(/>Сбросить фильтры<\/button>/g) || []).length, 2);
   assert.match(editor, /<i class="secondary"><\/i> спасы/);
-  assert.match(styles, /\.equipment-quick-filters button \{[\s\S]*?background: #e6f3fb/);
-  assert.match(styles, /\.equipment-filter-reset \{[\s\S]*?background: #f8e0dc/);
+  assert.match(styles, /\.equipment-quick-filters button \{[\s\S]*?background: #dce5e8/);
+  assert.match(styles, /\.equipment-filter-reset \{[\s\S]*?background: #eadbd6/);
+  assert.match(styles, /\.skill-name-text \{[\s\S]*?hyphens: auto/);
+  assert.match(styles, /\.skill-column \{[\s\S]*?grid-template-rows: auto repeat\(5, 62px\)/);
+  assert.match(styles, /\.skill-item \{[\s\S]*?height: 62px/);
+  assert.match(styles, /\.skill-recommendation-legend\[hidden\] \{ display: none; \}/);
   for (const filter of ['armor', 'melee', 'ranged', 'consumable', 'other']) {
     assert.equal((editor.match(new RegExp(`data-equipment-filter="${filter}"`, 'g')) || []).length, 2);
   }
@@ -140,14 +144,11 @@ test("каталоги снаряжения имеют независимые б
 });
 
 test("основные и вторичные рекомендованные навыки настроены для каждого класса", async () => {
-  const coreSource = await readFile(
-    new URL("../apps-script-source/ScriptsCore.html", import.meta.url),
-    "utf8",
-  );
-  const editorSource = await readFile(
-    new URL("../apps-script-source/Index.html", import.meta.url),
-    "utf8",
-  );
+  const [coreSource, editorSource, characterSource] = await Promise.all([
+    readFile(new URL("../apps-script-source/ScriptsCore.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/ScriptsCharacter.html", import.meta.url), "utf8"),
+  ]);
 
   for (const className of [
     "Психопат",
@@ -161,6 +162,10 @@ test("основные и вторичные рекомендованные на
   }
 
   assert.match(editorSource, /id="showRecommendedSkills"/);
+  assert.match(editorSource, /id="skillRecommendationLegend"/);
+  assert.match(characterSource, /recommendationLegend\.hidden = !recommendationToggle\?\.checked/);
+  assert.match(characterSource, /'Внимательность': 'Вни&shy;ма&shy;тель&shy;ность'/);
+  assert.match(characterSource, /'Командование': 'Ко&shy;ман&shy;до&shy;ва&shy;ние'/);
   assert.match(coreSource, /'Рекрут': \{[\s\S]*?primary:[\s\S]*?'nyuh:strelba'/);
   assert.match(coreSource, /const classSecondarySkills = \[[\s\S]*?'snorovka:uklonenie'[\s\S]*?'napor:stoikost'[\s\S]*?'gospodstvo:disciplina'[\s\S]*?'smetka:erudiciya'[\s\S]*?'nyuh:vnimatelnost'/);
   assert.match(editorSource, /resetAllSkills/);
