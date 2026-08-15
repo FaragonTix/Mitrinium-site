@@ -96,6 +96,14 @@ h2 { font-size: 30px; }
   overflow-wrap: anywhere;
 }
 
+.deletion-policy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 520px);
+  align-items: end;
+  gap: 24px;
+}
+.policy-description { margin: 8px 0 0; color: var(--muted); }
+
 .button {
   min-height: 42px; padding: 9px 16px; border: 1px solid var(--line);
   border-radius: 8px; color: var(--ink); background: var(--panel-2);
@@ -111,7 +119,7 @@ h2 { font-size: 30px; }
 .button.danger { border-color: #743b36; color: #ffb0a7; background: #2a1715; }
 
 .toolbar {
-  display: grid; grid-template-columns: minmax(260px, 1fr) 210px auto;
+  display: grid; grid-template-columns: minmax(260px, 1fr) 210px auto auto auto;
   gap: 14px; align-items: end; margin: 34px 0 22px;
   padding: 18px; border: 1px solid var(--line); border-radius: 12px;
   background: rgb(23 25 22 / 78%);
@@ -128,12 +136,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--gold-dark); }
 
 .character-list { display: grid; gap: 12px; }
 .character-card {
-  display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 22px;
+  display: grid; grid-template-columns: auto 1.4fr 1fr auto; gap: 18px;
   align-items: center; padding: 18px 20px; border: 1px solid var(--line);
   border-radius: 10px; background: linear-gradient(135deg, #191c18, #121411);
   box-shadow: var(--shadow);
 }
 .character-card.hidden-card { opacity: .7; border-style: dashed; }
+.character-select { display: grid; place-items: center; }
+.character-select input { width: 20px; height: 20px; accent-color: var(--gold); }
+.badge.draft { border-color: #a8752c; color: #ffd58a; }
 .character-name { margin: 0 0 4px; font: 500 22px Georgia, serif; }
 .meta { color: var(--muted); font-size: 13px; }
 .owner { overflow-wrap: anywhere; }
@@ -190,5 +201,6 @@ details p { color: var(--muted); }
   .card-actions { justify-content: start; }
   .form-grid, .state-grid { grid-template-columns: 1fr 1fr; }
   .admin-roles-heading { align-items: stretch; flex-direction: column; }
+  .deletion-policy { grid-template-columns: 1fr; }
   .admin-add-form { width: 100%; grid-template-columns: 1fr; }
 }

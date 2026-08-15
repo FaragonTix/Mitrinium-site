@@ -19,6 +19,7 @@ import {
   adminListCharacters,
   adminSaveCharacter,
   adminSetCharacterVisibility,
+  deleteOwnCharacter,
   hideCharacter,
   listVisibleCharacters,
   loadCharacter,
@@ -27,9 +28,15 @@ import {
   saveCharacterState,
 } from "./characters.js";
 import {
-  applyOptimalFour,
+  adminGetCharacterDeletionPolicy,
+  adminSetCharacterDeletionPolicy,
+} from "./settings.js";
+import {
+  appendExternalRoll,
+  applyBiographyBonus,
   clearRollLog,
   getRollLog,
+  rerollEfficiencyDie,
   rollEfficiency,
   rollRandom,
 } from "./rolls.js";
@@ -68,14 +75,18 @@ async function dispatch(method, args, env, user) {
     saveCharacterState: () =>
       saveCharacterState(env.DB, user, args[0], args[1]),
     mitriniumHideCharacter: () => hideCharacter(env.DB, user, args[0]),
+    mitriniumDeleteOwnCharacter: () => deleteOwnCharacter(env.DB, user, args[0]),
     mitriniumRestoreHiddenCharacters: () =>
       restoreHiddenCharacters(env.DB, user),
     mitriniumRollEfficiency: () =>
       rollEfficiency(env.DB, user, args[0]),
-    mitriniumApplyOptimalFour: () =>
-      applyOptimalFour(env.DB, user, args[0]),
+    mitriniumApplyBiographyBonus: () =>
+      applyBiographyBonus(env.DB, user, args[0]),
+    mitriniumRerollEfficiencyDie: () =>
+      rerollEfficiencyDie(env.DB, user, args[0], args[1]),
     mitriniumRollRandom: () => rollRandom(env.DB, user, args[0]),
     mitriniumGetRollLog: () => getRollLog(env.DB, user, args[0]),
+    mitriniumAppendExternalRoll: () => appendExternalRoll(env.DB, user, args[0]),
     mitriniumClearRollLog: () => clearRollLog(env.DB, user),
     adminListCharacters: () => adminListCharacters(env.DB, user),
     adminSaveCharacter: () => adminSaveCharacter(env.DB, user, args[0]),
@@ -83,6 +94,8 @@ async function dispatch(method, args, env, user) {
       adminSetCharacterVisibility(env.DB, user, args[0], args[1]),
     adminDeleteCharacter: () =>
       adminDeleteCharacter(env.DB, user, args[0]),
+    adminGetCharacterDeletionPolicy: () => adminGetCharacterDeletionPolicy(env.DB, user),
+    adminSetCharacterDeletionPolicy: () => adminSetCharacterDeletionPolicy(env.DB, user, args[0]),
     adminListAdmins: () => listAdmins(env.DB, env, user),
     adminGrantAdmin: () => grantAdmin(env.DB, user, args[0]),
     adminRevokeAdmin: () => revokeAdmin(env.DB, env, user, args[0]),

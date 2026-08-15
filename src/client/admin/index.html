@@ -49,6 +49,22 @@
         <div id="adminList" class="admin-list" aria-live="polite"></div>
       </section>
 
+      <section class="admin-roles deletion-policy" aria-labelledby="deletionPolicyTitle">
+        <div>
+          <p class="eyebrow">Правила для игроков</p>
+          <h2 id="deletionPolicyTitle">Удаление персонажей</h2>
+          <p class="policy-description">Определяет, могут ли игроки удалять собственные листы и сохраняется ли административная копия.</p>
+        </div>
+        <label>
+          <span>Политика удаления</span>
+          <select id="deletionPolicy">
+            <option value="forbidden">Пользователям запрещено</option>
+            <option value="allowed">Пользователям разрешено</option>
+            <option value="archive">Пользователям разрешено с сохранением копии на сервере</option>
+          </select>
+        </label>
+      </section>
+
       <section class="toolbar" aria-label="Фильтры">
         <label class="search">
           <span>Поиск</span>
@@ -64,6 +80,8 @@
           </select>
         </label>
         <div class="summary" id="summary"></div>
+        <button id="selectVisibleButton" class="button ghost" type="button">Выбрать показанных</button>
+        <button id="exportSelectedButton" class="button primary" type="button" disabled>Экспорт выбранных</button>
       </section>
 
       <div id="notice" class="notice" hidden></div>

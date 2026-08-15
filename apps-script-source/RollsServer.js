@@ -293,10 +293,9 @@ function mitriniumRollEfficiency(
   request = request || {};
 
   const sceneDiceMap = {
-    hindrance: [4, 4],
-    normal: [4, 6],
-    advantage: [6, 6],
-    exceptional: [8, 8]
+    hindrance: [4, 4, 4],
+    normal: [4, 4, 6],
+    advantage: [6, 6, 6]
   };
 
   const sceneKey =
@@ -360,21 +359,24 @@ function mitriniumRollEfficiency(
 
   const control =
     request.control &&
-    request.control.enabled
+    request.control.enabled &&
+    evaluation.complication ===
+      'Осложнение'
       ? mitriniumRollControl_(
           request.control
         )
       : null;
 
-  const controlEfBonus =
-    control &&
-    control.natural20
-      ? 1
-      : 0;
-
   const finalEf =
-    evaluation.ef +
-    controlEfBonus;
+    evaluation.ef;
+
+  const difficulty =
+    mitriniumClampInteger_(
+      request.difficulty,
+      4,
+      10,
+      6
+    );
 
   const result = {
     id:
@@ -429,11 +431,7 @@ function mitriniumRollEfficiency(
       secondComponent
     ],
 
-    /*
-      Именно эти исходные значения
-      используются после нажатия
-      кнопки замены. Переброса нет.
-    */
+    /* Исходный пул сохраняется для действий после броска. */
     originalDice:
       dice.map(
         mitriniumCopyDie_
@@ -444,9 +442,6 @@ function mitriniumRollEfficiency(
         mitriniumCopyDie_
       ),
 
-    replacement:
-      null,
-
     originalEf:
       evaluation.ef,
 
@@ -456,25 +451,47 @@ function mitriniumRollEfficiency(
     finalEf:
       finalEf,
 
-    efBonusFromControl:
-      controlEfBonus,
+    difficulty:
+      difficulty,
+
+    difficultyLabel:
+      mitriniumGetEfOutcome_(difficulty),
+
+    success:
+      finalEf >= difficulty,
+
+    biographyBonus:
+      0,
+
+    nerveRerolls:
+      [],
 
     outcome:
       mitriniumGetEfOutcome_(
         finalEf
       ),
 
-    ones:
-      evaluation.ones,
-
     complication:
       evaluation.complication,
 
-    criticalFaces:
-      evaluation.criticalFaces,
+    sceneValues:
+      evaluation.sceneValues,
+
+    sceneTrigger:
+      evaluation.sceneTrigger,
+
+    sceneThirdValue:
+      evaluation.sceneThirdValue,
+
+    potentialBreakthrough:
+      evaluation.potentialBreakthrough,
 
     breakthrough:
-      evaluation.breakthrough,
+      mitriniumGetBreakthroughLabel_(
+        evaluation.potentialBreakthrough,
+        finalEf,
+        difficulty
+      ),
 
     topValues:
       evaluation.topValues,
@@ -483,12 +500,159 @@ function mitriniumRollEfficiency(
       evaluation.bottomValues,
 
     control:
-      control
+      control,
+
+    controlRequest:
+      request.control || {
+        enabled: false
+      }
   };
 
   mitriniumAppendRollLog_(
     result
   );
+
+  return result;
+}
+
+
+function mitriniumApplyBiographyBonus(
+  previousResult
+) {
+  if (
+    !previousResult ||
+    previousResult.type !== 'efficiency'
+  ) {
+    throw new Error(
+      'Нет результата броска Эффективности.'
+    );
+  }
+
+  if (Number(previousResult.biographyBonus) >= 1) {
+    throw new Error(
+      'Биографическая черта уже применена к этому броску.'
+    );
+  }
+
+  const result = JSON.parse(
+    JSON.stringify(previousResult)
+  );
+
+  result.id = Utilities.getUuid();
+  result.previousRollId = String(previousResult.id || '');
+  result.timestamp = new Date().toISOString();
+  result.biographyBonus = 1;
+  result.baseEf = Number(previousResult.baseEf ?? previousResult.finalEf ?? 0);
+  result.finalEf = result.baseEf + 1;
+  result.success = result.finalEf >= Number(result.difficulty || 6);
+  result.outcome = mitriniumGetEfOutcome_(result.finalEf);
+  result.breakthrough = mitriniumGetBreakthroughLabel_(
+    Boolean(result.potentialBreakthrough),
+    result.finalEf,
+    Number(result.difficulty || 6)
+  );
+
+  mitriniumAppendRollLog_(result);
+
+  return result;
+}
+
+
+function mitriniumRerollEfficiencyDie(
+  previousResult,
+  dieIndex
+) {
+  if (
+    !previousResult ||
+    previousResult.type !== 'efficiency'
+  ) {
+    throw new Error(
+      'Нет результата броска Эффективности.'
+    );
+  }
+
+  const dice = mitriniumSanitizeDiceList_(
+    previousResult.dice
+  );
+
+  const index = Number(dieIndex);
+
+  if (
+    !Number.isInteger(index) ||
+    index < 0 ||
+    index >= dice.length
+  ) {
+    throw new Error(
+      'Выберите куб для переброса.'
+    );
+  }
+
+  const from = dice[index].value;
+  dice[index].value = mitriniumRollDie_(
+    dice[index].sides
+  );
+  dice[index].rerolledFrom = from;
+
+  const evaluation =
+    mitriniumEvaluateEfficiencyDice_(dice);
+
+  const controlRequest =
+    previousResult.controlRequest || {
+      enabled: Boolean(previousResult.control)
+    };
+
+  let control = null;
+
+  if (evaluation.complication === 'Осложнение') {
+    control =
+      previousResult.complication === 'Осложнение' &&
+      previousResult.control
+        ? previousResult.control
+        : controlRequest.enabled
+          ? mitriniumRollControl_(controlRequest)
+          : null;
+  }
+
+  const result = JSON.parse(
+    JSON.stringify(previousResult)
+  );
+
+  result.id = Utilities.getUuid();
+  result.previousRollId = String(previousResult.id || '');
+  result.timestamp = new Date().toISOString();
+  result.dice = dice;
+  result.baseEf = evaluation.ef;
+  result.finalEf =
+    evaluation.ef +
+    (Number(previousResult.biographyBonus) >= 1 ? 1 : 0);
+  result.outcome = mitriniumGetEfOutcome_(result.finalEf);
+  result.complication = evaluation.complication;
+  result.sceneValues = evaluation.sceneValues;
+  result.sceneTrigger = evaluation.sceneTrigger;
+  result.sceneThirdValue = evaluation.sceneThirdValue;
+  result.potentialBreakthrough = evaluation.potentialBreakthrough;
+  result.success = result.finalEf >= Number(result.difficulty || 6);
+  result.breakthrough = mitriniumGetBreakthroughLabel_(
+    evaluation.potentialBreakthrough,
+    result.finalEf,
+    Number(result.difficulty || 6)
+  );
+  result.topValues = evaluation.topValues;
+  result.bottomValues = evaluation.bottomValues;
+  result.control = control;
+  result.controlRequest = controlRequest;
+  result.nerveRerolls = Array.isArray(previousResult.nerveRerolls)
+    ? previousResult.nerveRerolls.slice(0, 19)
+    : [];
+  result.nerveRerolls.push({
+    index: index,
+    from: from,
+    to: dice[index].value,
+    source: dice[index].source,
+    sides: dice[index].sides
+  });
+
+  mitriniumAppendRollLog_(result);
 
   return result;
 }
@@ -740,9 +904,12 @@ function mitriniumApplyOptimalFour(
         .criticalFaces,
 
     breakthrough:
-      replacementResult
-        .evaluation
-        .breakthrough,
+      mitriniumGetBreakthroughLabel_(
+        replacementResult
+          .evaluation
+          .criticalFaces,
+        finalEf
+      ),
 
     topValues:
       replacementResult
@@ -1056,13 +1223,21 @@ function mitriniumSanitizeRollComponent_(
 ) {
   component = component || {};
 
+  const componentKey =
+    mitriniumSanitizeText_(
+      component.key,
+      '',
+      120
+    );
+
+  const minimumValue =
+    componentKey.indexOf('skill:') === 0
+      ? 0
+      : 1;
+
   return {
     key:
-      mitriniumSanitizeText_(
-        component.key,
-        '',
-        120
-      ),
+      componentKey,
 
     label:
       mitriniumSanitizeText_(
@@ -1074,9 +1249,9 @@ function mitriniumSanitizeRollComponent_(
     value:
       mitriniumClampInteger_(
         component.value,
-        1,
+        minimumValue,
         3,
-        1
+        minimumValue
       )
   };
 }
@@ -1166,48 +1341,69 @@ function mitriniumEvaluateEfficiencyDice_(
       0
     );
 
-  const ones =
-    values.filter(
-      function (value) {
-        return (
-          value === 1
-        );
-      }
-    ).length;
-
-  const criticalFaces =
+  const sceneDice =
     (dice || []).filter(
       function (die) {
-        const sides =
-          Number(
-            die.sides
-          ) || 0;
-
-        const value =
-          Number(
-            die.value
-          ) || 0;
-
-        if (sides === 6) {
-          return (
-            value === 6
-          );
-        }
-
-        if (sides === 8) {
-          return (
-            value >= 6
-          );
-        }
-
-        return false;
+        return (
+          String(die.source || '')
+            .indexOf('Куб сцены') === 0
+        );
       }
-    ).length;
+    );
+
+  const sceneValues =
+    sceneDice.map(
+      function (die) {
+        return Number(die.value) || 0;
+      }
+    );
+
+  const sceneFrequencies = {};
+
+  sceneValues.forEach(
+    function (value) {
+      sceneFrequencies[value] =
+        (sceneFrequencies[value] || 0) + 1;
+    }
+  );
+
+  let sceneTrigger = null;
+
+  Object.keys(sceneFrequencies)
+    .some(function (value) {
+      if (sceneFrequencies[value] === 2) {
+        sceneTrigger = Number(value);
+        return true;
+      }
+
+      return false;
+    });
+
+  const sceneThirdValue =
+    sceneTrigger === null
+      ? null
+      : sceneValues.filter(
+          function (value) {
+            return value !== sceneTrigger;
+          }
+        )[0] ?? null;
+
+  const sceneEvent =
+    sceneTrigger !== null &&
+    sceneThirdValue === sceneTrigger - 1
+      ? 'complication'
+      : sceneTrigger !== null &&
+          sceneThirdValue === sceneTrigger + 1
+        ? 'breakthrough'
+        : 'none';
+
+  const ef =
+    topSum -
+    bottomSum;
 
   return {
     ef:
-      topSum -
-      bottomSum,
+      ef,
 
     topValues:
       topValues,
@@ -1215,21 +1411,27 @@ function mitriniumEvaluateEfficiencyDice_(
     bottomValues:
       bottomValues,
 
-    ones:
-      ones,
-
     complication:
-      mitriniumGetComplicationLabel_(
-        ones
-      ),
+      sceneEvent === 'complication'
+        ? 'Осложнение'
+        : 'Нет',
 
-    criticalFaces:
-      criticalFaces,
+    sceneValues:
+      sceneValues,
+
+    sceneTrigger:
+      sceneTrigger,
+
+    sceneThirdValue:
+      sceneThirdValue,
+
+    potentialBreakthrough:
+      sceneEvent === 'breakthrough',
 
     breakthrough:
-      mitriniumGetBreakthroughLabel_(
-        criticalFaces
-      )
+      sceneEvent === 'breakthrough'
+        ? 'Потенциальный Прорыв'
+        : 'Нет'
   };
 }
 
@@ -1237,28 +1439,14 @@ function mitriniumEvaluateEfficiencyDice_(
 function mitriniumGetComplicationRank_(
   ones
 ) {
-  if (ones < 3) {
-    return 0;
-  }
-
-  if (ones === 3) {
-    return 1;
-  }
-
-  return 2;
+  return ones >= 2 ? 1 : 0;
 }
 
 
 function mitriniumGetComplicationLabel_(
   ones
 ) {
-  if (ones >= 4) {
-    return (
-      'Тяжёлое осложнение'
-    );
-  }
-
-  if (ones === 3) {
+  if (ones === 2) {
     return (
       'Осложнение'
     );
@@ -1269,18 +1457,13 @@ function mitriniumGetComplicationLabel_(
 
 
 function mitriniumGetBreakthroughLabel_(
-  criticalFaces
+  potentialBreakthrough,
+  ef,
+  difficulty
 ) {
   if (
-    criticalFaces >= 4
-  ) {
-    return (
-      'Большой Прорыв'
-    );
-  }
-
-  if (
-    criticalFaces === 3
+    potentialBreakthrough &&
+    ef >= Number(difficulty || 6)
   ) {
     return 'Прорыв';
   }
@@ -1292,25 +1475,23 @@ function mitriniumGetBreakthroughLabel_(
 function mitriniumGetEfOutcome_(
   ef
 ) {
-  if (ef <= 3) {
-    return 'Неудача';
+  const labels = {
+    4: 'Элементарная',
+    5: 'Простая',
+    6: 'Квалифицированная',
+    7: 'Профессиональная',
+    8: 'Сложная профессиональная',
+    9: 'Экспертная',
+    10: 'Исключительная'
+  };
+
+  const value = Math.floor(Number(ef) || 0);
+
+  if (value < 4) {
+    return 'Ниже элементарной сложности';
   }
 
-  if (ef <= 5) {
-    return 'Элементарно';
-  }
-
-  if (ef <= 7) {
-    return 'Обычный успех';
-  }
-
-  if (ef === 8) {
-    return 'Сильный успех';
-  }
-
-  return (
-    'Почти невозможное сделано'
-  );
+  return labels[Math.min(10, value)];
 }
 
 
@@ -1385,7 +1566,7 @@ function mitriniumRollControl_(
       request.difficulty,
       1,
       50,
-      10
+      18
     );
 
   const total =
@@ -1489,7 +1670,7 @@ function mitriniumSanitizeExistingControl_(
         control.difficulty,
         1,
         50,
-        10
+        18
       ),
 
     total:
@@ -2055,6 +2236,14 @@ function mitriniumCopyDie_(
         ? undefined
         : Number(
             die.originalValue
+          ),
+
+    rerolledFrom:
+      die.rerolledFrom ===
+      undefined
+        ? undefined
+        : Number(
+            die.rerolledFrom
           )
   };
 }
@@ -2095,7 +2284,17 @@ function mitriniumSanitizeDiceList_(
             die && die.source,
             'Куб',
             120
-          )
+          ),
+
+        rerolledFrom:
+          die && die.rerolledFrom !== undefined
+            ? mitriniumClampInteger_(
+                die.rerolledFrom,
+                1,
+                sides,
+                1
+              )
+            : undefined
       };
     });
 }

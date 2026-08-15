@@ -8,10 +8,19 @@ const CLASS_ICONS = {
 };
 
 const SCENE_DICE = {
-  hindrance: [4, 4],
-  normal: [4, 6],
-  advantage: [6, 6],
-  exceptional: [8, 8],
+  hindrance: [4, 4, 4],
+  normal: [4, 4, 6],
+  advantage: [6, 6, 6],
+};
+
+const DIFFICULTY_LABELS = {
+  4: "Элементарная",
+  5: "Простая",
+  6: "Квалифицированная",
+  7: "Профессиональная",
+  8: "Сложная профессиональная",
+  9: "Экспертная",
+  10: "Исключительная",
 };
 
 function text(value, fallback = "", maximum = 200) {
@@ -35,16 +44,10 @@ function copyDice(dice) {
     sides: integer(item.sides, 2, 1000, 6),
     value: integer(item.value, 1, 1000, 1),
     source: text(item.source, "", 160),
-    ...(item.originalValue === undefined
+    ...(item.rerolledFrom === undefined
       ? {}
-      : { originalValue: integer(item.originalValue, 1, 1000, 1) }),
+      : { rerolledFrom: integer(item.rerolledFrom, 1, 1000, 1) }),
   }));
-}
-
-function complicationRank(ones) {
-  if (ones < 3) return 0;
-  if (ones === 3) return 1;
-  return 2;
 }
 
 function evaluate(dice) {
@@ -53,44 +56,67 @@ function evaluate(dice) {
   const bottomValues = sorted.slice(0, 2);
   const topValues = sorted.slice(-2);
   const sum = (items) => items.reduce((total, value) => total + value, 0);
-  const ones = values.filter((value) => value === 1).length;
-  const criticalFaces = dice.filter((item) => {
-    if (item.sides === 6) return item.value === 6;
-    if (item.sides === 8) return item.value >= 6;
-    return false;
-  }).length;
+  const sceneDice = dice.filter((item) =>
+    String(item.source || "").startsWith("Куб сцены"),
+  );
+  const sceneValues = sceneDice.map((item) => Number(item.value) || 0);
+  const frequencies = new Map();
+  for (const value of sceneValues) {
+    frequencies.set(value, (frequencies.get(value) || 0) + 1);
+  }
+  const duplicateEntry = [...frequencies.entries()].find(
+    ([, count]) => count === 2,
+  );
+  const sceneTrigger = duplicateEntry?.[0] ?? null;
+  const sceneThirdValue = duplicateEntry
+    ? sceneValues.find((value) => value !== sceneTrigger) ?? null
+    : null;
+  const sceneEvent =
+    sceneTrigger !== null && sceneThirdValue === sceneTrigger - 1
+      ? "complication"
+      : sceneTrigger !== null && sceneThirdValue === sceneTrigger + 1
+        ? "breakthrough"
+        : "none";
+  const ef = sum(topValues) - sum(bottomValues);
 
   return {
-    ef: sum(topValues) - sum(bottomValues),
+    ef,
     topValues,
     bottomValues,
-    ones,
-    complication:
-      ones >= 4 ? "Тяжёлое осложнение" : ones === 3 ? "Осложнение" : "Нет",
-    criticalFaces,
+    sceneValues,
+    sceneTrigger,
+    sceneThirdValue,
+    sceneEvent,
+    complication: sceneEvent === "complication" ? "Осложнение" : "Нет",
+    potentialBreakthrough: sceneEvent === "breakthrough",
     breakthrough:
-      criticalFaces >= 4
-        ? "Большой Прорыв"
-        : criticalFaces === 3
-          ? "Прорыв"
-          : "Нет",
+      sceneEvent === "breakthrough" ? "Потенциальный Прорыв" : "Нет",
   };
 }
 
 function outcome(ef) {
-  if (ef <= 3) return "Неудача";
-  if (ef <= 5) return "Элементарно";
-  if (ef <= 7) return "Обычный успех";
-  if (ef === 8) return "Сильный успех";
-  return "Почти невозможное сделано";
+  if (ef < 4) return "Ниже элементарной сложности";
+  return DIFFICULTY_LABELS[Math.min(10, Math.floor(ef))];
 }
 
 function component(input, fallback) {
+  const key = text(input?.key, "", 120);
+  const minimum = key.startsWith("skill:") ? 0 : 1;
   return {
-    key: text(input?.key, "", 120),
+    key,
     label: text(input?.label, fallback, 120),
-    value: integer(input?.value, 1, 3, 1),
+    value: integer(input?.value, minimum, 3, minimum),
   };
+}
+
+function rollDifficulty(value) {
+  return integer(value, 4, 10, 6);
+}
+
+function resolveBreakthrough(evaluation, finalEf, difficulty) {
+  return evaluation.potentialBreakthrough && finalEf >= difficulty
+    ? "Прорыв"
+    : "Нет";
 }
 
 function rollControl(input = {}) {
@@ -101,7 +127,7 @@ function rollControl(input = {}) {
   const d20 = die(20);
   const methodValue = sides ? die(sides) : 1;
   const flatBonus = integer(input.flatBonus, -20, 20, 0);
-  const difficulty = integer(input.difficulty, 1, 50, 10);
+  const difficulty = integer(input.difficulty, 1, 50, 18);
   const total = d20 + methodValue + flatBonus;
 
   return {
@@ -119,9 +145,26 @@ function rollControl(input = {}) {
   };
 }
 
-function baseRollResult(request, dice, evaluation, control) {
-  const controlBonus = control?.natural20 ? 1 : 0;
-  const finalEf = evaluation.ef + controlBonus;
+function normalizeControlRequest(input = {}) {
+  return {
+    enabled: Boolean(input.enabled),
+    methodName: text(input.methodName, "", 30),
+    methodKey: text(input.methodKey, "fixed1", 20),
+    flatBonus: integer(input.flatBonus, -20, 20, 0),
+    difficulty: integer(input.difficulty, 1, 50, 18),
+  };
+}
+
+function shouldRollControl(controlRequest, evaluation) {
+  return Boolean(
+    controlRequest?.enabled && evaluation?.complication === "Осложнение",
+  );
+}
+
+function baseRollResult(request, dice, evaluation, control, controlRequest) {
+  const finalEf = evaluation.ef;
+  const difficulty = rollDifficulty(request.difficulty);
+  const breakthrough = resolveBreakthrough(evaluation, finalEf, difficulty);
   return {
     id: crypto.randomUUID(),
     timestamp: new Date().toISOString(),
@@ -138,14 +181,72 @@ function baseRollResult(request, dice, evaluation, control) {
     ],
     originalDice: copyDice(dice),
     dice: copyDice(dice),
-    replacement: null,
     originalEf: evaluation.ef,
     baseEf: evaluation.ef,
     finalEf,
-    efBonusFromControl: controlBonus,
+    difficulty,
+    difficultyLabel: DIFFICULTY_LABELS[difficulty],
+    success: finalEf >= difficulty,
+    biographyBonus: 0,
+    nerveRerolls: [],
     outcome: outcome(finalEf),
     ...evaluation,
+    breakthrough,
     control,
+    controlRequest,
+  };
+}
+
+function resultFromPrevious(previous, dice, evaluation, additions = {}) {
+  const biographyBonus = integer(
+    additions.biographyBonus ?? previous.biographyBonus,
+    0,
+    1,
+    0,
+  );
+  const finalEf = evaluation.ef + biographyBonus;
+  const difficulty = rollDifficulty(previous.difficulty);
+  const controlRequest = normalizeControlRequest(
+    previous.controlRequest || { enabled: Boolean(previous.control) },
+  );
+  const components = (previous.components || [])
+    .slice(0, 2)
+    .map((item, index) =>
+      component(item, index ? "Второй компонент" : "Первый компонент"),
+    );
+  const breakthrough = resolveBreakthrough(evaluation, finalEf, difficulty);
+
+  return {
+    id: crypto.randomUUID(),
+    previousRollId: text(previous.id, "", 100),
+    timestamp: new Date().toISOString(),
+    type: "efficiency",
+    title: text(previous.title, "Бросок эффективности", 160),
+    characterId: text(previous.characterId, "", 100),
+    characterName: text(previous.characterName, "Без имени", 120),
+    className: text(previous.className, "", 80),
+    classIcon: CLASS_ICONS[String(previous.className || "")] || "",
+    sceneKey: text(previous.sceneKey, "normal", 30),
+    components,
+    originalDice: copyDice(previous.originalDice || dice),
+    dice: copyDice(dice),
+    originalEf: Number(previous.originalEf ?? evaluation.ef),
+    baseEf: evaluation.ef,
+    finalEf,
+    difficulty,
+    difficultyLabel: DIFFICULTY_LABELS[difficulty],
+    success: finalEf >= difficulty,
+    biographyBonus,
+    nerveRerolls: Array.isArray(additions.nerveRerolls)
+      ? additions.nerveRerolls.slice(0, 20)
+      : Array.isArray(previous.nerveRerolls)
+        ? previous.nerveRerolls.slice(0, 20)
+        : [],
+    outcome: outcome(finalEf),
+    ...evaluation,
+    breakthrough,
+    control: additions.control === undefined ? previous.control || null : additions.control,
+    controlRequest,
   };
 }
 
@@ -181,6 +282,41 @@ async function appendLog(db, user, result) {
     .run();
 }
 
+export async function appendExternalRoll(db, user, request = {}) {
+  const type = request.type === "random" ? "random" : "efficiency";
+  const dice = Array.isArray(request.dice)
+    ? request.dice.slice(0, 30).map((item, index) => ({
+        sides: integer(item?.sides, 2, 1000, 6),
+        value: integer(item?.value, 1, 1000, 1),
+        source: text(item?.source, `Куб ${index + 1}`, 120),
+      }))
+    : [];
+  if (!dice.length) throw new Error("В переданном броске нет кубов.");
+
+  const ef = type === "efficiency"
+    ? integer(request.ef, -1000, 1000, 0)
+    : null;
+  const total = integer(request.finalResult, -100000, 100000, ef || 0);
+  const result = {
+    id: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    characterId: text(request.characterId, "", 100),
+    characterName: text(request.characterName, "Калькулятор боя", 120),
+    className: text(request.className, "Противник", 120),
+    classIcon: text(request.classIcon, "", 30),
+    type,
+    title: text(request.title, "Бросок из калькулятора боя", 240),
+    dice,
+    finalEf: ef,
+    total,
+    complication: request.complication ? "Осложнение" : "",
+    breakthrough: request.breakthrough ? "Прорыв" : "",
+    control: null,
+  };
+  await appendLog(db, user, result);
+  return { success: true, id: result.id };
+}
+
 export async function rollEfficiency(db, user, request = {}) {
   const sceneKey = Object.hasOwn(SCENE_DICE, request.sceneKey)
     ? request.sceneKey
@@ -199,107 +335,85 @@ export async function rollEfficiency(db, user, request = {}) {
     }
   }
 
-  const control = request.control?.enabled ? rollControl(request.control) : null;
+  const evaluation = evaluate(dice);
+  const controlRequest = normalizeControlRequest(request.control);
+  const control =
+    shouldRollControl(controlRequest, evaluation)
+      ? rollControl(controlRequest)
+      : null;
   const result = baseRollResult(
     { ...request, sceneKey, firstComponent: first, secondComponent: second },
     dice,
-    evaluate(dice),
+    evaluation,
     control,
+    controlRequest,
   );
   await appendLog(db, user, result);
   return result;
 }
 
-function betterReplacement(candidate, current) {
-  if (candidate.ef !== current.ef) return candidate.ef > current.ef;
-  const candidateRank = complicationRank(candidate.ones);
-  const currentRank = complicationRank(current.ones);
-  if (candidateRank !== currentRank) return candidateRank < currentRank;
-  return candidate.criticalFaces > current.criticalFaces;
-}
-
-function chooseOptimalFour(sourceDice) {
-  const original = copyDice(sourceDice);
-  const originalEvaluation = evaluate(original);
-  let best = null;
-
-  original.forEach((item, index) => {
-    if (item.value === 4) return;
-    const candidateDice = copyDice(original);
-    candidateDice[index].originalValue = candidateDice[index].value;
-    candidateDice[index].value = 4;
-    const candidateEvaluation = evaluate(candidateDice);
-    if (candidateEvaluation.ef <= originalEvaluation.ef) return;
-    const candidate = {
-      dice: candidateDice,
-      evaluation: candidateEvaluation,
-      replacement: {
-        index,
-        from: item.value,
-        to: 4,
-        source: item.source,
-        sides: item.sides,
-        originalEf: originalEvaluation.ef,
-        resultingEf: candidateEvaluation.ef,
-      },
-    };
-    if (!best || betterReplacement(candidateEvaluation, best.evaluation)) {
-      best = candidate;
-    }
-  });
-
-  return (
-    best || {
-      dice: original,
-      evaluation: originalEvaluation,
-      replacement: null,
-    }
-  );
-}
-
-export async function applyOptimalFour(db, user, previous = {}) {
+export async function applyBiographyBonus(db, user, previous = {}) {
   if (previous.type !== "efficiency") {
     throw new Error("Нет результата броска Эффективности.");
   }
-  if (previous.replacement) {
-    throw new Error("Замена на 4 уже была применена.");
+  if (Number(previous.biographyBonus) >= 1) {
+    throw new Error("Биографическая черта уже применена к этому броску.");
   }
 
-  const originalDice = copyDice(previous.originalDice || previous.dice);
-  if (!originalDice.length) throw new Error("В результате нет кубов.");
+  const dice = copyDice(previous.dice);
+  if (!dice.length) throw new Error("В результате нет кубов.");
+  const result = resultFromPrevious(previous, dice, evaluate(dice), {
+    biographyBonus: 1,
+  });
+  await appendLog(db, user, result);
+  return result;
+}
 
-  const originalEvaluation = evaluate(originalDice);
-  const replacement = chooseOptimalFour(originalDice);
-  const control = previous.control || null;
-  const controlBonus = control?.natural20 ? 1 : 0;
-  const finalEf = replacement.evaluation.ef + controlBonus;
-  const result = {
-    id: crypto.randomUUID(),
-    previousRollId: text(previous.id, "", 100),
-    timestamp: new Date().toISOString(),
-    type: "efficiency",
-    title: text(previous.title, "Бросок эффективности", 160),
-    characterId: text(previous.characterId, "", 100),
-    characterName: text(previous.characterName, "Без имени", 120),
-    className: text(previous.className, "", 80),
-    classIcon: CLASS_ICONS[String(previous.className || "")] || "",
-    sceneKey: text(previous.sceneKey, "normal", 30),
-    components: (previous.components || [])
-      .slice(0, 2)
-      .map((item, index) =>
-        component(item, index ? "Второй компонент" : "Первый компонент"),
-      ),
-    originalDice,
-    dice: replacement.dice,
-    replacement: replacement.replacement,
-    originalEf: originalEvaluation.ef,
-    baseEf: replacement.evaluation.ef,
-    finalEf,
-    efBonusFromControl: controlBonus,
-    outcome: outcome(finalEf),
-    ...replacement.evaluation,
+export async function rerollEfficiencyDie(db, user, previous = {}, dieIndex) {
+  if (previous.type !== "efficiency") {
+    throw new Error("Нет результата броска Эффективности.");
+  }
+
+  const dice = copyDice(previous.dice);
+  if (!dice.length) throw new Error("В результате нет кубов.");
+  const parsedIndex = Number(dieIndex);
+  if (!Number.isInteger(parsedIndex) || parsedIndex < 0 || parsedIndex >= dice.length) {
+    throw new Error("Выберите куб для переброса.");
+  }
+  const index = parsedIndex;
+
+  const from = dice[index].value;
+  dice[index].value = die(dice[index].sides);
+  dice[index].rerolledFrom = from;
+  const evaluation = evaluate(dice);
+  const controlRequest = normalizeControlRequest(
+    previous.controlRequest || { enabled: Boolean(previous.control) },
+  );
+  let control = null;
+
+  if (evaluation.complication === "Осложнение") {
+    control = previous.complication === "Осложнение" && previous.control
+      ? previous.control
+      : controlRequest.enabled
+        ? rollControl(controlRequest)
+        : null;
+  }
+
+  const nerveRerolls = Array.isArray(previous.nerveRerolls)
+    ? previous.nerveRerolls.slice(0, 19)
+    : [];
+  nerveRerolls.push({
+    index,
+    from,
+    to: dice[index].value,
+    source: dice[index].source,
+    sides: dice[index].sides,
+  });
+
+  const result = resultFromPrevious(previous, dice, evaluation, {
     control,
-  };
+    nerveRerolls,
+  });
   await appendLog(db, user, result);
   return result;
 }
@@ -339,7 +453,7 @@ export async function rollRandom(db, user, request = {}) {
 }
 
 export async function getRollLog(db, user, limit) {
-  const safeLimit = integer(limit, 1, 200, 100);
+  const safeLimit = integer(limit, 1, 5000, 100);
   const { results = [] } = await db
     .prepare(
       `SELECT * FROM roll_log ORDER BY created_at DESC LIMIT ?1`,
@@ -376,7 +490,8 @@ export async function clearRollLog(db, user) {
 }
 
 export const __test = {
-  chooseOptimalFour,
   evaluate,
   outcome,
+  resolveBreakthrough,
+  shouldRollControl,
 };

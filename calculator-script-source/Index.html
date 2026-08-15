@@ -100,7 +100,7 @@
         <section class="panel">
           <h2>Расчёт Боеспособности</h2>
           <div id="budgetSummary" class="summary"></div>
-          <div class="callout"><b>Ограничения модели</b><p>ПЗ врага ограничен диапазоном 3–10, а пул каждой атаки — 1–8d6 без Кубов сцены. При оценке БС всегда используется обычная сцена d4+d6.</p></div>
+          <div class="callout"><b>Модель редакции 0.4.6</b><p>К каждому пулу добавляются три Куба сцены; для БС используется обычная сцена 2d4+d6. ПЗ противников задаётся статичным числом, а ПЗ игроков рассчитывается как 4 + половина ЭФ защитного броска с округлением вниз. В оценке также учитываются вероятности Прорыва и Осложнения.</p></div>
         </section>
         <section class="panel">
           <div class="toolbar">
@@ -125,6 +125,10 @@
           <div class="toolbar compact"><h2 class="no-margin">Бой</h2><button class="small" onclick="showScreen('prep')">← Подготовка</button></div>
           <div class="round-box">Раунд <span id="roundNumber">1</span></div>
           <div id="encounterMeta" class="help"></div>
+          <label class="top-gap">ПЗ выбранной цели
+            <input id="combatTargetPz" type="number" min="3" max="10" value="4" oninput="setCombatTargetPz(this.value)">
+          </label>
+          <p class="help">Перед атакой врага укажите текущий ПЗ атакуемого персонажа.</p>
           <div class="buttons vertical">
             <button class="primary" onclick="nextRound()">Следующий раунд</button>
             <button onclick="resetRoundReactions()">Вернуть реакции</button>
@@ -160,6 +164,8 @@
 
         <section class="panel">
           <h2>Сохранение</h2>
+          <label class="logging-toggle"><input id="sharedRollLogging" type="checkbox" onchange="setSharedRollLogging(this.checked)"> <span>Записывать броски боя в общий лог редактора</span></label>
+          <p class="help">Опционально: атаки, Контроль и защитные проверки противников появятся в разделе «Броски».</p>
           <div class="buttons vertical">
             <button onclick="saveToCloud()">Сохранить в Apps Script</button>
             <button onclick="loadFromCloud()">Загрузить</button>
@@ -276,4 +282,3 @@
 <?!= include('Script'); ?>
 </body>
 </html>
-

@@ -52,6 +52,10 @@
       </button>
     </nav>
 
+    <div id="characterDraftBanner" class="character-draft-banner" role="status">
+      Этот персонаж не закончен
+    </div>
+
     <main class="app-content">
       <!-- =========================
            РЕДАКТОР
@@ -369,6 +373,9 @@
               <strong id="bonusNerveValue">3</strong>
             </div>
           </div>
+          <p class="helper-note resource-formulas">
+            Тело = 4 + (Напор + Сноровка) × 2. Основной Нерв = Господство + Нюх. Бонусный Нерв = 3.
+          </p>
         </section>
 
         <section class="card">
@@ -377,25 +384,25 @@
               <h2>Навыки</h2>
 
               <p class="helper-note">
-                В стартовом режиме каждый Навык начинается с 1.
+                Все Навыки начинаются с 0. Распределите 21 очко;
+                сумма пяти Навыков одного Атрибута не может превышать 5.
               </p>
             </div>
 
             <div class="points-badge">
               Осталось:
-              <strong id="skillPointsLeft">6</strong>
+              <strong id="skillPointsLeft">21</strong>
             </div>
           </div>
 
-          <label class="checkbox-line skill-recommendation-toggle">
-            <input
-              type="checkbox"
-              id="showRecommendedSkills"
-              checked
-              onchange="renderSkills()"
-            >
-            <span>Показывать рекомендованные</span>
-          </label>
+          <div class="skill-tools">
+            <label class="checkbox-line skill-recommendation-toggle">
+              <input type="checkbox" id="showRecommendedSkills" checked onchange="renderSkills()">
+              <span>Показывать рекомендованные</span>
+            </label>
+            <span class="skill-recommendation-legend"><i class="primary"></i> основные <i class="secondary"></i> вторичные</span>
+            <button type="button" class="secondary-button" onclick="resetAllSkills()">Сбросить навыки</button>
+          </div>
 
           <div
             id="skillsGrid"
@@ -582,6 +589,17 @@
     </main>
   </div>
 
+  <dialog id="draftSaveDialog" class="draft-save-dialog">
+    <form method="dialog">
+      <h2>Персонаж не закончен</h2>
+      <p id="draftSaveErrors">Не все обязательные этапы создания завершены.</p>
+      <div class="action-row">
+        <button type="submit" value="cancel" class="secondary-button">Вернуться</button>
+        <button type="button" class="primary-button" onclick="saveCurrentCharacter(true)">Всё равно сохранить</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Данные -->
   <?!= include('EquipmentData'); ?>
   <?!= include('EquipmentMaintenanceData'); ?>
@@ -598,6 +616,7 @@
   <?!= include('ScriptsEquipment'); ?>
   <?!= include('ScriptsStorage'); ?>
   <?!= include('ViewerScripts'); ?>
+  <?!= include('CharacterPdfScripts'); ?>
   <?!= include('RollsScripts'); ?>
 </body>
 </html>

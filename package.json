@@ -13,6 +13,7 @@
     "jose": "^6.1.0"
   },
   "devDependencies": {
+    "pdfmake": "^0.2.20",
     "wrangler": "^4.27.0"
   }
 }

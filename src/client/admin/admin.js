@@ -9,11 +9,13 @@ const elements = Object.fromEntries(
     "maxArmor", "gold", "farthings", "pekkels", "notes", "hidden",
     "characterJson",
     "adminForm", "adminEmail", "adminList",
+    "selectVisibleButton", "exportSelectedButton", "deletionPolicy",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
 let characters = [];
 let admins = [];
+const selectedCharacterIds = new Set();
 
 async function rpc(method, ...args) {
   const response = await fetch("/api/rpc", {
@@ -66,7 +68,8 @@ function render() {
   const items = filteredCharacters();
   const hiddenCount = characters.filter((item) => item.hidden).length;
   elements.summary.textContent =
-    `${characters.length} всего · ${hiddenCount} скрыто`;
+    `${characters.length} всего · ${hiddenCount} скрыто · ${selectedCharacterIds.size} выбрано`;
+  elements.exportSelectedButton.disabled = selectedCharacterIds.size === 0;
 
   if (!items.length) {
     elements.characterList.innerHTML =
@@ -76,9 +79,13 @@ function render() {
 
   elements.characterList.innerHTML = items.map((item) => `
     <article class="character-card ${item.hidden ? "hidden-card" : ""}">
+      <label class="character-select" title="Выбрать для экспорта">
+        <input type="checkbox" data-select-id="${item.id}" ${selectedCharacterIds.has(item.id) ? "checked" : ""}>
+      </label>
       <div>
-        <h3 class="character-name">${escapeHtml(item.name)}
+        <h3 class="character-name">${escapeHtml(item.name || "Без имени")}
           ${item.hidden ? '<span class="badge">скрыт</span>' : ""}
+          ${item.isComplete === false ? '<span class="badge draft">черновик</span>' : ""}
         </h3>
         <div class="meta">${escapeHtml(item.className || "Без класса")}
           · уровень ${escapeHtml(item.level || 1)}
@@ -152,15 +159,20 @@ function openDialog(character = null) {
 
 async function loadCharacters() {
   showNotice("");
-  const [user, result, adminResult] = await Promise.all([
+  const [user, result, adminResult, policyResult] = await Promise.all([
     rpc("getCurrentUserInfo"),
     rpc("adminListCharacters"),
     rpc("adminListAdmins"),
+    rpc("adminGetCharacterDeletionPolicy"),
   ]);
   if (!user.isAdmin) throw new Error("У аккаунта нет прав администратора.");
   elements.identity.textContent = `Администратор: ${user.email}`;
   characters = result.characters;
+  for (const id of [...selectedCharacterIds]) {
+    if (!characters.some((item) => item.id === id)) selectedCharacterIds.delete(id);
+  }
   admins = adminResult.admins;
+  elements.deletionPolicy.value = policyResult.policy;
   render();
   renderAdmins();
 }
@@ -205,6 +217,14 @@ elements.characterForm.addEventListener("submit", async (event) => {
 });
 
 elements.characterList.addEventListener("click", async (event) => {
+  const selection = event.target.closest("input[data-select-id]");
+  if (selection) {
+    selection.checked
+      ? selectedCharacterIds.add(selection.dataset.selectId)
+      : selectedCharacterIds.delete(selection.dataset.selectId);
+    render();
+    return;
+  }
   const button = event.target.closest("button[data-action]");
   if (!button) return;
   const character = characters.find((item) => item.id === button.dataset.id);
@@ -264,6 +284,42 @@ elements.adminList.addEventListener("click", async (event) => {
 
 elements.searchInput.addEventListener("input", render);
 elements.visibilityFilter.addEventListener("change", render);
+elements.deletionPolicy.addEventListener("change", async () => {
+  try {
+    const result = await rpc("adminSetCharacterDeletionPolicy", elements.deletionPolicy.value);
+    elements.deletionPolicy.value = result.policy;
+    showNotice("Политика удаления обновлена.");
+  } catch (error) {
+    showNotice(error.message, true);
+    await loadCharacters();
+  }
+});
+elements.selectVisibleButton.addEventListener("click", () => {
+  const visible = filteredCharacters();
+  const allSelected = visible.length > 0 && visible.every((item) => selectedCharacterIds.has(item.id));
+  visible.forEach((item) => allSelected
+    ? selectedCharacterIds.delete(item.id)
+    : selectedCharacterIds.add(item.id));
+  render();
+});
+elements.exportSelectedButton.addEventListener("click", () => {
+  const selected = characters.filter((item) => selectedCharacterIds.has(item.id));
+  if (!selected.length) return;
+  const payload = {
+    format: "mitrinium-characters-v1",
+    exportedAt: new Date().toISOString(),
+    characters: selected,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `mitrinium-characters-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+  showNotice(`Экспортировано персонажей: ${selected.length}.`);
+});
 elements.createButton.addEventListener("click", () => openDialog());
 elements.refreshButton.addEventListener("click", () =>
   loadCharacters().catch((error) => showNotice(error.message, true)));

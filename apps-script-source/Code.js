@@ -793,25 +793,38 @@ function validateSkills_(
 
   if (
     values.some(value =>
-      value < 1 || value > maximum
+      value < 0 || value > maximum
     )
   ) {
     throw new Error(
-      `Значение Навыка должно быть от 1 до ${maximum}.`
+      `Значение Навыка должно быть от 0 до ${maximum}.`
     );
   }
 
   if (!isAdvancedEditMode) {
     const spent = values.reduce(
-      (sum, value) => sum + (value - 1),
+      (sum, value) => sum + value,
       0
     );
 
-    if (spent !== 6) {
+    if (spent !== 21) {
       throw new Error(
-        'На старте нужно распределить ровно 6 очков Навыков.'
+        'На старте нужно распределить ровно 21 очко Навыков.'
       );
     }
+
+    Object.values(skills).forEach(group => {
+      const groupTotal = Object.values(group || {}).reduce(
+        (sum, value) => sum + Number(value || 0),
+        0
+      );
+
+      if (groupTotal > 5) {
+        throw new Error(
+          'Сумма пяти Навыков одного Атрибута не может превышать 5.'
+        );
+      }
+    });
   }
 }
 
@@ -1110,8 +1123,7 @@ function performEfficiencyRoll(request) {
   const sceneDiceMap = {
     hindrance: [4, 4],
     normal: [4, 6],
-    advantage: [6, 6],
-    exceptional: [8, 8]
+    advantage: [6, 6]
   };
 
   const sceneKey =
@@ -1360,9 +1372,12 @@ function performEfficiencyRoll(request) {
         .criticalFaces,
 
     breakthrough:
-      replacementResult
-        .evaluation
-        .breakthrough,
+      getBreakthroughLabel_(
+        replacementResult
+          .evaluation
+          .criticalFaces,
+        finalEf
+      ),
 
     topValues:
       replacementResult
@@ -1505,17 +1520,25 @@ function evaluateEfficiencyDice_(
       0
     );
 
-  const ones =
-    values.filter(
-      function (value) {
+  const sceneDice =
+    (dice || []).filter(
+      function (die) {
         return (
-          value === 1
+          String(die.source || '')
+            .indexOf('Куб сцены') === 0
         );
+      }
+    );
+
+  const ones =
+    sceneDice.filter(
+      function (die) {
+        return Number(die.value) === 1;
       }
     ).length;
 
   const criticalFaces =
-    (dice || []).filter(
+    sceneDice.filter(
       function (die) {
         const sides =
           Number(
@@ -1527,15 +1550,15 @@ function evaluateEfficiencyDice_(
             die.value
           ) || 0;
 
-        if (sides === 6) {
+        if (sides === 4) {
           return (
-            value === 6
+            value === 4
           );
         }
 
-        if (sides === 8) {
+        if (sides === 6) {
           return (
-            value >= 6
+            value >= 5
           );
         }
 
@@ -1543,10 +1566,13 @@ function evaluateEfficiencyDice_(
       }
     ).length;
 
+  const ef =
+    topSum -
+    bottomSum;
+
   return {
     ef:
-      topSum -
-      bottomSum,
+      ef,
 
     topValues:
       topValues,
@@ -1567,7 +1593,8 @@ function evaluateEfficiencyDice_(
 
     breakthrough:
       getBreakthroughLabel_(
-        criticalFaces
+        criticalFaces,
+        ef
       )
   };
 }
@@ -1909,28 +1936,14 @@ function isReplacementTieBetter_(
 function getComplicationRank_(
   ones
 ) {
-  if (ones < 3) {
-    return 0;
-  }
-
-  if (ones === 3) {
-    return 1;
-  }
-
-  return 2;
+  return ones >= 2 ? 1 : 0;
 }
 
 
 function getComplicationLabel_(
   ones
 ) {
-  if (ones >= 4) {
-    return (
-      'Тяжёлое осложнение'
-    );
-  }
-
-  if (ones === 3) {
+  if (ones === 2) {
     return (
       'Осложнение'
     );
@@ -1941,18 +1954,12 @@ function getComplicationLabel_(
 
 
 function getBreakthroughLabel_(
-  criticalFaces
+  criticalFaces,
+  ef
 ) {
   if (
-    criticalFaces >= 4
-  ) {
-    return (
-      'Большой Прорыв'
-    );
-  }
-
-  if (
-    criticalFaces === 3
+    criticalFaces === 2 &&
+    ef >= 4
   ) {
     return 'Прорыв';
   }

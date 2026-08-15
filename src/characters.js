@@ -1,3 +1,5 @@
+import { getCharacterDeletionPolicy } from "./settings.js";
+
 function now() {
   return new Date().toISOString();
 }
@@ -31,6 +33,153 @@ const CLASS_CONTROL_BONUSES = {
   Натуралист: { Реагенты: 2, Кристаллы: 2, Порох: 1 },
 };
 
+const SKILL_RULES_VERSION = 5;
+const ATTRIBUTE_RULES_VERSION = 2;
+
+const SKILL_SCHEMA = {
+  napor: ["fehtovanie", "atletika", "stoikost", "sila", "vyzhivanie"],
+  snorovka: ["draka", "uklonenie", "skrytnost", "lovkostRuk", "obman"],
+  nyuh: ["vnimatelnost", "strelba", "priroda", "znanieUlits", "psihologiya"],
+  smetka: ["mehanizmy", "himiya", "medicina", "zakon", "erudiciya"],
+  gospodstvo: ["ugrozy", "ubezhdenie", "komandovanie", "disciplina", "scena"],
+};
+
+const LEGACY_SKILL_PATHS = {
+  "napor:stoikost": "napor:stoikost",
+  "napor:sila": "napor:draka",
+  "zhila:atletika": "napor:atletika",
+  "zhila:disciplina": "napor:disciplina",
+  "losk:vnushenie": "napor:vyzhivanie",
+  "napor:draka": "snorovka:fehtovanie",
+  "smetka:skrytnost": "snorovka:skrytnost",
+  "smetka:lovkostRuk": "snorovka:lovkostRuk",
+  "smetka:uklonenie": "snorovka:uklonenie",
+  "nyuh:strelba": "snorovka:strelba",
+  "nyuh:priroda": "nyuh:priroda",
+  "nyuh:vnimatelnost": "nyuh:vnimatelnost",
+  "nyuh:znanieUlits": "nyuh:znanieUlits",
+  "losk:psiho": "nyuh:psihologiya",
+  "losk:etiket": "nyuh:etiket",
+  "smetka:mehanizmy": "smetka:mehanizmy",
+  "nyuh:zakon": "smetka:zakon",
+  "zhila:ekonomika": "smetka:ekonomika",
+  "zhila:himiya": "smetka:himiya",
+  "zhila:medicina": "smetka:medicina",
+  "napor:ugrozy": "gospodstvo:ugrozy",
+  "smetka:obman": "gospodstvo:obman",
+  "napor:liderstvo": "gospodstvo:komandovanie",
+  "losk:ubezhdenie": "gospodstvo:ubezhdenie",
+  "losk:scena": "gospodstvo:scena",
+};
+
+const VERSION_4_SKILL_PATHS = {
+  "napor:stoikost": "napor:stoikost",
+  "napor:draka": "snorovka:draka",
+  "napor:atletika": "napor:atletika",
+  "napor:disciplina": "gospodstvo:disciplina",
+  "napor:vyzhivanie": "napor:vyzhivanie",
+  "snorovka:fehtovanie": "napor:fehtovanie",
+  "snorovka:skrytnost": "snorovka:skrytnost",
+  "snorovka:lovkostRuk": "snorovka:lovkostRuk",
+  "snorovka:uklonenie": "snorovka:uklonenie",
+  "snorovka:strelba": "nyuh:strelba",
+  "nyuh:priroda": "nyuh:priroda",
+  "nyuh:vnimatelnost": "nyuh:vnimatelnost",
+  "nyuh:znanieUlits": "nyuh:znanieUlits",
+  "nyuh:psihologiya": "nyuh:psihologiya",
+  "smetka:mehanizmy": "smetka:mehanizmy",
+  "smetka:zakon": "smetka:zakon",
+  "smetka:ekonomika": "smetka:erudiciya",
+  "smetka:himiya": "smetka:himiya",
+  "smetka:medicina": "smetka:medicina",
+  "gospodstvo:ugrozy": "gospodstvo:ugrozy",
+  "gospodstvo:obman": "snorovka:obman",
+  "gospodstvo:komandovanie": "gospodstvo:komandovanie",
+  "gospodstvo:ubezhdenie": "gospodstvo:ubezhdenie",
+  "gospodstvo:scena": "gospodstvo:scena",
+};
+
+export function normalizeCharacterAttributes(character = {}) {
+  const source = character.attributes && typeof character.attributes === "object"
+    ? character.attributes
+    : {};
+  const legacy = Number(character.attributeRulesVersion || 0) < ATTRIBUTE_RULES_VERSION;
+  const pick = (key, legacyKey = key) => clamp(
+    Math.round(numberOr(legacy ? source[legacyKey] : source[key], 1)),
+    1,
+    3,
+  );
+  return {
+    ...character,
+    attributes: {
+      napor: pick("napor"),
+      snorovka: pick("snorovka", "smetka"),
+      nyuh: pick("nyuh"),
+      smetka: pick("smetka", "zhila"),
+      gospodstvo: pick("gospodstvo", "losk"),
+    },
+    attributeRulesVersion: ATTRIBUTE_RULES_VERSION,
+  };
+}
+
+export function calculateCharacterResources(attributes = {}) {
+  return {
+    body: 4 + (numberOr(attributes.napor, 1) + numberOr(attributes.snorovka, 1)) * 2,
+    mainNerve: numberOr(attributes.gospodstvo, 1) + numberOr(attributes.nyuh, 1),
+    bonusNerve: 3,
+  };
+}
+
+export function normalizeCharacterSkills(character = {}) {
+  const sourceSkills =
+    character.skills && typeof character.skills === "object"
+      ? character.skills
+      : {};
+  const savedValues = Object.values(sourceSkills).flatMap((group) =>
+    group && typeof group === "object" ? Object.values(group) : [],
+  );
+  const savedVersion = Number(character.skillRulesVersion || 0);
+  const allSkillsAtLeastOne =
+    savedValues.length > 0 &&
+    savedValues.every((value) => Number.isFinite(Number(value)) && Number(value) >= 1);
+  const savedTotal = savedValues.reduce(
+    (total, value) => total + numberOr(value, 0),
+    0,
+  );
+  const legacySkills =
+    allSkillsAtLeastOne &&
+    (savedVersion < 2 ||
+      (savedVersion === 2 &&
+        !character.advancedEditMode &&
+        savedTotal > 21));
+  const normalizedSource = {};
+  for (const [groupKey, group] of Object.entries(sourceSkills)) {
+    for (const [skillKey, value] of Object.entries(group || {})) {
+      normalizedSource[`${groupKey}:${skillKey}`] = clamp(
+        Math.round(numberOr(value, legacySkills ? 1 : 0)) - (legacySkills ? 1 : 0),
+        0, 3,
+      );
+    }
+  }
+  const migrated = {};
+  for (const [path, value] of Object.entries(normalizedSource)) {
+    const version4Path = savedVersion < 4 ? (LEGACY_SKILL_PATHS[path] || path) : path;
+    const currentPath = savedVersion < 5 ? (VERSION_4_SKILL_PATHS[version4Path] || version4Path) : version4Path;
+    migrated[currentPath] = value;
+  }
+  const skills = {};
+  for (const [groupKey, keys] of Object.entries(SKILL_SCHEMA)) {
+    skills[groupKey] = {};
+    for (const skillKey of keys) skills[groupKey][skillKey] = migrated[`${groupKey}:${skillKey}`] || 0;
+  }
+
+  return {
+    ...character,
+    skills,
+    skillRulesVersion: SKILL_RULES_VERSION,
+  };
+}
+
 export function normalizeCharacterControl(value, className = "") {
   const classBonuses = CLASS_CONTROL_BONUSES[String(className || "")] || {};
   const source =
@@ -57,12 +206,12 @@ export function normalizeCharacterControl(value, className = "") {
   return { methods };
 }
 
-function validateCharacter(character) {
+function validateCharacter(character, { allowIncomplete = false } = {}) {
   if (!character || typeof character !== "object") {
     throw new Error("Данные персонажа отсутствуют.");
   }
 
-  if (!String(character.name || "").trim()) {
+  if (!allowIncomplete && !String(character.name || "").trim()) {
     throw new Error("Укажите имя персонажа.");
   }
 
@@ -78,8 +227,8 @@ function validateCharacter(character) {
   for (const group of Object.values(character.skills || {})) {
     for (const value of Object.values(group || {})) {
       const stat = numberOr(value, NaN);
-      if (!Number.isFinite(stat) || stat < 1 || stat > 3) {
-        throw new Error("Значение Навыка должно быть от 1 до 3.");
+      if (!Number.isFinite(stat) || stat < 0 || stat > 3) {
+        throw new Error("Значение Навыка должно быть от 0 до 3.");
       }
     }
   }
@@ -153,9 +302,11 @@ function normalizeEmail(value) {
 }
 
 export async function saveCharacter(db, user, input) {
+  input = normalizeCharacterSkills(normalizeCharacterAttributes(input || {}));
   const level = normalizeCharacterLevel(input?.level);
   const control = normalizeCharacterControl(input?.control, input?.className);
-  validateCharacter({ ...input, level, control });
+  const isComplete = input?.isComplete !== false;
+  validateCharacter({ ...input, level, control }, { allowIncomplete: !isComplete });
 
   const id = String(input.id || crypto.randomUUID());
   const existing = await getRecord(db, id);
@@ -170,7 +321,9 @@ export async function saveCharacter(db, user, input) {
     id,
     level,
     control,
+    isComplete,
     ownerEmail,
+    resources: calculateCharacterResources(input.attributes),
   };
   delete data.state;
 
@@ -204,16 +357,18 @@ export async function saveCharacter(db, user, input) {
   return {
     success: true,
     id,
+    isComplete,
     ownerEmail,
     isAdmin: user.isAdmin,
   };
 }
 
 export async function listVisibleCharacters(db, user) {
+  const deletionPolicy = await getCharacterDeletionPolicy(db);
   const query = user.isAdmin
-    ? `SELECT id, created_at, updated_at, name, player, class_name, level, owner_email
+    ? `SELECT id, created_at, updated_at, name, player, class_name, level, owner_email, data_json
        FROM characters WHERE hidden = 0 ORDER BY updated_at DESC`
-    : `SELECT id, created_at, updated_at, name, player, class_name, level, owner_email
+    : `SELECT id, created_at, updated_at, name, player, class_name, level, owner_email, data_json
        FROM characters
        WHERE hidden = 0 AND owner_email = ?1
        ORDER BY updated_at DESC`;
@@ -230,19 +385,43 @@ export async function listVisibleCharacters(db, user) {
     : { count: 0 };
 
   return {
-    characters: results.map((row) => ({
-      id: row.id,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      name: row.name,
-      player: row.player,
-      className: row.class_name,
-      level: normalizeCharacterLevel(row.level),
-      ownerEmail: row.owner_email,
-    })),
+    characters: results.map((row) => {
+      let data = {};
+      try { data = JSON.parse(row.data_json || "{}"); } catch { data = {}; }
+      return {
+        id: row.id,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        name: row.name,
+        player: row.player,
+        className: row.class_name,
+        level: normalizeCharacterLevel(row.level),
+        ownerEmail: row.owner_email,
+        isComplete: data.isComplete !== false,
+      };
+    }),
     isAdmin: user.isAdmin,
+    deletionPolicy,
     hiddenCount: Number(hiddenRow?.count || 0),
   };
+}
+
+export async function deleteOwnCharacter(db, user, id) {
+  const record = await getRecord(db, id);
+  assertOwner(record, user, "Нельзя удалить чужого персонажа.");
+  const policy = await getCharacterDeletionPolicy(db);
+  if (policy === "forbidden" && !user.isAdmin) {
+    throw new Error("Администратор запретил пользователям удалять персонажей.");
+  }
+  if (policy === "archive" && !user.isAdmin) {
+    await db.prepare("UPDATE characters SET hidden = 1, updated_at = ?2 WHERE id = ?1")
+      .bind(String(id), now()).run();
+    return { success: true, id: String(id), archived: true };
+  }
+  const result = await db.prepare("DELETE FROM characters WHERE id = ?1")
+    .bind(String(id)).run();
+  if (!result.meta.changes) throw new Error("Персонаж не найден.");
+  return { success: true, id: String(id), archived: false };
 }
 
 export async function loadCharacter(db, user, id) {
@@ -256,6 +435,9 @@ export async function loadCharacter(db, user, id) {
     throw new Error("Не удалось прочитать JSON персонажа.");
   }
 
+  character = normalizeCharacterSkills(normalizeCharacterAttributes(character));
+  character.isComplete = character.isComplete !== false;
+
   character.level = normalizeCharacterLevel(
     character.level ?? record.level,
   );
@@ -263,6 +445,7 @@ export async function loadCharacter(db, user, id) {
     character.control,
     character.className,
   );
+  character.resources = calculateCharacterResources(character.attributes);
 
   const stateRow = await db
     .prepare("SELECT data_json FROM character_states WHERE character_id = ?1")
@@ -348,10 +531,12 @@ export async function adminListCharacters(db, user) {
 
   return {
     characters: results.map((row) => {
-      const data = JSON.parse(row.data_json || "{}");
+      let data = normalizeCharacterSkills(normalizeCharacterAttributes(JSON.parse(row.data_json || "{}")));
       const level = normalizeCharacterLevel(data.level ?? row.level);
       data.level = level;
       data.control = normalizeCharacterControl(data.control, data.className);
+      data.resources = calculateCharacterResources(data.attributes);
+      data.isComplete = data.isComplete !== false;
       return {
         id: row.id,
         createdAt: row.created_at,
@@ -362,6 +547,7 @@ export async function adminListCharacters(db, user) {
         level,
         ownerEmail: row.owner_email,
         hidden: Boolean(row.hidden),
+        isComplete: data.isComplete,
         data,
         state: row.state_json ? JSON.parse(row.state_json) : null,
       };
@@ -379,7 +565,7 @@ export async function adminSaveCharacter(db, user, input = {}) {
     : {};
   const suppliedData =
     input.data && typeof input.data === "object" ? input.data : {};
-  const data = {
+  let data = {
     ...currentData,
     ...suppliedData,
     id,
@@ -398,9 +584,12 @@ export async function adminSaveCharacter(db, user, input = {}) {
     ),
     ownerEmail,
   };
+  data = normalizeCharacterSkills(normalizeCharacterAttributes(data));
+  data.resources = calculateCharacterResources(data.attributes);
+  data.isComplete = input.isComplete ?? suppliedData.isComplete ?? currentData.isComplete ?? true;
   data.control = normalizeCharacterControl(data.control, data.className);
   delete data.state;
-  validateCharacter(data);
+  validateCharacter(data, { allowIncomplete: data.isComplete === false });
 
   const timestamp = now();
   await db

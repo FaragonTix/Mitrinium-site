@@ -3,6 +3,7 @@
 
   let savedCharactersListIsAdmin = false;
   let hiddenCharactersCount = 0;
+  let characterDeletionPolicy = 'forbidden';
 
   function setSaveStatus(
     message,
@@ -24,7 +25,7 @@
       : 'save-status success';
   }
 
-  function saveCurrentCharacter() {
+  function saveCurrentCharacter(forceDraft) {
     const character =
       collectCharacterForSave();
 
@@ -33,14 +34,21 @@
         character
       );
 
-    if (errors.length > 0) {
+    if (errors.length > 0 && !forceDraft) {
       setSaveStatus(
         errors.join(' '),
         true
       );
-
+      const dialog = document.getElementById('draftSaveDialog');
+      const errorText = document.getElementById('draftSaveErrors');
+      if (errorText) errorText.textContent = errors.join(' ');
+      if (dialog && typeof dialog.showModal === 'function') dialog.showModal();
       return;
     }
+
+    character.isComplete = errors.length === 0;
+    const dialog = document.getElementById('draftSaveDialog');
+    if (dialog && dialog.open) dialog.close();
 
     setSaveStatus(
       'Сохраняю...',
@@ -52,9 +60,12 @@
         function (result) {
           currentCharacterId =
             result.id;
+          setCharacterCompletionStatus(result.isComplete !== false);
 
           setSaveStatus(
-            'Персонаж сохранён. Список не обновлялся автоматически.',
+            result.isComplete === false
+              ? 'Черновик сохранён. Персонаж пока не закончен.'
+              : 'Персонаж сохранён. Список не обновлялся автоматически.',
             false
           );
         }
@@ -340,8 +351,11 @@
                 )
               : '';
 
-          const hideButton =
-            savedCharactersListIsAdmin
+          const draftBadge = character.isComplete === false
+            ? '<span class="character-draft-chip">не закончен</span>'
+            : '';
+
+          const hideButton = savedCharactersListIsAdmin
               ? `
                 <button
                   type="button"
@@ -353,7 +367,17 @@
                   Скрыть
                 </button>
               `
-              : '';
+              : characterDeletionPolicy !== 'forbidden'
+                ? `
+                  <button
+                    type="button"
+                    class="equipment-button saved-character-hide-button"
+                    onclick="deleteOwnCharacterFromList('${characterId}')"
+                  >
+                    Удалить
+                  </button>
+                `
+                : '';
 
           return `
             <div class="saved-character-item">
@@ -375,7 +399,7 @@
                       : ''
                   }
 
-                  ${name}
+                  ${name} ${draftBadge}
                 </div>
 
                 <div class="saved-character-meta">
@@ -441,6 +465,10 @@
               result.hiddenCount
             ) || 0;
 
+          characterDeletionPolicy = String(
+            result && result.deletionPolicy || 'forbidden'
+          );
+
           savedCharactersCache =
             result &&
             Array.isArray(
@@ -480,7 +508,8 @@
     ).forEach(function (key) {
       loadedAttributes[key] =
         clampLoadedStat(
-          loadedAttributes[key]
+          loadedAttributes[key],
+          1
         );
     });
 
@@ -497,7 +526,8 @@
         function (skillKey) {
           group[skillKey] =
             clampLoadedStat(
-              group[skillKey]
+              group[skillKey],
+              0
             );
         }
       );
@@ -506,18 +536,23 @@
     return result;
   }
 
-  function clampLoadedStat(value) {
+  function clampLoadedStat(value, minimumValue) {
     const numericValue =
       Number(value);
+
+    const minimum =
+      Number(minimumValue) === 0
+        ? 0
+        : 1;
 
     if (!Number.isFinite(
       numericValue
     )) {
-      return 1;
+      return minimum;
     }
 
     return Math.max(
-      1,
+      minimum,
       Math.min(
         3,
         Math.round(numericValue)
@@ -629,6 +664,29 @@
       .mitriniumHideCharacter(
         characterId
       );
+  }
+
+  function deleteOwnCharacterFromList(characterId) {
+    const keepsCopy = characterDeletionPolicy === 'archive';
+    const confirmed = window.confirm(
+      keepsCopy
+        ? 'Удалить персонажа из вашего списка? Администратор сможет восстановить сохранённую копию.'
+        : 'Окончательно удалить персонажа? Это действие нельзя отменить.'
+    );
+    if (!confirmed) return;
+    setLoadStatus('Удаляю персонажа...', false);
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (currentCharacterId === characterId) currentCharacterId = null;
+        loadSavedCharactersList();
+        setLoadStatus(result && result.archived
+          ? 'Персонаж удалён из вашего списка; копия сохранена для администратора.'
+          : 'Персонаж окончательно удалён.', false);
+      })
+      .withFailureHandler(function(error) {
+        setLoadStatus(error.message || 'Ошибка удаления персонажа.', true);
+      })
+      .mitriniumDeleteOwnCharacter(characterId);
   }
 
   function restoreAllHiddenCharacters() {

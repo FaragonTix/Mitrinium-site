@@ -3,6 +3,7 @@
 let customEnemies=[];
 let toastTimer=null;
 const efficiencyCache=new Map();
+const efficiencyDetailCache=new Map();
 const damageCache=new Map();
 const referenceCache=new Map();
 function newId(prefix) {
@@ -112,7 +113,7 @@ function defaultBestiaryDraft() {
 }
 function defaultState() {
   return {
-    version:7,currentScreen:'prep',round:1,players:[1,2,3].map(i=>( {
+    version:8,currentScreen:'prep',round:1,combatTargetPz:4,sharedRollLogging:false,players:[1,2,3].map(i=>( {
       id:newId('p'),name:`Игрок ${i}`,initiative:0
     })),settings:null,targetBp:0,actionMultiplier:1,enemies:[],initiative: {
       activeId:null
@@ -120,61 +121,122 @@ function defaultState() {
   };
 }
 let state=defaultState();
-/* ---------------- МОДЕЛЬ БОЕСПОСОБНОСТИ ---------------- */ function efficiencyDistribution(poolD6,sceneDice=MODEL_SCENE_DICE) {
+/* ---------------- МОДЕЛЬ БОЕСПОСОБНОСТИ ---------------- */
+function sceneEvent(sceneValues) {
+  const frequencies=new Map();
+  sceneValues.forEach(value=>frequencies.set(value,(frequencies.get(value)||0)+1));
+  const duplicate=[...frequencies.entries()].find(([,count])=>count===2);
+  if(!duplicate)return'none';
+  const trigger=duplicate[0],third=sceneValues.find(value=>value!==trigger);
+  if(third===trigger-1)return'complication';
+  if(third===trigger+1)return'breakthrough';
+  return'none';
+}
+function sceneValueCombinations(sceneDice) {
+  let combinations=[{values:[],p:1}];
+  sceneDice.forEach(sides=> {
+    const next=[];
+    combinations.forEach(item=> {
+      for(let face=1;face<=sides;face++)next.push({values:[...item.values,face],p:item.p/sides});
+    });
+    combinations=next;
+  });
+  return combinations;
+}
+function efficiencyDetailDistribution(poolD6,sceneDice=MODEL_SCENE_DICE) {
   const pool=clamp(Number(poolD6)||1,1,8);
   const cacheKey=`${pool}|${sceneDice.join(',')}`;
-  if(efficiencyCache.has(cacheKey))return efficiencyCache.get(cacheKey);
-  let states=new Map([['99,99,-99,-99', {
-    p:1,l1:99,l2:99,h1:-99,h2:-99
-  }]]);
-  const dice=[...Array(pool).fill(6),...sceneDice];
-  dice.forEach(sides=> {
-    const next=new Map(); states.forEach(state=> {
-      for(let face=1; face<=sides; face++) {
-        let {
-          l1,l2,h1,h2
-        }
-        =state; if(face<l1) {
-          l2=l1; l1=face;
-        } else if(face<l2) {
-          l2=face;
-        }
-        if(face>h1) {
-          h2=h1; h1=face;
-        } else if(face>h2) {
-          h2=face;
-        }
-        const key=`${l1},${l2},${h1},${h2}`; const node=next.get(key)|| {
-          p:0,l1,l2,h1,h2
-        }; node.p+=state.p/sides; next.set(key,node);
-      }
-    }); states=next;
-  });
+  if(efficiencyDetailCache.has(cacheKey))return efficiencyDetailCache.get(cacheKey);
   const result=new Map();
-  states.forEach(state=> {
-    const ef=(state.h1+state.h2)-(state.l1+state.l2); result.set(ef,(result.get(ef)||0)+state.p);
+  sceneValueCombinations(sceneDice).forEach(scene=> {
+    const sorted=[...scene.values].sort((a,b)=>a-b);
+    let states=new Map([[`${sorted[0]},${sorted[1]},${sorted.at(-1)},${sorted.at(-2)}`,{
+      p:scene.p,l1:sorted[0],l2:sorted[1],h1:sorted.at(-1),h2:sorted.at(-2)
+    }]]);
+    for(let dieIndex=0;dieIndex<pool;dieIndex++) {
+      const next=new Map();
+      states.forEach(state=> {
+        for(let face=1;face<=6;face++) {
+          let {l1,l2,h1,h2}=state;
+          if(face<l1){l2=l1;l1=face;}else if(face<l2){l2=face;}
+          if(face>h1){h2=h1;h1=face;}else if(face>h2){h2=face;}
+          const key=`${l1},${l2},${h1},${h2}`,node=next.get(key)||{p:0,l1,l2,h1,h2};
+          node.p+=state.p/6;
+          next.set(key,node);
+        }
+      });
+      states=next;
+    }
+    const event=sceneEvent(scene.values);
+    states.forEach(state=> {
+      const ef=(state.h1+state.h2)-(state.l1+state.l2),key=`${ef}|${event}`;
+      result.set(key,(result.get(key)||0)+state.p);
+    });
+  });
+  efficiencyDetailCache.set(cacheKey,result);
+  return result;
+}
+function efficiencyDistribution(poolD6,sceneDice=MODEL_SCENE_DICE) {
+  const pool=clamp(Number(poolD6)||1,1,8),cacheKey=`${pool}|${sceneDice.join(',')}`;
+  if(efficiencyCache.has(cacheKey))return efficiencyCache.get(cacheKey);
+  const result=new Map();
+  efficiencyDetailDistribution(pool,sceneDice).forEach((prob,key)=> {
+    const ef=Number(key.split('|')[0]); result.set(ef,(result.get(ef)||0)+prob);
   });
   efficiencyCache.set(cacheKey,result);
   return result;
 }
-function chanceAtLeast(pool,pz) {
-  const threshold=clamp(Number(pz)||3,3,10);
+function eventChance(pool,event,threshold=Number.NEGATIVE_INFINITY,sceneDice=MODEL_SCENE_DICE) {
   let chance=0;
-  efficiencyDistribution(pool).forEach((prob,ef)=> {
-    if(ef>=threshold)chance+=prob;
+  efficiencyDetailDistribution(pool,sceneDice).forEach((prob,key)=> {
+    const [efValue,eventValue]=key.split('|');
+    if(eventValue===event&&Number(efValue)>=threshold)chance+=prob;
   });
   return clamp(chance,0,1);
 }
+function chanceAtLeast(pool,pz) {
+  const threshold=clamp(Number(pz)||4,3,10);
+  let chance=0;
+  efficiencyDistribution(pool).forEach((prob,ef)=> {if(ef>=threshold)chance+=prob;});
+  return clamp(chance,0,1);
+}
+function protectionThreshold(ef) {
+  return clamp(4+Math.floor(Number(ef||0)/2),3,10);
+}
 function chanceAgainstPlayerDefense(pool,defensePool) {
   let chance=0;
-  const attack=efficiencyDistribution(pool),defense=efficiencyDistribution(clamp(defensePool,1,8));
-  attack.forEach((ap,ef)=>defense.forEach((dp,pz)=> {
-    if(ef>=Math.max(3,pz))chance+=ap*dp;
+  const attack=efficiencyDistribution(pool),defense=efficiencyDetailDistribution(clamp(defensePool,1,8));
+  attack.forEach((ap,ef)=>defense.forEach((dp,key)=> {
+    const [defenseEfValue,event]=key.split('|');
+    const defenseEf=Number(defenseEfValue)-(event==='complication'?1:0);
+    if(ef>=protectionThreshold(defenseEf))chance+=ap*dp;
   }));
   return clamp(chance,0,1);
 }
-/* Воздействующий бросок выигрывает при ЭФ не ниже 3 и не ниже результата защиты. */ function effectSuccessChance(effectPool,defensePool) {
-  return chanceAgainstPlayerDefense(clamp(effectPool,1,8),clamp(defensePool,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX));
+function eventChanceAgainstPlayerDefense(pool,defensePool,eventName) {
+  let chance=0;
+  const attack=efficiencyDetailDistribution(pool),defense=efficiencyDetailDistribution(clamp(defensePool,1,8));
+  attack.forEach((ap,attackKey)=> {
+    const [attackEfValue,attackEvent]=attackKey.split('|');
+    if(attackEvent!==eventName)return;
+    defense.forEach((dp,defenseKey)=> {
+      const [defenseEfValue,defenseEvent]=defenseKey.split('|');
+      const defenseEf=Number(defenseEfValue)-(defenseEvent==='complication'?1:0);
+      if(Number(attackEfValue)>=protectionThreshold(defenseEf))chance+=ap*dp;
+    });
+  });
+  return clamp(chance,0,1);
+}
+function chanceAgainstOpposedEfficiency(pool,defensePool) {
+  let chance=0;
+  const attack=efficiencyDistribution(pool),defense=efficiencyDistribution(clamp(defensePool,1,8));
+  attack.forEach((ap,ef)=>defense.forEach((dp,defenseEf)=> {
+    if(ef>=defenseEf)chance+=ap*dp;
+  }));
+  return clamp(chance,0,1);
+}
+/* Во встречной проверке воздействие должно сравняться с ЭФ защиты или превысить её. */ function effectSuccessChance(effectPool,defensePool) {
+  return chanceAgainstOpposedEfficiency(clamp(effectPool,1,8),clamp(defensePool,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX));
 }
 function effectResistanceChance(defensePool,effectPool) {
   return clamp(1-effectSuccessChance(effectPool,defensePool),0,1);
@@ -279,7 +341,7 @@ function reactionImpact(reaction) {
   const text=`${reaction?.name||''} ${reaction?.trigger||''} ${reaction?.effect||reaction?.text||''}`.toLowerCase();
   let defense=.015,offense=.01;
   if(/дополнительн\w* атак|ответн\w* выстрел|аварийн\w* выстрел|выпад/.test(text))offense+=.12;
-  if(/2d4|перебрасывает одну из двух наибольших|помех/.test(text))defense+=.10;
+  if(/3d4|перебрасывает одну из двух наибольших|помех/.test(text))defense+=.10;
   if(/уменьшает.*урон|поглощ|брон|\+1 пз|\+2 пз|игнорирует эффект|отменяет состояние/.test(text))defense+=.09;
   if(/восстанавливает|саморемонт|вампиризм|подняться/.test(text))defense+=.13;
   if(/телепорт|действие срывается|останавливает движение/.test(text))defense+=.11;
@@ -361,18 +423,18 @@ function tagModelFactor(tagKey) {
 }
 function defenseMetrics(template,level) {
   const player=PLAYER_LEVEL_PROFILES[level],pz=clamp(Number(template.pz)||3,3,10),hitChance=chanceAtLeast(player.attackPool,pz),attempts=18,successfulHits=attempts*hitChance;
-  const armor=armorSequence(player.damage,Number(template.armor)||0,successfulHits,player.penetration),rawAttemptDamage=attempts*armor.mean,effectiveHp=(Math.max(1,Number(template.hp)||1)*rawAttemptDamage)/Math.max(.15,armor.bodyDamage);
+  const playerBreakthroughChance=eventChance(player.attackPool,'breakthrough',pz),armor=armorSequence(player.damage,Number(template.armor)||0,successfulHits,player.penetration),breakthroughDamage=attempts*playerBreakthroughChance*.65,rawAttemptDamage=attempts*armor.mean+attempts*playerBreakthroughChance,effectiveHp=(Math.max(1,Number(template.hp)||1)*rawAttemptDamage)/Math.max(.15,armor.bodyDamage+breakthroughDamage);
   const nerve=nerveFactors(template.nerve),reactions=reactionFactors(template.reactionLimit,normalizeReactions(template.reactions)),speed=speedFactors(template.speed),resistance=resistanceMetrics(template,level),type=TYPE_DATA[template.typeKey]||TYPE_DATA.humanoid;
   const value=effectiveHp*nerve.defense*reactions.defense*speed.defense*resistance.factor*(type.resilience||1)*propertyDefenseFactor(template.properties)*tagModelFactor(template.tagKey||template.roleKey);
   return {
-    value,effectiveHp,pz,hitChance,successfulHits,armor,nerveFactor:nerve.defense,reactionFactor:reactions.defense,reactionBonus:reactions.defenseBonus,speedFactor:speed.defense,resistanceFactor:resistance.factor,...resistance
+    value,effectiveHp,pz,hitChance,playerBreakthroughChance,successfulHits,armor,nerveFactor:nerve.defense,reactionFactor:reactions.defense,reactionBonus:reactions.defenseBonus,speedFactor:speed.defense,resistanceFactor:resistance.factor,...resistance
   };
 }
 function offenseMetrics(template,level) {
   const player=PLAYER_LEVEL_PROFILES[level],normalized=ensureTwoAttacks(template.attacks,template.typeKey);
   const attacks=normalized.map(attack=> {
-    const pool=clamp(Number(attack.pool)||1,1,8),hitChance=chanceAgainstPlayerDefense(pool,player.defensePool),dist=damageDistribution(attack.damage),damageOnHit=expectedDamageFractionalArmor(dist,player.armor,attack.penetrating),utility=attackUtilityFactor(attack),rawControlEquivalent=attackControlEquivalent(attack),controlDefenseKind=attackEffectDefenseKind(attack),effectDefensePool=controlDefenseKind==='mental'?(player.mentalDefensePool||player.defensePool):(player.physicalDefensePool||player.defensePool),controlSuccessChance=rawControlEquivalent>0&&controlDefenseKind?effectSuccessChance(pool,effectDefensePool):1,controlEquivalent=rawControlEquivalent*controlSuccessChance,durabilityFactor=attack.technical?clamp(1+(Math.max(2,Number(attack.maxDurability)||2)-2)*.012,1,1.12):1,value=hitChance*(damageOnHit+controlEquivalent)*utility*durabilityFactor; return {
-      attack,pool,hitChance,damageOnHit,utility,rawControlEquivalent,controlEquivalent,controlDefenseKind,controlSuccessChance,effectDefensePool,durabilityFactor,value
+    const pool=clamp(Number(attack.pool)||1,1,8),hitChance=chanceAgainstPlayerDefense(pool,player.defensePool),breakthroughChance=eventChanceAgainstPlayerDefense(pool,player.defensePool,'breakthrough'),complicationChance=eventChance(pool,'complication'),dist=damageDistribution(attack.damage),damageOnHit=expectedDamageFractionalArmor(dist,player.armor,attack.penetrating),utility=attackUtilityFactor(attack),rawControlEquivalent=attackControlEquivalent(attack),controlDefenseKind=attackEffectDefenseKind(attack),effectDefensePool=controlDefenseKind==='mental'?(player.mentalDefensePool||player.defensePool):(player.physicalDefensePool||player.defensePool),controlSuccessChance=rawControlEquivalent>0&&controlDefenseKind?effectSuccessChance(pool,effectDefensePool):1,controlEquivalent=rawControlEquivalent*controlSuccessChance,durabilityFactor=attack.technical?clamp(1+(Math.max(2,Number(attack.maxDurability)||2)-2)*.012,1,1.12):1,value=(hitChance*(damageOnHit+controlEquivalent)+breakthroughChance*.65)*utility*durabilityFactor; return {
+      attack,pool,hitChance,breakthroughChance,complicationChance,damageOnHit,utility,rawControlEquivalent,controlEquivalent,controlDefenseKind,controlSuccessChance,effectDefensePool,durabilityFactor,value
     };
   }).sort((a,b)=>b.value-a.value);
   const rounds=6,slots=[];
@@ -382,12 +444,12 @@ function offenseMetrics(template,level) {
   slots.sort((a,b)=>b-a);
   while(slots.length<rounds)slots.push((attacks[0]?.value||.02)*.70);
   const roundPressure=slots.slice(0,rounds).reduce((a,b)=>a+b,0)/rounds,best=attacks[0]|| {
-    hitChance:0,damageOnHit:0,pool:1,utility:1,controlDefenseKind:null,controlSuccessChance:1,effectDefensePool:0
+    hitChance:0,breakthroughChance:0,complicationChance:0,damageOnHit:0,pool:1,utility:1,controlDefenseKind:null,controlSuccessChance:1,effectDefensePool:0
   };
   const categoryCount=new Set(normalized.map(a=>a.category)).size,variety=1+Math.min(.14,Math.max(0,normalized.length-1)*.022+Math.max(0,categoryCount-1)*.012);
   const nerve=nerveFactors(template.nerve),reactions=reactionFactors(template.reactionLimit,normalizeReactions(template.reactions)),speed=speedFactors(template.speed),value=Math.max(.02,roundPressure)*variety*nerve.offense*reactions.offense*speed.offense*tagModelFactor(template.tagKey||template.roleKey);
   return {
-    value,hitChance:best.hitChance,damageOnHit:best.damageOnHit,attackPool:best.pool,utility:best.utility,controlDefenseKind:best.controlDefenseKind,controlSuccessChance:best.controlSuccessChance,effectDefensePool:best.effectDefensePool,variety,roundPressure,attackCount:normalized.length,nerveFactor:nerve.offense,reactionFactor:reactions.offense,reactionBonus:reactions.offenseBonus,speedFactor:speed.offense
+    value,hitChance:best.hitChance,breakthroughChance:best.breakthroughChance,complicationChance:best.complicationChance,damageOnHit:best.damageOnHit,attackPool:best.pool,utility:best.utility,controlDefenseKind:best.controlDefenseKind,controlSuccessChance:best.controlSuccessChance,effectDefensePool:best.effectDefensePool,variety,roundPressure,attackCount:normalized.length,nerveFactor:nerve.offense,reactionFactor:reactions.offense,reactionBonus:reactions.offenseBonus,speedFactor:speed.offense
   };
 }
 function baselineNerve(level) {
@@ -403,7 +465,7 @@ function referenceMetrics(level) {
     level,typeKey:'humanoid',tagKey:'chief',hp:base.hp,nerve:baselineNerve(level),armor:base.armor,pz:base.pz,physicalDefensePool:base.pool,mentalDefensePool:base.pool,speed:3,reactionLimit:1,properties:[],reactions:[normalizeReaction( {
       name:'Стиснуть зубы',effect:'Уменьшает полученный урон на 2.',uses:2
     }),normalizeReaction( {
-      name:'Сбить прицел',effect:'Кубы сцены атакующего становятся 2d4.',uses:1
+      name:'Сбить прицел',effect:'Кубы сцены атакующего становятся 3d4.',uses:1
     })],attacks:[ {
       name:'Обычная атака',pool:base.pool,damage:base.damage,range:'Средняя',category:'Обычная',uses:0
     }, {
@@ -771,9 +833,10 @@ function renderSummary() {
 }
 /* ---------------- БОЙ ---------------- */ function renderCombatMeta() {
   const actual=Math.round(state.enemies.reduce((s,e)=>s+(Number(e.bp)||0),0)*countMultiplier(state.enemies.length)),target=state.targetBp||0;
+  const players=Math.max(1,Number(state.settings?.players)||state.players.length||1),normalizedForThree=actual*3/players,difficultyLabel=DIFFICULTIES[difficultyForBp(normalizedForThree)]?.label||'—';
   document.getElementById('roundNumber').textContent=state.round;
-  document.getElementById('encounterMeta').textContent=state.enemies.length?`${state.enemies.length} врагов · БС ${actual}‰${target?` · цель ${target}‰`:''}`:'Бой пока не создан.';
-  document.getElementById('combatBudget').textContent=state.enemies.length?`Фактическая Боеспособность с множителем действий: ${actual}‰.`:'Противников нет.';
+  document.getElementById('encounterMeta').textContent=state.enemies.length?`${state.enemies.length} врагов · БС ${actual}‰ · оценка «${difficultyLabel}»${target?` · цель ${target}‰`:''}`:'Бой пока не создан.';
+  document.getElementById('combatBudget').textContent=state.enemies.length?`Фактическая Боеспособность с множителем действий: ${actual}‰. Для ${players} игроков: «${difficultyLabel}».`:'Противников нет.';
 }
 function resourceRow(enemy,field,label,cssClass) {
   const maxField= {
@@ -790,12 +853,15 @@ function sceneOptions(selected) {
 function rollResultHtml(attack) {
   if(!attack.lastRoll)return'';
   const result=attack.lastRoll;
-  return`<div class="roll-result ${result.hit?'hit':'miss'}"><b>ЭФ ${result.ef}</b> · кости: ${result.dice.join(', ')}${result.hit?` · урон <b>${result.damage}</b>${attack.penetrating?' · Пробитие 1':''}`:' · урон не бросался'}</div>`;
+  const event=result.complication?' <span class="roll-event complication">Осложнение</span>':result.breakthrough?' <span class="roll-event breakthrough">Прорыв</span>':'';
+  const eventHint=result.complication?' · следующий бросок ПЗ получает −1 ЭФ':result.breakthrough?' · можно выбрать +1 к урону или +1 к следующему ПЗ':'';
+  return`<div class="roll-result ${result.hit?'hit':'miss'}"><b>ЭФ ${result.ef}</b> против ПЗ ${result.targetPz}${event} · Кубы сцены: ${result.sceneValues.join(', ')} · остальные: ${result.componentValues.join(', ')||'нет'}${result.hit?` · урон <b>${result.damage}</b>${attack.penetrating?' · Пробитие 1':''}`:' · урон не бросался'}${eventHint}</div>`;
 }
 function defenseRollHtml(enemy,kind) {
   const physical=kind==='physical',result=physical?enemy.lastPhysicalDefenseRoll:enemy.lastMentalDefenseRoll,label=physical?'Физическая защита':'Ментальная защита';
   if(!result)return'';
-  return`<div class="roll-result"><b>${label}: ЭФ ${result.ef}</b> · ${result.pool}d6 · кости: ${result.dice.join(', ')}</div>`;
+  const event=result.complication?' · Осложнение':result.potentialBreakthrough?' · потенциальный Прорыв':'';
+  return`<div class="roll-result"><b>${label}: ЭФ ${result.ef}</b>${event} · ${result.pool}d6 + три Куба сцены · кости: ${result.dice.join(', ')}</div>`;
 }
 function attackHtml(enemy,attack,index,interactive) {
   const technical=enemy.typeKey==='humanoid'&&attack.technical,durability=technical?`<div class="weapon-track"><span>Прочность</span><button class="small" onclick="adjustAttackDurability('${enemy.id}',${index},-1)">−</button><div>${attack.durability} / ${attack.maxDurability}</div><button class="small" onclick="adjustAttackDurability('${enemy.id}',${index},1)">+</button></div>`:'',limit=attack.uses===0?'∞':`${attack.usesLeft}/${attack.uses}`,disabled=attack.uses>0&&attack.usesLeft<=0;
@@ -855,13 +921,19 @@ function setScenePreset(id,value) {
   enemy.scenePreset=value;
   persistLocal();
 }
+function setCombatTargetPz(value) {
+  state.combatTargetPz=clamp(Number(value)||4,3,10);
+  const input=document.getElementById('combatTargetPz');
+  if(input)input.value=state.combatTargetPz;
+  persistLocal();
+}
 function rollDie(sides) {
   return Math.floor(Math.random()*sides)+1;
 }
 function rollEfficiencyPool(pool,sceneDice) {
-  const dice=[...Array(clamp(Number(pool)||1,1,8)).fill(6),...(sceneDice||MODEL_SCENE_DICE)].map(rollDie).sort((a,b)=>a-b);
+  const sceneSides=sceneDice||MODEL_SCENE_DICE,sceneValues=sceneSides.map(rollDie),componentValues=Array(clamp(Number(pool)||1,1,8)).fill(6).map(rollDie),dice=[...sceneValues,...componentValues],sorted=[...dice].sort((a,b)=>a-b),event=sceneEvent(sceneValues);
   return {
-    dice,ef:dice[dice.length-1]+dice[dice.length-2]-dice[0]-dice[1]
+    dice,sceneSides,sceneValues,componentValues,event,complication:event==='complication',potentialBreakthrough:event==='breakthrough',ef:sorted[sorted.length-1]+sorted[sorted.length-2]-sorted[0]-sorted[1]
   };
 }
 function rollDamageExpression(expression) {
@@ -872,6 +944,20 @@ function rollDamageExpression(expression) {
   for(let i=0; i<count; i++)total+=rollDie(sides);
   return Math.max(0,total);
 }
+function setSharedRollLogging(enabled) {
+  state.sharedRollLogging=Boolean(enabled);
+  persistLocal();
+}
+function calculatorDiceForLog(roll) {
+  return [
+    ...(roll.sceneValues||[]).map((value,index)=>({sides:(roll.sceneSides||MODEL_SCENE_DICE)[index]||6,value,source:`Куб сцены ${index+1}`})),
+    ...(roll.componentValues||[]).map((value,index)=>({sides:6,value,source:`Пул противника ${index+1}`}))
+  ];
+}
+function logCalculatorRoll(payload) {
+  if(!state.sharedRollLogging)return;
+  serverCall('mitriniumAppendExternalRoll',payload).catch(error=>showToast(`Не удалось записать бросок в общий лог: ${error.message}`,true));
+}
 function rollEnemyAttack(id,index) {
   const enemy=findEnemy(id),attack=enemy?.attacks?.[index];
   if(!attack)return;
@@ -879,13 +965,14 @@ function rollEnemyAttack(id,index) {
     showToast('Применения этой атаки закончились.',true);
     return;
   }
-  const preset=SCENE_PRESETS[enemy.scenePreset||'normal']||SCENE_PRESETS.normal,roll=rollEfficiencyPool(attack.pool,preset.dice),dice=roll.dice,ef=roll.ef,hit=ef>2;
+  const preset=SCENE_PRESETS[enemy.scenePreset||'normal']||SCENE_PRESETS.normal,roll=rollEfficiencyPool(attack.pool,preset.dice),dice=roll.dice,ef=roll.ef,targetPz=clamp(Number(state.combatTargetPz)||4,3,10),hit=ef>=targetPz;
   if(attack.uses>0)attack.usesLeft--;
   attack.lastRoll= {
-    dice,ef,hit,damage:hit?rollDamageExpression(attack.damage):null,at:new Date().toISOString()
+    ...roll,dice,ef,targetPz,hit,breakthrough:roll.potentialBreakthrough&&hit,damage:hit?rollDamageExpression(attack.damage):null,at:new Date().toISOString()
   };
   persistLocal();
   renderEnemyGrid();
+  logCalculatorRoll({type:'efficiency',characterId:enemy.id,characterName:enemy.name,className:'Противник',title:`Атака «${attack.name}» против ПЗ ${targetPz}: ${hit?`попадание, урон ${attack.lastRoll.damage}`:'промах'}`,ef,dice:calculatorDiceForLog(roll),complication:roll.complication,breakthrough:attack.lastRoll.breakthrough,finalResult:ef});
 }
 function rollEnemyControl(id,index) {
   const enemy=findEnemy(id),attack=enemy?.attacks?.[index];
@@ -896,6 +983,7 @@ function rollEnemyControl(id,index) {
   };
   persistLocal();
   renderEnemyGrid();
+  logCalculatorRoll({type:'random',characterId:enemy.id,characterName:enemy.name,className:'Противник',title:`Контроль «${attack.name}»: ${attack.lastControl.total}`,finalResult:attack.lastControl.total,dice:[{sides:20,value:die,source:'Контроль'}]});
 }
 function rollEnemyDefense(id,kind) {
   const enemy=findEnemy(id);
@@ -907,6 +995,7 @@ function rollEnemyDefense(id,kind) {
   else enemy.lastMentalDefenseRoll=result;
   persistLocal();
   renderEnemyGrid();
+  logCalculatorRoll({type:'efficiency',characterId:enemy.id,characterName:enemy.name,className:'Противник',title:physical?'Физическая защита':'Ментальная защита',ef:result.ef,dice:calculatorDiceForLog(result),complication:result.complication,breakthrough:result.potentialBreakthrough,finalResult:result.ef});
 }
 function toggleReaction(id,index,checked) {
   const enemy=findEnemy(id),reaction=enemy?.reactions?.[index];
@@ -1238,7 +1327,7 @@ function renderModelBreakdown(template=null,analysis=null) {
   if(!root)return;
   try {
     const data=template||collectBestiaryForm(),result=analysis||evaluateCombatPower(data),d=result.defense,o=result.offense,level=clamp(Number(data.level)||1,1,20),autoEffectPool=clamp(Number(PLAYER_LEVEL_PROFILES[level].attackPool)||4,1,8),testEffectPool=clamp(Number(document.getElementById('beTestEffectPool')?.value)||autoEffectPool,1,8),testPhysicalResistance=effectResistanceChance(data.physicalDefensePool,testEffectPool),testMentalResistance=effectResistanceChance(data.mentalDefensePool,testEffectPool);
-    root.innerHTML=`<div class="model-title"><b>Расчёт: ${result.bp}‰</b><span>защита ×${result.defenseRatio.toFixed(2)} · давление ×${result.offenseRatio.toFixed(2)}</span></div><div class="model-grid"><div class="model-cell"><b>${Math.round(d.hitChance*100)}%</b><span>попадание игроков по ПЗ ${d.pz}</span></div><div class="model-cell"><b>${Math.round(d.armor.reduction*100)}%</b><span>снижение урона бронёй</span></div><div class="model-cell"><b>${d.effectiveHp.toFixed(1)}</b><span>эффективное Тело</span></div><div class="model-cell"><b>${d.physicalDefensePool}d6</b><span>пул физической защиты</span></div><div class="model-cell"><b>${Math.round(testPhysicalResistance*100)}%</b><span>сопротивление физическому воздействию ${testEffectPool}d6</span></div><div class="model-cell"><b>${d.mentalDefensePool}d6</b><span>пул ментальной защиты</span></div><div class="model-cell"><b>${Math.round(testMentalResistance*100)}%</b><span>сопротивление ментальному воздействию ${testEffectPool}d6</span></div><div class="model-cell"><b>×${d.resistanceFactor.toFixed(2)}</b><span>вклад двух защитных пулов в БС</span></div><div class="model-cell"><b>${Math.round(o.hitChance*100)}%</b><span>попадание лучшей атаки</span></div><div class="model-cell"><b>${o.damageOnHit.toFixed(2)}</b><span>урон лучшей атаки после Брони</span></div><div class="model-cell"><b>${o.controlDefenseKind?`${Math.round(o.controlSuccessChance*100)}%`:'—'}</b><span>${o.controlDefenseKind?`эффект проходит против ${o.controlDefenseKind==='mental'?'ментальной':'физической'} защиты ${o.effectDefensePool}d6`:'у лучшей атаки нет защитной проверки'}</span></div><div class="model-cell"><b>${o.attackCount}</b><span>вариантов атак, учтены лимиты</span></div><div class="model-cell"><b>×${d.reactionFactor.toFixed(2)}</b><span>защитный вклад реакций</span></div><div class="model-cell"><b>×${o.reactionFactor.toFixed(2)}</b><span>атакующий вклад реакций</span></div><div class="model-cell"><b>×${o.variety.toFixed(2)}</b><span>гибкость набора атак</span></div><div class="model-cell"><b>×${d.nerveFactor.toFixed(2)}</b><span>защитный вклад Нерва</span></div><div class="model-cell"><b>×${o.speedFactor.toFixed(2)}</b><span>вклад скорости</span></div><div class="model-cell"><b>${o.roundPressure.toFixed(2)}</b><span>давление за действие на горизонте 6 раундов</span></div></div><p class="help">Физическая защита применяется против яда, опрокидывания, удержания и иных воздействий на тело; ментальная — против потери Нерва, подчинения, изменения Кубов сцены и сходных эффектов. Обе стороны используют пул d6 и обычную сцену d4+d6; воздействие проходит при ЭФ не ниже 3 и не ниже ЭФ защиты. В БС защитные пулы учитываются умеренно, поскольку ими проверяется лишь часть действий игроков.</p>`;
+    root.innerHTML=`<div class="model-title"><b>Расчёт: ${result.bp}‰</b><span>защита ×${result.defenseRatio.toFixed(2)} · давление ×${result.offenseRatio.toFixed(2)}</span></div><div class="model-grid"><div class="model-cell"><b>${Math.round(d.hitChance*100)}%</b><span>попадание игроков по ПЗ ${d.pz}</span></div><div class="model-cell"><b>${Math.round(d.playerBreakthroughChance*100)}%</b><span>успешный Прорыв игроков</span></div><div class="model-cell"><b>${Math.round(d.armor.reduction*100)}%</b><span>снижение урона бронёй</span></div><div class="model-cell"><b>${d.effectiveHp.toFixed(1)}</b><span>эффективное Тело</span></div><div class="model-cell"><b>${d.physicalDefensePool}d6</b><span>пул физической защиты</span></div><div class="model-cell"><b>${Math.round(testPhysicalResistance*100)}%</b><span>сопротивление физическому воздействию ${testEffectPool}d6</span></div><div class="model-cell"><b>${d.mentalDefensePool}d6</b><span>пул ментальной защиты</span></div><div class="model-cell"><b>${Math.round(testMentalResistance*100)}%</b><span>сопротивление ментальному воздействию ${testEffectPool}d6</span></div><div class="model-cell"><b>×${d.resistanceFactor.toFixed(2)}</b><span>вклад двух защитных пулов в БС</span></div><div class="model-cell"><b>${Math.round(o.hitChance*100)}%</b><span>попадание лучшей атаки против расчётного ПЗ</span></div><div class="model-cell"><b>${Math.round(o.breakthroughChance*100)}%</b><span>успешный Прорыв лучшей атаки</span></div><div class="model-cell"><b>${Math.round(o.complicationChance*100)}%</b><span>Осложнение и штраф следующего ПЗ</span></div><div class="model-cell"><b>${o.damageOnHit.toFixed(2)}</b><span>урон лучшей атаки после Брони</span></div><div class="model-cell"><b>${o.controlDefenseKind?`${Math.round(o.controlSuccessChance*100)}%`:'—'}</b><span>${o.controlDefenseKind?`эффект проходит против ${o.controlDefenseKind==='mental'?'ментальной':'физической'} защиты ${o.effectDefensePool}d6`:'у лучшей атаки нет защитной проверки'}</span></div><div class="model-cell"><b>${o.attackCount}</b><span>вариантов атак, учтены лимиты</span></div><div class="model-cell"><b>×${d.reactionFactor.toFixed(2)}</b><span>защитный вклад реакций</span></div><div class="model-cell"><b>×${o.reactionFactor.toFixed(2)}</b><span>атакующий вклад реакций</span></div><div class="model-cell"><b>×${o.variety.toFixed(2)}</b><span>гибкость набора атак</span></div><div class="model-cell"><b>×${d.nerveFactor.toFixed(2)}</b><span>защитный вклад Нерва</span></div><div class="model-cell"><b>×${o.speedFactor.toFixed(2)}</b><span>вклад скорости</span></div><div class="model-cell"><b>${o.roundPressure.toFixed(2)}</b><span>давление за действие на горизонте 6 раундов</span></div></div><p class="help">Все проверки используют обычную сцену 2d4+d6. Для атак ПЗ игрока рассчитывается как 4 + половина ЭФ броска Напор + Сноровка; Осложнение уменьшает ЭФ этого броска на 1. Встречные физические и ментальные воздействия по-прежнему сравнивают ЭФ напрямую. В модели успешный Прорыв оценивается как выбор +1 к урону; тактический выбор +1 к следующему ПЗ имеет сопоставимую, но не идентичную ценность.</p>`;
   } catch(error) {
     root.innerHTML=`<div class="help">Расчёт недоступен: ${escapeHtml(error.message)}</div>`;
   }
@@ -1489,8 +1578,9 @@ function editLibraryEnemy(id) {
 }
 /* ---------------- СОХРАНЕНИЕ И МИГРАЦИЯ ---------------- */ function normalizeState(parsed) {
   const base=defaultState(),out= {
-    ...base,...parsed,version:7
+    ...base,...parsed,version:8
   };
+  out.combatTargetPz=clamp(Number(parsed?.combatTargetPz)||4,3,10);
   out.players=Array.isArray(parsed?.players)&&parsed.players.length?parsed.players:base.players;
   out.players=out.players.map((p,i)=>( {
     id:p.id||newId('p'),name:p.name||`Игрок ${i+1}`,initiative:Number(p.initiative)||0
@@ -1518,7 +1608,7 @@ function persistLocal() {
   localStorage.setItem(LOCAL_KEY,JSON.stringify(state));
 }
 function restoreLocal() {
-  for(const key of[LOCAL_KEY,'mitriniumEncounterV6','mitriniumEncounterV5','mitriniumEncounterV4','mitriniumEncounterV3','mitriniumEncounterV2','mitriniumEncounterV1']) {
+  for(const key of[LOCAL_KEY,'mitriniumEncounterV7','mitriniumEncounterV6','mitriniumEncounterV5','mitriniumEncounterV4','mitriniumEncounterV3','mitriniumEncounterV2','mitriniumEncounterV1']) {
     const raw=localStorage.getItem(key);
     if(!raw)continue;
     try {
@@ -1615,6 +1705,10 @@ function showScreen(name) {
   if(name==='bestiary')renderModelBreakdown();
 }
 function render() {
+  const targetPzInput=document.getElementById('combatTargetPz');
+  if(targetPzInput)targetPzInput.value=clamp(Number(state.combatTargetPz)||4,3,10);
+  const loggingInput=document.getElementById('sharedRollLogging');
+  if(loggingInput)loggingInput.checked=Boolean(state.sharedRollLogging);
   renderPlayerSetup();
   renderGenerationMode();
   renderSummary();

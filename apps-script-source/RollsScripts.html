@@ -1,9 +1,11 @@
 <script>
   let rollLogIsAdmin = false;
   let rollLogTimer = null;
+  let rollLogEntries = [];
 
   let rollEditorMode = 'select';
   let latestEfficiencyRoll = null;
+  let selectedEfficiencyDieIndex = null;
 
   // Один общий выбор для обеих таблиц:
   // максимум два компонента.
@@ -157,12 +159,12 @@
             skillEntry[1].name,
 
           value: Math.max(
-            1,
+            0,
             Math.min(
               3,
               rollNumber(
-                skillEntry[1].value,
-                1
+              skillEntry[1].value,
+              0
               )
             )
           )
@@ -484,9 +486,48 @@
     if (
       rollBuilderSelectedKeys.length >= 2
     ) {
+      const definitions =
+        getRollComponentDefinitions();
+
+      const requested =
+        definitions.find(function (item) {
+          return item.key === componentKey;
+        });
+
+      const selectedDefinitions =
+        rollBuilderSelectedKeys.map(function (key) {
+          return definitions.find(function (item) {
+            return item.key === key;
+          });
+        });
+
+      const sameGroupIndexes =
+        selectedDefinitions
+          .map(function (item, index) {
+            return item && requested &&
+              item.group === requested.group
+              ? index
+              : -1;
+          })
+          .filter(function (index) {
+            return index !== -1;
+          });
+
+      if (sameGroupIndexes.length === 1) {
+        rollBuilderSelectedKeys[
+          sameGroupIndexes[0]
+        ] = componentKey;
+
+        syncRollSelectsFromBuilder();
+        syncRollBuilderControls();
+
+        return;
+      }
+
       updateRollBuilderSelectionStatus(
         'Можно выбрать только два компонента. ' +
-        'Сначала снимите один из выбранных.',
+        'Для двух Навыков или двух Атрибутов ' +
+        'второй слот должен быть свободен.',
         true
       );
 
@@ -979,6 +1020,14 @@
           'rollSceneDice'
         )?.value || 'normal',
 
+      difficulty:
+        rollNumber(
+          document.getElementById(
+            'rollDifficulty'
+          )?.value,
+          6
+        ),
+
       firstComponent:
         components[0],
 
@@ -1021,12 +1070,13 @@
             document.getElementById(
               'rollControlDifficulty'
             )?.value,
-            10
+            18
           )
       }
     };
 
     latestEfficiencyRoll = null;
+    selectedEfficiencyDieIndex = null;
 
     setRollStatus(
       'efficiencyRollStatus',
@@ -1042,8 +1092,9 @@
 
           setRollStatus(
             'efficiencyRollStatus',
-            'Бросок выполнен. ' +
-            'Теперь можно применить замену на 4.',
+            result.control
+              ? 'Осложнение: Контроль выполнен.'
+              : 'Бросок выполнен.',
             false
           );
 
@@ -1069,7 +1120,7 @@
       );
   }
 
-  function applyOptimalFourAfterRoll() {
+  function applyBiographyBonusAfterRoll() {
     if (!latestEfficiencyRoll) {
       setRollStatus(
         'efficiencyRollStatus',
@@ -1082,7 +1133,7 @@
 
     setRollStatus(
       'efficiencyRollStatus',
-      'Подбираю оптимальную замену...',
+      'Применяю биографическую черту...',
       false
     );
 
@@ -1094,9 +1145,7 @@
 
           setRollStatus(
             'efficiencyRollStatus',
-            result.replacement
-              ? 'Замена применена без переброса остальных кубов.'
-              : 'Подходящего значения для замены нет.',
+            'Биографическая черта повысила ЭФ на 1.',
             false
           );
 
@@ -1112,13 +1161,129 @@
           setRollStatus(
             'efficiencyRollStatus',
             error.message ||
-              'Ошибка применения замены.',
+              'Ошибка применения биографической черты.',
             true
           );
         }
       )
-      .mitriniumApplyOptimalFour(
+      .mitriniumApplyBiographyBonus(
         latestEfficiencyRoll
+      );
+  }
+
+  function selectEfficiencyRerollDie(index) {
+    selectedEfficiencyDieIndex =
+      selectedEfficiencyDieIndex === index
+        ? null
+        : index;
+
+    renderEfficiencyRollResult(
+      latestEfficiencyRoll
+    );
+  }
+
+  function getAvailableMainNerveForRoll() {
+    if (
+      typeof getViewerCharacter !== 'function' ||
+      typeof ensureViewerState !== 'function'
+    ) {
+      return 0;
+    }
+
+    const character = getViewerCharacter();
+
+    if (!character) return 0;
+
+    ensureViewerState(character);
+
+    return Math.max(
+      0,
+      rollNumber(
+        viewerState &&
+          viewerState.currentMainNerve,
+        0
+      )
+    );
+  }
+
+  function rerollSelectedEfficiencyDie() {
+    if (!latestEfficiencyRoll) {
+      setRollStatus(
+        'efficiencyRollStatus',
+        'Сначала выполните бросок.',
+        true
+      );
+
+      return;
+    }
+
+    if (selectedEfficiencyDieIndex === null) {
+      setRollStatus(
+        'efficiencyRollStatus',
+        'Выберите один из выпавших кубов.',
+        true
+      );
+
+      return;
+    }
+
+    if (getAvailableMainNerveForRoll() < 1) {
+      setRollStatus(
+        'efficiencyRollStatus',
+        'Для переброса нужен 1 Основной Нерв.',
+        true
+      );
+
+      return;
+    }
+
+    const dieIndex = selectedEfficiencyDieIndex;
+
+    setRollStatus(
+      'efficiencyRollStatus',
+      'Перебрасываю выбранный куб...',
+      false
+    );
+
+    google.script.run
+      .withSuccessHandler(
+        function (result) {
+          latestEfficiencyRoll = result;
+          selectedEfficiencyDieIndex = null;
+
+          if (
+            typeof changeViewerStateValue ===
+            'function'
+          ) {
+            changeViewerStateValue(
+              'currentMainNerve',
+              -1
+            );
+          }
+
+          setRollStatus(
+            'efficiencyRollStatus',
+            'Куб переброшен за 1 Основной Нерв.',
+            false
+          );
+
+          renderEfficiencyRollResult(result);
+          refreshRollLog(true);
+        }
+      )
+      .withFailureHandler(
+        function (error) {
+          setRollStatus(
+            'efficiencyRollStatus',
+            error.message ||
+              'Ошибка переброса куба.',
+            true
+          );
+        }
+      )
+      .mitriniumRerollEfficiencyDie(
+        latestEfficiencyRoll,
+        dieIndex
       );
   }
 
@@ -1211,7 +1376,7 @@
      Вывод результатов
   ========================= */
 
-  function renderRollDice(dice) {
+  function renderRollDice(dice, selectable) {
     if (
       !Array.isArray(dice) ||
       dice.length === 0
@@ -1224,19 +1389,21 @@
     }
 
     return dice
-      .map(function (die) {
-        const replaced =
-          die.originalValue !==
+      .map(function (die, index) {
+        const rerolled =
+          die.rerolledFrom !==
           undefined;
 
         const details =
-          replaced
+          rerolled
             ? `
               <small>
                 ${rollEscapeHtml(
-                  die.originalValue
+                  die.rerolledFrom
                 )}
-                → 4
+                → ${rollEscapeHtml(
+                  die.value
+                )}
               </small>
             `
             : `
@@ -1251,13 +1418,39 @@
               </small>
             `;
 
+        const tag = selectable
+          ? 'button'
+          : 'span';
+
+        const selected =
+          selectable &&
+          selectedEfficiencyDieIndex === index;
+
         return `
-          <span
+          <${tag}
+            ${
+              selectable
+                ? 'type="button" onclick="selectEfficiencyRerollDie(' + index + ')"'
+                : ''
+            }
             class="roll-die${
-              replaced
-                ? ' replaced'
+              rerolled
+                ? ' rerolled'
+                : ''
+            }${
+              selectable
+                ? ' selectable'
+                : ''
+            }${
+              selected
+                ? ' selected'
                 : ''
             }"
+            ${
+              selectable
+                ? 'aria-pressed="' + (selected ? 'true' : 'false') + '"'
+                : ''
+            }
           >
             <strong>
               ${rollEscapeHtml(
@@ -1266,7 +1459,7 @@
             </strong>
 
             ${details}
-          </span>
+          </${tag}>
         `;
       })
       .join('');
@@ -1301,53 +1494,61 @@
       return;
     }
 
-    const replacement =
-      result.replacement
+    const biographyNote =
+      result.biographyBonus
         ? `
           <p class="roll-replacement-note">
-            <strong>Замена на 4:</strong>
-
-            ${rollEscapeHtml(
-              result.replacement.source
-            )},
-
-            ${rollEscapeHtml(
-              result.replacement.from
-            )}
-            → 4.
+            <strong>Биографическая черта:</strong>
+            +1 ЭФ.
           </p>
         `
         : '';
 
-    const replacementAction =
-      result.replacement
+    const biographyAction =
+      result.biographyBonus
         ? `
           <div class="roll-result-action-note">
-            Оптимальная замена уже применена.
+            Биографическая черта уже применена.
           </div>
         `
         : `
-          <div class="roll-result-actions">
-            <button
-              type="button"
-              class="secondary-button roll-four-button"
-              onclick="applyOptimalFourAfterRoll()"
-            >
-              Оптимально заменить одно значение на 4
-            </button>
-
-            <p class="helper-note">
-              Остальные выпавшие значения
-              не перебрасываются.
-            </p>
-          </div>
+          <button
+            type="button"
+            class="secondary-button"
+            onclick="applyBiographyBonusAfterRoll()"
+          >
+            Применить биографическую черту: +1 ЭФ
+          </button>
         `;
+
+    const mainNerve =
+      getAvailableMainNerveForRoll();
+
+    const rerollAction = `
+      <button
+        type="button"
+        class="secondary-button"
+        onclick="rerollSelectedEfficiencyDie()"
+        ${
+          selectedEfficiencyDieIndex === null ||
+          mainNerve < 1
+            ? 'disabled'
+            : ''
+        }
+      >
+        Перебросить выбранный куб — 1 Основной Нерв
+      </button>
+
+      <p class="helper-note">
+        Доступно Основного Нерва: ${rollEscapeHtml(mainNerve)}.
+        Бонусный Нерв для перебросов не используется.
+      </p>
+    `;
 
     const control =
       result.control
         ? renderControlResult(
-            result.control,
-            result.efBonusFromControl
+            result.control
           )
         : '';
 
@@ -1384,15 +1585,30 @@
 
       <div class="roll-dice">
         ${renderRollDice(
-          result.dice
+          result.dice,
+          true
         )}
       </div>
 
-      ${replacement}
+      ${biographyNote}
 
       <div class="roll-summary-grid">
         ${renderRollSummaryItem(
-          'Итог',
+          'Результат',
+          result.success
+            ? 'Успех'
+            : 'Провал'
+        )}
+
+        ${renderRollSummaryItem(
+          'Сложность',
+          result.difficulty +
+            ' — ' +
+            result.difficultyLabel
+        )}
+
+        ${renderRollSummaryItem(
+          'Доступный уровень',
           result.outcome
         )}
 
@@ -1415,7 +1631,11 @@
       </div>
 
       ${control}
-      ${replacementAction}
+
+      <div class="roll-result-actions">
+        ${biographyAction}
+        ${rerollAction}
+      </div>
     `;
   }
 
@@ -1488,10 +1708,7 @@
     `;
   }
 
-  function renderControlResult(
-    control,
-    efBonus
-  ) {
+  function renderControlResult(control) {
     const methodText =
       control.methodSides
         ? (
@@ -1505,18 +1722,6 @@
     const methodLabel = control.methodName
       ? control.methodName + ', ' + methodText
       : methodText;
-
-    let naturalText = '';
-
-    if (control.natural20) {
-      naturalText =
-        'Натуральная 20: ' +
-        'идеальный Контроль и +1 ЭФ.';
-    } else if (control.natural1) {
-      naturalText =
-        'Натуральная 1: ' +
-        'возможна потеря прочности.';
-    }
 
     return `
       <div class="roll-control-result">
@@ -1552,22 +1757,6 @@
           ${rollEscapeHtml(
             control.flatBonus
           )}.
-
-          ${rollEscapeHtml(
-            naturalText
-          )}
-
-          ${
-            efBonus
-              ? (
-                'Бонус к ЭФ: +' +
-                rollEscapeHtml(
-                  efBonus
-                ) +
-                '.'
-              )
-              : ''
-          }
         </div>
       </div>
     `;
@@ -1604,12 +1793,8 @@
               result.isAdmin
             );
 
-          renderRollLog(
-            result &&
-            result.entries
-              ? result.entries
-              : []
-          );
+          rollLogEntries = result && result.entries ? result.entries : [];
+          renderRollLog(rollLogEntries);
 
           updateClearRollLogButton();
 
@@ -1631,6 +1816,47 @@
         }
       )
       .mitriniumGetRollLog(100);
+  }
+
+  function downloadRollLogCsv(entries) {
+    const columns = [
+      'timestamp','userEmail','characterName','className','type','title',
+      'finalResult','ef','complication','breakthrough','dice','control'
+    ];
+    const quote = function(value) {
+      return '"' + String(value ?? '').replace(/"/g, '""') + '"';
+    };
+    const rows = [columns.map(quote).join(',')].concat(
+      (entries || []).map(function(entry) {
+        const row = Object.assign({}, entry, {
+          dice: JSON.stringify(entry.dice || []),
+          control: entry.control ? JSON.stringify(entry.control) : ''
+        });
+        return columns.map(function(key) { return quote(row[key]); }).join(',');
+      })
+    );
+    const blob = new Blob(['\ufeff' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'mitrinium-roll-log-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+  }
+
+  function exportRollLogCsv() {
+    setRollStatus('rollLogStatus', 'Готовлю полный экспорт...', false);
+    google.script.run
+      .withSuccessHandler(function(result) {
+        const entries = result && result.entries ? result.entries : [];
+        downloadRollLogCsv(entries);
+        setRollStatus('rollLogStatus', 'CSV-файл сформирован: ' + entries.length + ' записей.', false);
+      })
+      .withFailureHandler(function(error) {
+        setRollStatus('rollLogStatus', error.message || 'Ошибка экспорта лога.', true);
+      })
+      .mitriniumGetRollLog(5000);
   }
 
   function renderRollLog(entries) {
@@ -1695,15 +1921,41 @@
             'efficiency' &&
           entry.control
             ? renderControlResult(
-                entry.control,
-                entry.control.natural20
-                  ? 1
-                  : 0
+                entry.control
               )
             : '';
 
+        const hasComplication =
+          entry.complication ===
+          'Осложнение';
+
+        const hasBreakthrough =
+          entry.breakthrough ===
+          'Прорыв';
+
+        const eventBadges = `
+          ${
+            hasComplication
+              ? '<span class="roll-event-badge complication">Осложнение</span>'
+              : ''
+          }
+          ${
+            hasBreakthrough
+              ? '<span class="roll-event-badge breakthrough">Прорыв</span>'
+              : ''
+          }
+        `;
+
         return `
-          <article class="roll-log-entry">
+          <article class="roll-log-entry${
+            hasComplication
+              ? ' has-complication'
+              : ''
+          }${
+            hasBreakthrough
+              ? ' has-breakthrough'
+              : ''
+          }">
             <div class="roll-log-entry-heading">
               <div class="roll-log-entry-title">
                 ${icon}
@@ -1732,6 +1984,10 @@
               · <strong>
                 ${resultText}
               </strong>
+
+              <span class="roll-event-badges">
+                ${eventBadges}
+              </span>
             </div>
 
             <div class="roll-dice">

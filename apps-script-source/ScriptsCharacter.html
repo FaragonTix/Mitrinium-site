@@ -49,6 +49,7 @@
       item.className = 'attribute-item';
       item.innerHTML = `
         <div class="attribute-name">${attribute.name}</div>
+        <div class="attribute-description">${attribute.description || ''}</div>
 
         <div class="counter">
           <button
@@ -83,11 +84,11 @@
     return {
       body: 4 + (
         attributes.napor.value +
-        attributes.zhila.value
+        attributes.snorovka.value
       ) * 2,
 
       mainNerve:
-        attributes.losk.value +
+        attributes.gospodstvo.value +
         attributes.nyuh.value,
 
       bonusNerve: 3
@@ -122,7 +123,7 @@
 
     Object.values(skills).forEach(function(group) {
       Object.values(group.items).forEach(function(skill) {
-        spent += skill.value - 1;
+        spent += skill.value;
       });
     });
 
@@ -139,8 +140,15 @@
     if (!skill) return;
     const nextValue = Number(skill.value) + Number(delta);
     const maximum = advancedEditMode ? 3 : 2;
-    if (nextValue < 1 || nextValue > maximum) return;
+    if (nextValue < 0 || nextValue > maximum) return;
     if (!advancedEditMode && delta > 0 && getSkillPointsLeft() <= 0) return;
+    if (
+      !advancedEditMode &&
+      delta > 0 &&
+      Object.values(group.items).reduce(function (sum, item) {
+        return sum + Number(item.value || 0);
+      }, 0) >= maxStartingSkillGroupTotal
+    ) return;
     skill.value = nextValue;
     renderSkills();
     refreshViewerIfOpen();
@@ -155,7 +163,13 @@
     if (!grid || !pointsLeft) return;
 
     const selectedClass = document.getElementById('className')?.value || '';
-    const recommendedSkills = new Set(classRecommendedSkills[selectedClass] || []);
+    const recommendations = classRecommendedSkills[selectedClass] || {};
+    const primarySkills = new Set(recommendations.primary || []);
+    const secondarySkills = new Set(
+      classSecondarySkills.filter(function(path) {
+        return !primarySkills.has(path);
+      })
+    );
     const showRecommended = Boolean(recommendationToggle?.checked && selectedClass);
 
     pointsLeft.textContent = advancedEditMode
@@ -175,13 +189,16 @@
       Object.entries(group.items).forEach(function(skillEntry) {
         const skillKey = skillEntry[0];
         const skill = skillEntry[1];
-        const isRecommended = showRecommended && recommendedSkills.has(`${groupKey}:${skillKey}`);
+        const path = `${groupKey}:${skillKey}`;
+        const isPrimary = showRecommended && primarySkills.has(path);
+        const isSecondary = showRecommended && secondarySkills.has(path);
 
         html += `
-          <div class="skill-item ${isRecommended ? 'recommended' : ''}">
+          <div class="skill-item ${isPrimary ? 'recommended-primary' : ''} ${isSecondary ? 'recommended-secondary' : ''}">
             <span class="skill-name">
               ${skill.name}
-              ${isRecommended ? '<span class="skill-recommended-mark" aria-label="Рекомендовано классу" title="Рекомендовано классу">★</span>' : ''}
+              ${isPrimary ? '<span class="skill-recommended-mark primary" aria-label="Основной навык класса" title="Основной навык класса">★</span>' : ''}
+              ${isSecondary ? '<span class="skill-recommended-mark secondary" aria-label="Вторичный навык класса" title="Вторичный навык класса">◆</span>' : ''}
             </span>
 
             <div class="mini-counter">
@@ -226,6 +243,62 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  const educationSpecializations = {
+    guild: [
+      'Часовое дело', 'Оружейное дело', 'Кузнечное дело', 'Слесарное дело',
+      'Столярное дело', 'Плотницкое дело', 'Каменное дело', 'Стекольное дело',
+      'Керамическое дело', 'Ювелирное дело', 'Кожевенное дело', 'Сапожное дело',
+      'Портновское дело', 'Ткацкое дело', 'Красильное дело', 'Печатное дело',
+      'Переплётное дело', 'Картографическое дело', 'Судостроение', 'Ремонт барж',
+      'Паровозное дело', 'Вагонное дело', 'Котельное дело', 'Трубопроводное дело',
+      'Мельничное дело', 'Пивоварение', 'Пекарское дело', 'Сыроварение',
+      'Мясницкое дело', 'Полевое строительство', 'Шахтное дело', 'Литейное дело',
+      'Гравировальное дело', 'Оптическое дело', 'Изготовление протезов'
+    ],
+    humanities: [
+      'Архивное дело', 'Библиотечное дело', 'Имперская история', 'Современная история',
+      'История клубов', 'История искусств', 'Правоведение', 'Городское управление',
+      'Государственное управление', 'Дипломатия', 'Экономическая история', 'Политическая теория',
+      'Журналистика', 'Издательское дело', 'Литературная критика', 'Драматургия',
+      'Актёрское искусство', 'Музыкальная теория', 'Риторика', 'Философия',
+      'Этика', 'Лингвистика', 'Староимперские языки', 'Переводческое дело',
+      'Этнография', 'Антропология', 'География', 'Картография',
+      'Музейное дело', 'Организация выставок', 'Педагогика', 'Социальная работа',
+      'Статистика населения', 'Делопроизводство', 'Протокол и этикет', 'Публичные выступления'
+    ],
+    parish: [
+      'Приходское наставничество', 'Монастырское послушание', 'Храмовая служба', 'Благотворительная служба',
+      'Уход за больными', 'Приютское воспитание', 'Сиротское попечение', 'Тюремное служение',
+      'Паломническое сопровождение', 'Хранение реликвий', 'Переписывание священных текстов', 'Толкование преданий',
+      'Храмовое пение', 'Обрядовая музыка', 'Погребальные обряды', 'Брачные обряды',
+      'Посредничество в общине', 'Семейное примирение', 'Исповедальная беседа', 'Духовное утешение',
+      'Проповедничество', 'Миссионерская работа', 'Помощь бедным', 'Раздача продовольствия',
+      'Организация ночлега', 'Сбор пожертвований', 'Ведение приходских книг', 'Храмовая библиотека',
+      'Лечение травами', 'Уход за умирающими', 'Работа в полевом госпитале', 'Общинная кухня',
+      'Защита святых мест', 'Исследование культов', 'Народные поверья', 'История религий'
+    ],
+    scientific: [
+      'Промышленная химия', 'Медицинская химия', 'Токсикология', 'Фармакология',
+      'Анатомия', 'Хирургия', 'Эпидемиология', 'Ветеринария',
+      'Ботаника', 'Зоология', 'Экология Эфира', 'Микология',
+      'Геология', 'Минералогия', 'Металлургия', 'Кристаллография',
+      'Митриновая энергетика', 'Паровая инженерия', 'Теплотехника', 'Гидравлика',
+      'Механика', 'Точная механика', 'Автоматоны', 'Протезирование',
+      'Электрические явления', 'Оптика', 'Акустика', 'Метеорология',
+      'Математика', 'Прикладная статистика', 'Баллистика', 'Фортификация',
+      'Агрономия', 'Почвоведение', 'Селекция растений', 'Пищевая технология',
+      'Криминалистика', 'Экспериментальная психология', 'Хаотические явления', 'Эфирная навигация'
+    ]
+  };
+
+  function generateEducationSpecialization(cardId) {
+    const options = educationSpecializations[cardId] || [];
+    if (!options.length) return;
+    const next = options[Math.floor(Math.random() * options.length)];
+    setBiographyDetail('education', next);
+    renderBiographyEditor();
   }
 
   function selectBiographyCard(sectionId, cardId) {
@@ -310,8 +383,10 @@
       `;
     }).join('');
 
+    const isEducation = section.id === 'education';
     const detailField = card.requiresDetail
       ? `
+        <div class="${isEducation ? 'biography-specialization-panel' : ''}">
         <label class="field biography-detail-field">
           <span>
             ${escapeBiographyHtml(
@@ -326,6 +401,13 @@
             oninput="setBiographyDetail('${section.id}', this.value)"
           >
         </label>
+        ${isEducation ? `
+          <button type="button" class="secondary-button biography-specialization-generator" onclick="generateEducationSpecialization('${card.id}')">
+            Сгенерировать специализацию
+          </button>
+          <small>В библиотеке: ${(educationSpecializations[card.id] || []).length} вариантов. Значение можно изменить вручную.</small>
+        ` : ''}
+        </div>
       `
       : '';
 
@@ -338,7 +420,7 @@
       : '';
 
     return `
-      <div class="biography-selected-card">
+      <div class="biography-selected-card${isEducation ? ' education-selected-card' : ''}">
         <div class="biography-selected-heading">
           <strong>${escapeBiographyHtml(card.name)}</strong>
           <span>${escapeBiographyHtml(card.description || '')}</span>
@@ -453,6 +535,8 @@
       biography: collectBiographyForSave(),
       control: collectCharacterControl(),
       advancedEditMode: advancedEditMode,
+      skillRulesVersion: 5,
+      attributeRulesVersion: 2,
       attributes: collectAttributesForSave(),
       skills: collectSkillsForSave(),
       resources: collectResourcesForSave(),
@@ -461,6 +545,12 @@
       equipmentSpent: getSelectedEquipmentTotal(),
       equipmentMaintenance: getSelectedEquipmentMaintenanceTotal()
     };
+  }
+
+  function setCharacterCompletionStatus(isComplete) {
+    currentCharacterIsComplete = Boolean(isComplete);
+    const banner = document.getElementById('characterDraftBanner');
+    if (banner) banner.hidden = currentCharacterIsComplete;
   }
 
   /* =========================
@@ -512,6 +602,25 @@
     }
 
     if (!advancedEditMode) {
+      Object.values(skills).forEach(function (group) {
+        const groupTotal = Object.values(group.items).reduce(
+          function (sum, skill) {
+            return sum + Number(skill.value || 0);
+          },
+          0
+        );
+
+        if (groupTotal > maxStartingSkillGroupTotal) {
+          errors.push(
+            'Сумма Навыков Атрибута «' +
+            group.attributeName +
+            '» не может превышать 5.'
+          );
+        }
+      });
+    }
+
+    if (!advancedEditMode) {
       if (character.abilities.length !== 3) {
         errors.push('Выберите ровно 3 способности.');
       }
@@ -552,10 +661,127 @@
      Загрузка персонажа в форму
   ========================= */
 
+  function migrateLoadedCharacterRules(character) {
+    const result = character || {};
+    const oldAttributes = result.attributes || {};
+    if (Number(result.attributeRulesVersion || 0) < 2) {
+      result.attributes = {
+        napor: oldAttributes.napor,
+        snorovka: oldAttributes.smetka,
+        nyuh: oldAttributes.nyuh,
+        smetka: oldAttributes.zhila,
+        gospodstvo: oldAttributes.losk
+      };
+      result.attributeRulesVersion = 2;
+    }
+
+    if (Number(result.skillRulesVersion || 0) < 4) {
+      const oldSkills = result.skills || {};
+      const values = Object.values(oldSkills).flatMap(function(group) {
+        return Object.values(group || {}).map(Number);
+      });
+      const oldVersion = Number(result.skillRulesVersion || 0);
+      const oneBased = values.length > 0 && values.every(function(value) {
+        return Number.isFinite(value) && value >= 1;
+      }) && (oldVersion < 2 || (oldVersion === 2 && !result.advancedEditMode && values.reduce(function(sum, value) { return sum + value; }, 0) > 21));
+      const read = function(groupKey, skillKey) {
+        const value = Number(oldSkills[groupKey]?.[skillKey]);
+        if (!Number.isFinite(value)) return 0;
+        return Math.max(0, Math.min(3, Math.round(value) - (oneBased ? 1 : 0)));
+      };
+      result.skills = {
+        napor: {
+          stoikost: read('napor', 'stoikost'),
+          draka: read('napor', 'sila'),
+          atletika: read('zhila', 'atletika'),
+          disciplina: read('zhila', 'disciplina'),
+          vyzhivanie: read('losk', 'vnushenie')
+        },
+        snorovka: {
+          fehtovanie: read('napor', 'draka'),
+          skrytnost: read('smetka', 'skrytnost'),
+          lovkostRuk: read('smetka', 'lovkostRuk'),
+          uklonenie: read('smetka', 'uklonenie'),
+          strelba: read('nyuh', 'strelba')
+        },
+        nyuh: {
+          priroda: read('nyuh', 'priroda'),
+          vnimatelnost: read('nyuh', 'vnimatelnost'),
+          znanieUlits: read('nyuh', 'znanieUlits'),
+          psihologiya: read('losk', 'psiho'),
+          etiket: read('losk', 'etiket')
+        },
+        smetka: {
+          mehanizmy: read('smetka', 'mehanizmy'),
+          zakon: read('nyuh', 'zakon'),
+          ekonomika: read('zhila', 'ekonomika'),
+          himiya: read('zhila', 'himiya'),
+          medicina: read('zhila', 'medicina')
+        },
+        gospodstvo: {
+          ugrozy: read('napor', 'ugrozy'),
+          obman: read('smetka', 'obman'),
+          komandovanie: read('napor', 'liderstvo'),
+          ubezhdenie: read('losk', 'ubezhdenie'),
+          scena: read('losk', 'scena')
+        }
+      };
+      result.skillRulesVersion = 4;
+    }
+
+    if (Number(result.skillRulesVersion || 0) < 5) {
+      const previous = result.skills || {};
+      const value = function(groupKey, skillKey) {
+        const parsed = Number(previous[groupKey]?.[skillKey]);
+        return Number.isFinite(parsed) ? Math.max(0, Math.min(3, Math.round(parsed))) : 0;
+      };
+      result.skills = {
+        napor: {
+          fehtovanie: value('snorovka', 'fehtovanie'),
+          atletika: value('napor', 'atletika'),
+          stoikost: value('napor', 'stoikost'),
+          sila: 0,
+          vyzhivanie: value('napor', 'vyzhivanie')
+        },
+        snorovka: {
+          draka: value('napor', 'draka'),
+          uklonenie: value('snorovka', 'uklonenie'),
+          skrytnost: value('snorovka', 'skrytnost'),
+          lovkostRuk: value('snorovka', 'lovkostRuk'),
+          obman: value('gospodstvo', 'obman')
+        },
+        nyuh: {
+          vnimatelnost: value('nyuh', 'vnimatelnost'),
+          strelba: value('snorovka', 'strelba'),
+          priroda: value('nyuh', 'priroda'),
+          znanieUlits: value('nyuh', 'znanieUlits'),
+          psihologiya: value('nyuh', 'psihologiya')
+        },
+        smetka: {
+          mehanizmy: value('smetka', 'mehanizmy'),
+          himiya: value('smetka', 'himiya'),
+          medicina: value('smetka', 'medicina'),
+          zakon: value('smetka', 'zakon'),
+          erudiciya: value('smetka', 'ekonomika')
+        },
+        gospodstvo: {
+          ugrozy: value('gospodstvo', 'ugrozy'),
+          ubezhdenie: value('gospodstvo', 'ubezhdenie'),
+          komandovanie: value('gospodstvo', 'komandovanie'),
+          disciplina: value('napor', 'disciplina'),
+          scena: value('gospodstvo', 'scena')
+        }
+      };
+      result.skillRulesVersion = 5;
+    }
+    return result;
+  }
+
   function applyCharacterToForm(character) {
-    character = character || {};
+    character = migrateLoadedCharacterRules(character || {});
 
     currentCharacterId = character.id || null;
+    setCharacterCompletionStatus(character.isComplete !== false);
 
     document.getElementById('characterName').value =
       character.name || '';
@@ -585,7 +811,11 @@
     );
 
     applyAttributes(character.attributes || {});
-    applySkills(character.skills || {});
+    applySkills(
+      character.skills || {},
+      character.skillRulesVersion
+    );
+    character.resources = getCalculatedResources();
     applyBiography(character.biography || {});
 
     selectedAbilities.length = 0;
@@ -609,6 +839,9 @@
     renderAttributes();
     renderSkills();
     renderBiographyEditor();
+    setCharacterCompletionStatus(
+      validateCharacterOnClient(collectCharacterForSave()).length === 0
+    );
     renderAbilities();
     renderEquipment();
     refreshViewerIfOpen();
@@ -623,7 +856,22 @@
     });
   }
 
-  function applySkills(savedSkills) {
+  function applySkills(savedSkills, skillRulesVersion) {
+    const savedValues = [];
+
+    Object.values(savedSkills || {}).forEach(function (group) {
+      Object.values(group || {}).forEach(function (value) {
+        savedValues.push(Number(value));
+      });
+    });
+
+    const legacySkills =
+      Number(skillRulesVersion || 0) < 2 &&
+      savedValues.length > 0 &&
+      savedValues.every(function (value) {
+        return Number.isFinite(value) && value >= 1;
+      });
+
     Object.entries(skills).forEach(function(groupEntry) {
       const groupKey = groupEntry[0];
       const group = groupEntry[1];
@@ -631,9 +879,15 @@
         const skillKey = skillEntry[0];
         const skill = skillEntry[1];
         const savedValue = savedSkills[groupKey] && savedSkills[groupKey][skillKey] !== undefined
-          ? Number(savedSkills[groupKey][skillKey]) || 1
-          : 1;
-        skill.value = Math.max(1, Math.min(3, savedValue));
+          ? Number(savedSkills[groupKey][skillKey]) || 0
+          : 0;
+        skill.value = Math.max(
+          0,
+          Math.min(
+            3,
+            savedValue - (legacySkills ? 1 : 0)
+          )
+        );
       });
     });
   }
@@ -647,13 +901,21 @@
   function resetSkills() {
     Object.values(skills).forEach(function(group) {
       Object.values(group.items).forEach(function(skill) {
-        skill.value = 1;
+        skill.value = 0;
       });
     });
   }
 
+  function resetAllSkills() {
+    resetSkills();
+    renderSkills();
+    refreshViewerIfOpen();
+    if (typeof renderRollComponentOptions === 'function') renderRollComponentOptions();
+  }
+
   function startNewCharacter() {
     currentCharacterId = null;
+    setCharacterCompletionStatus(false);
 
     document.getElementById('characterName').value = '';
     document.getElementById('playerName').value = '';

@@ -4,26 +4,31 @@
   const attributes = {
     napor: {
       name: 'Напор',
+      description: 'Преодолеть физической силой.',
       value: 1
     },
 
-    smetka: {
-      name: 'Сметка',
+    snorovka: {
+      name: 'Сноровка',
+      description: 'Сделать точно и ловко. Поразить врага.',
       value: 1
     },
 
     nyuh: {
       name: 'Нюх',
+      description: 'Заметить, понять, обхитрить.',
       value: 1
     },
 
-    zhila: {
-      name: 'Жила',
+    smetka: {
+      name: 'Сметка',
+      description: 'Знать и уметь разобраться.',
       value: 1
     },
 
-    losk: {
-      name: 'Лоск',
+    gospodstvo: {
+      name: 'Господство',
+      description: 'Держать себя и навязывать свою волю другим.',
       value: 1
     }
   };
@@ -33,13 +38,13 @@
       attributeName: 'Напор',
 
       items: {
-        ugrozy: {
-          name: 'Угрозы',
+        fehtovanie: {
+          name: 'Фехтование',
           value: 1
         },
 
-        draka: {
-          name: 'Фехтование',
+        atletika: {
+          name: 'Атлетика',
           value: 1
         },
 
@@ -48,24 +53,29 @@
           value: 1
         },
 
-        liderstvo: {
-          name: 'Лидерство',
+        sila: {
+          name: 'Сила',
           value: 1
         },
 
-        sila: {
-          name: 'Драка',
+        vyzhivanie: {
+          name: 'Выживание',
           value: 1
         }
       }
     },
 
-    smetka: {
-      attributeName: 'Сметка',
+    snorovka: {
+      attributeName: 'Сноровка',
 
       items: {
-        obman: {
-          name: 'Обман',
+        draka: {
+          name: 'Драка',
+          value: 1
+        },
+
+        uklonenie: {
+          name: 'Уклонение',
           value: 1
         },
 
@@ -74,18 +84,13 @@
           value: 1
         },
 
-        mehanizmy: {
-          name: 'Механизмы',
-          value: 1
-        },
-
         lovkostRuk: {
           name: 'Ловкость рук',
           value: 1
         },
 
-        uklonenie: {
-          name: 'Уклонение',
+        obman: {
+          name: 'Обман',
           value: 1
         }
       }
@@ -95,13 +100,8 @@
       attributeName: 'Нюх',
 
       items: {
-        priroda: {
-          name: 'Природа',
-          value: 1
-        },
-
         vnimatelnost: {
-          name: 'Внимат.',
+          name: 'Внимательность',
           value: 1
         },
 
@@ -110,24 +110,29 @@
           value: 1
         },
 
-        zakon: {
-          name: 'Закон',
+        priroda: {
+          name: 'Природа',
           value: 1
         },
 
         znanieUlits: {
           name: 'Знание улиц',
           value: 1
+        },
+
+        psihologiya: {
+          name: 'Психология',
+          value: 1
         }
       }
     },
 
-    zhila: {
-      attributeName: 'Жила',
+    smetka: {
+      attributeName: 'Сметка',
 
       items: {
-        ekonomika: {
-          name: 'Экономика',
+        mehanizmy: {
+          name: 'Механизмы',
           value: 1
         },
 
@@ -136,29 +141,29 @@
           value: 1
         },
 
-        atletika: {
-          name: 'Атлетика',
-          value: 1
-        },
-
-        disciplina: {
-          name: 'Дисциплина',
-          value: 1
-        },
-
         medicina: {
           name: 'Медицина',
+          value: 1
+        },
+
+        zakon: {
+          name: 'Закон',
+          value: 1
+        },
+
+        erudiciya: {
+          name: 'Эрудиция',
           value: 1
         }
       }
     },
 
-    losk: {
-      attributeName: 'Лоск',
+    gospodstvo: {
+      attributeName: 'Господство',
 
       items: {
-        vnushenie: {
-          name: 'Внушение',
+        ugrozy: {
+          name: 'Угрозы',
           value: 1
         },
 
@@ -167,29 +172,37 @@
           value: 1
         },
 
-        psiho: {
-          name: 'Психо',
+        komandovanie: {
+          name: 'Командование',
+          value: 1
+        },
+
+        disciplina: {
+          name: 'Дисциплина',
           value: 1
         },
 
         scena: {
           name: 'Сцена',
           value: 1
-        },
-
-        etiket: {
-          name: 'Этикет',
-          value: 1
         }
       }
     }
   };
 
+  // В редакции 0.4.9 все Навыки стартуют с нулевого значения.
+  Object.values(skills).forEach(function (group) {
+    Object.values(group.items).forEach(function (skill) {
+      skill.value = 0;
+    });
+  });
+
   const maxAttributeValue = 3;
   const totalExtraAttributePoints = 4;
 
   const maxSkillValue = 2;
-  const totalExtraSkillPoints = 6;
+  const totalExtraSkillPoints = 21;
+  const maxStartingSkillGroupTotal = 5;
 
   const startingMoney = 1000;
   const maxStartingAbilities = 3;
@@ -198,45 +211,33 @@
   const maxAdvancedSkillValue = 3;
 
   const classRecommendedSkills = {
-    'Психопат': [
-      'zhila:himiya',
-      'napor:ugrozy',
-      'napor:stoikost',
-      'nyuh:vnimatelnost'
-    ],
-    'Кустарь': [
-      'smetka:mehanizmy',
-      'nyuh:vnimatelnost',
-      'zhila:disciplina',
-      'zhila:atletika'
-    ],
-    'Воротила': [
-      'napor:ugrozy',
-      'losk:ubezhdenie',
-      'nyuh:znanieUlits',
-      'zhila:ekonomika'
-    ],
-    'Рекрут': [
-      'napor:draka',
-      'napor:sila',
-      'nyuh:strelba',
-      'zhila:atletika',
-      'napor:stoikost',
-      'nyuh:vnimatelnost'
-    ],
-    'Менталист': [
-      'losk:vnushenie',
-      'losk:psiho',
-      'nyuh:vnimatelnost',
-      'zhila:disciplina'
-    ],
-    'Натуралист': [
-      'nyuh:priroda',
-      'zhila:medicina',
-      'zhila:himiya',
-      'nyuh:vnimatelnost'
-    ]
+    'Психопат': {
+      primary: ['smetka:himiya', 'smetka:mehanizmy', 'snorovka:obman', 'snorovka:skrytnost', 'nyuh:strelba']
+    },
+    'Кустарь': {
+      primary: ['smetka:mehanizmy', 'nyuh:vnimatelnost', 'snorovka:lovkostRuk', 'smetka:erudiciya', 'gospodstvo:disciplina']
+    },
+    'Воротила': {
+      primary: ['snorovka:obman', 'snorovka:skrytnost', 'nyuh:znanieUlits', 'smetka:zakon', 'snorovka:lovkostRuk']
+    },
+    'Рекрут': {
+      primary: ['nyuh:strelba', 'snorovka:skrytnost', 'napor:stoikost', 'napor:fehtovanie', 'napor:atletika']
+    },
+    'Менталист': {
+      primary: ['nyuh:psihologiya', 'gospodstvo:komandovanie', 'gospodstvo:ubezhdenie', 'nyuh:vnimatelnost', 'nyuh:strelba']
+    },
+    'Натуралист': {
+      primary: ['smetka:medicina', 'nyuh:priroda', 'smetka:himiya', 'napor:vyzhivanie', 'snorovka:skrytnost']
+    }
   };
+
+  const classSecondarySkills = [
+    'snorovka:uklonenie',
+    'napor:stoikost',
+    'gospodstvo:disciplina',
+    'smetka:erudiciya',
+    'nyuh:vnimatelnost'
+  ];
 
   const classIcons = {
     'Психопат': '⚗',
@@ -276,6 +277,7 @@
 
   let activeAbilityId = null;
   let currentCharacterId = null;
+  let currentCharacterIsComplete = false;
   let appMode = 'edit';
   let advancedEditMode = false;
   let savedCharactersCache = [];
@@ -492,6 +494,22 @@
       allowedModes.includes(requestedMode)
         ? requestedMode
         : 'edit';
+
+    const currentValidationErrors = mode !== 'edit' && typeof validateCharacterOnClient === 'function' && typeof collectCharacterForSave === 'function'
+      ? validateCharacterOnClient(collectCharacterForSave())
+      : [];
+    if (currentValidationErrors.length && typeof setCharacterCompletionStatus === 'function') {
+      setCharacterCompletionStatus(false);
+    }
+    const requiresSavedCharacter = mode === 'view' && !currentCharacterId;
+    if (mode !== 'edit' && (requiresSavedCharacter || currentValidationErrors.length)) {
+      const message = requiresSavedCharacter
+        ? 'Для перехода в «Просмотр» сначала сохраните законченного персонажа.'
+        : 'Этот персонаж не закончен. ' + (currentValidationErrors[0] || 'Завершите создание персонажа.') + ' После этого можно открыть «' + (mode === 'rolls' ? 'Броски' : 'Просмотр') + '».';
+      if (typeof setSaveStatus === 'function') setSaveStatus(message, true);
+      window.alert(message);
+      return;
+    }
 
     appMode = mode;
 
@@ -1199,6 +1217,19 @@
       }
 
       initializeClassIconPicker();
+
+      const editMode = document.getElementById('editMode');
+      if (editMode) {
+        const refreshCompletion = function () {
+          window.setTimeout(function () {
+            if (typeof collectCharacterForSave !== 'function' || typeof validateCharacterOnClient !== 'function') return;
+            setCharacterCompletionStatus(validateCharacterOnClient(collectCharacterForSave()).length === 0);
+          }, 0);
+        };
+        editMode.addEventListener('input', refreshCompletion);
+        editMode.addEventListener('change', refreshCompletion);
+        editMode.addEventListener('click', refreshCompletion);
+      }
 
       const classSelect =
         document.getElementById(

@@ -213,7 +213,7 @@
         </div>
 
         <div class="saved-character-actions">
-          <button type="button" class="equipment-button print-character-button" onclick="printCharacterSheet()">Печать листа</button>
+          <button type="button" class="equipment-button print-character-button" onclick="exportCharacterPdf()">Скачать PDF</button>
           <button type="button" class="equipment-button" onclick="setAppMode('edit')">К редактору</button>
         </div>
       </section>
@@ -1110,11 +1110,7 @@
   }
 
   function printCharacterSheet() {
-    setAppMode('view');
-    window.setTimeout(function() {
-      renderCharacterViewer();
-      window.setTimeout(function() { window.print(); }, 50);
-    }, 50);
+    exportCharacterPdf();
   }
 
 </script>

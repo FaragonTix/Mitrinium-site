@@ -879,7 +879,7 @@
     opacity: 0.72;
   }
 
-  .roll-die.replaced {
+  .roll-die.rerolled {
     border-color: #8c2017;
 
     background:
@@ -888,6 +888,19 @@
         #ffe8d5,
         #e99b70
       );
+  }
+
+  button.roll-die.selectable {
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+  }
+
+  button.roll-die.selectable:hover,
+  button.roll-die.selectable.selected {
+    transform: translateY(-1px);
+    border-color: #7a160f;
+    box-shadow: 0 0 0 2px rgba(122, 22, 15, 0.16);
   }
 
   .roll-summary-grid {
@@ -1030,6 +1043,45 @@
     padding: 11px;
   }
 
+  .roll-log-entry.has-complication {
+    border-left: 5px solid #9b2f24;
+    background: #fff0e8;
+  }
+
+  .roll-log-entry.has-breakthrough {
+    border-right: 5px solid #377246;
+    background: #eef8ed;
+  }
+
+  .roll-log-entry.has-complication.has-breakthrough {
+    background: linear-gradient(90deg, #fff0e8, #eef8ed);
+  }
+
+  .roll-event-badges {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-left: 6px;
+  }
+
+  .roll-event-badge {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .roll-event-badge.complication {
+    background: #8c2017;
+    color: #fff7ee;
+  }
+
+  .roll-event-badge.breakthrough {
+    background: #2f6b3d;
+    color: #f4fff4;
+  }
+
   .roll-log-entry-heading {
     display: flex;
     align-items: flex-start;
@@ -1070,6 +1122,42 @@
 
     margin-top: 18px;
   }
+
+  .character-draft-banner {
+    margin: 0 auto 16px;
+    width: min(1120px, calc(100% - 24px));
+    padding: 10px 16px;
+    border: 1px solid #9a6425;
+    border-radius: 10px;
+    color: #6f2d17;
+    background: #ffe7b1;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .character-draft-banner[hidden] { display: none; }
+  .character-draft-chip {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 7px;
+    border: 1px solid #a56c2a;
+    border-radius: 999px;
+    color: #7a351c;
+    background: #ffe7b1;
+    font: 700 11px/1.4 Arial, sans-serif;
+  }
+
+  .draft-save-dialog {
+    width: min(560px, calc(100% - 24px));
+    padding: 0;
+    border: 1px solid #b27b34;
+    border-radius: 14px;
+    color: #33200f;
+    background: #fff8e9;
+  }
+  .draft-save-dialog::backdrop { background: rgba(25, 17, 9, .72); }
+  .draft-save-dialog form { padding: 24px; }
+  .draft-save-dialog h2 { margin-top: 0; }
 
   .viewer-print-footer
   .print-character-button {

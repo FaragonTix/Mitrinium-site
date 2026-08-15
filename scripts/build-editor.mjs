@@ -80,6 +80,8 @@ async function buildEditor() {
     }
   </style>
   <script src="google-script-run.js"></script>
+  <script src="pdfmake.min.js"></script>
+  <script src="vfs_fonts.js"></script>
 </head>`,
     )
     .replace(
@@ -97,6 +99,14 @@ async function buildEditor() {
   await cp(
     path.join(root, "src", "client", "viewer-autosave.js"),
     path.join(editorDir, "viewer-autosave.js"),
+  );
+  await cp(
+    path.join(root, "node_modules", "pdfmake", "build", "pdfmake.min.js"),
+    path.join(editorDir, "pdfmake.min.js"),
+  );
+  await cp(
+    path.join(root, "node_modules", "pdfmake", "build", "vfs_fonts.js"),
+    path.join(editorDir, "vfs_fonts.js"),
   );
 }
 

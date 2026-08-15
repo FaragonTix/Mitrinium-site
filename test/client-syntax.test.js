@@ -20,12 +20,28 @@ test("клиентские скрипты редактора синтаксич�
     readClassicScript("../apps-script-source/ScriptsAbilities.html"),
     readClassicScript("../apps-script-source/ScriptsStorage.html"),
     readClassicScript("../apps-script-source/ViewerScripts.html"),
+    readClassicScript("../apps-script-source/CharacterPdfScripts.html"),
     readClassicScript("../apps-script-source/RollsScripts.html"),
   ]);
 
   for (const source of scripts) {
     assert.doesNotThrow(() => new Function(source));
   }
+});
+
+test("черновики блокируют просмотр и могут быть сохранены явно", async () => {
+  const [index, core, storage, pdf] = await Promise.all([
+    readFile(new URL("../apps-script-source/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/ScriptsCore.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/ScriptsStorage.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/CharacterPdfScripts.html", import.meta.url), "utf8"),
+  ]);
+  assert.match(index, /Этот персонаж не закончен/);
+  assert.match(index, /Всё равно сохранить/);
+  assert.match(core, /const requiresSavedCharacter = mode === 'view' && !currentCharacterId/);
+  assert.match(core, /setCharacterCompletionStatus\(validateCharacterOnClient\(collectCharacterForSave\(\)\)\.length === 0\)/);
+  assert.match(storage, /character\.isComplete = errors\.length === 0/);
+  assert.match(pdf, /createPdf\(buildCharacterPdfDefinition\(character\)\)\.download/);
 });
 
 test("у каждой способности есть пререквизит, а теги больше не выводятся", async () => {
@@ -41,9 +57,25 @@ test("у каждой способности есть пререквизит, а
   assert.equal(abilities.length, 84);
   assert.ok(abilities.every((ability) => ability.prerequisite));
   assert.doesNotMatch(abilityRenderer, /ability\.tags/);
+
+  const byName = Object.fromEntries(
+    abilities.map((ability) => [ability.name, ability]),
+  );
+  assert.equal(
+    byName["Механический перехват"].effect,
+    "Реакция после броска. Ассистент теряет d4 прочности, чтобы полностью поглотить прямой физический урон по любому персонажу. Не распространяется на урон по площади, урон от падения или любой вид перенаправленного урона. Способность доступна до уничтожения ассистента.",
+  );
+  assert.equal(
+    byName["Нет, подожди"].effect,
+    "В случае победы Воротилы, цель не может заявлять уклонение и использовать реакции в следующих 2 раундах.",
+  );
+  assert.equal(
+    byName["Двухзарядный мушкет"].effect,
+    "Позволяет держать два заряда в оружии. После первого выстрела Рекрут может сделать второй выстрел за ход. Второй выстрел получает Помеху и наносит d6 урона. Если персонаж использует второй заряд мушкета, в этом раунде он уже не может использовать Реакции.",
+  );
 });
 
-test("recommended skills are configured for every class", async () => {
+test("основные и вторичные рекомендованные навыки настроены для каждого класса", async () => {
   const coreSource = await readFile(
     new URL("../apps-script-source/ScriptsCore.html", import.meta.url),
     "utf8",
@@ -61,11 +93,34 @@ test("recommended skills are configured for every class", async () => {
     "Менталист",
     "Натуралист",
   ]) {
-    assert.match(coreSource, new RegExp(`'${className}': \\[`));
+    assert.match(coreSource, new RegExp(`'${className}': \\{`));
   }
 
   assert.match(editorSource, /id="showRecommendedSkills"/);
-  assert.match(coreSource, /'Рекрут': \[[\s\S]*?'nyuh:strelba'/);
+  assert.match(coreSource, /'Рекрут': \{[\s\S]*?primary:[\s\S]*?'nyuh:strelba'/);
+  assert.match(coreSource, /const classSecondarySkills = \[[\s\S]*?'snorovka:uklonenie'[\s\S]*?'napor:stoikost'[\s\S]*?'gospodstvo:disciplina'[\s\S]*?'smetka:erudiciya'[\s\S]*?'nyuh:vnimatelnost'/);
+  assert.match(editorSource, /resetAllSkills/);
+});
+
+test("каждый тип образования имеет генератор минимум из 30 специализаций", async () => {
+  const characterSource = await readFile(
+    new URL("../apps-script-source/ScriptsCharacter.html", import.meta.url),
+    "utf8",
+  );
+  const script = characterSource.replace(/^\s*<script>\s*/, "").replace(/\s*<\/script>\s*$/, "");
+  for (const type of ["guild", "humanities", "parish", "scientific"]) {
+    const match = script.match(new RegExp(`${type}: \\[([\\s\\S]*?)\\n    \\]`));
+    assert.ok(match, `нет библиотеки ${type}`);
+    assert.ok((match[1].match(/'/g) || []).length / 2 >= 30, `мало вариантов ${type}`);
+  }
+  assert.match(characterSource, /generateEducationSpecialization/);
+  assert.doesNotMatch(characterSource, /Ремонт автоматонов/);
+});
+
+test("режим бросков не требует сохранения, а просмотр требует", async () => {
+  const core = await readFile(new URL("../apps-script-source/ScriptsCore.html", import.meta.url), "utf8");
+  assert.match(core, /const requiresSavedCharacter = mode === 'view' && !currentCharacterId/);
+  assert.doesNotMatch(core, /mode !== 'edit'[\s\S]{0,100}!currentCharacterId \|\| !currentCharacterIsComplete/);
 });
 
 test("name generator supports the three regions and both modes", async () => {
@@ -100,4 +155,57 @@ test("name generator supports the three regions and both modes", async () => {
       assert.match(generator.procedural(region, gender), /^\S.+\s.+$/);
     }
   }
+});
+
+test("интерфейс бросков использует новые действия и выделяет события в логе", async () => {
+  const view = await readFile(
+    new URL("../apps-script-source/RollsView.html", import.meta.url),
+    "utf8",
+  );
+  const scripts = await readFile(
+    new URL("../apps-script-source/RollsScripts.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(view, /Бросить Контроль при Осложнении/);
+  assert.match(view, /Помеха — 3d4/);
+  assert.match(view, /Обычная сцена — 2d4 \+ d6/);
+  assert.match(view, /Преимущество — 3d6/);
+  assert.match(view, /id="rollDifficulty"/);
+  assert.match(scripts, /mitriniumApplyBiographyBonus/);
+  assert.match(scripts, /mitriniumRerollEfficiencyDie/);
+  assert.match(scripts, /roll-event-badge complication/);
+  assert.match(scripts, /roll-event-badge breakthrough/);
+  assert.doesNotMatch(`${view}\n${scripts}`, /замен(?:а|ить).*на 4/i);
+});
+
+test("редактор использует Атрибуты, Навыки и ограничения версии 0.4.9", async () => {
+  const core = await readFile(
+    new URL("../apps-script-source/ScriptsCore.html", import.meta.url),
+    "utf8",
+  );
+  const editor = await readFile(
+    new URL("../apps-script-source/Index.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(core, /const totalExtraSkillPoints = 21/);
+  assert.match(core, /const maxStartingSkillGroupTotal = 5/);
+  assert.match(core, /skill\.value = 0/);
+  assert.match(editor, /Все Навыки начинаются с 0/);
+  const characterScripts = await readFile(
+    new URL("../apps-script-source/ScriptsCharacter.html", import.meta.url),
+    "utf8",
+  );
+  assert.match(characterScripts, /skillRulesVersion: 5/);
+  assert.match(characterScripts, /attributeRulesVersion: 2/);
+  assert.match(characterScripts, /attributes\.napor[\s\S]*attributes\.snorovka/);
+  assert.match(characterScripts, /attributes\.gospodstvo[\s\S]*attributes\.nyuh/);
+  assert.match(characterScripts, /legacySkills/);
+  const storageScripts = await readFile(
+    new URL("../apps-script-source/ScriptsStorage.html", import.meta.url),
+    "utf8",
+  );
+  assert.match(storageScripts, /clampLoadedStat\([\s\S]*loadedSkills/);
+  assert.match(storageScripts, /group\[skillKey\][\s\S]*0/);
 });

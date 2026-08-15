@@ -60,6 +60,20 @@
           >
         </label>
 
+        <label class="field roll-form-full">
+          <span>Сложность проверки</span>
+
+          <select id="rollDifficulty">
+            <option value="4">4 — Элементарная</option>
+            <option value="5">5 — Простая</option>
+            <option value="6" selected>6 — Квалифицированная</option>
+            <option value="7">7 — Профессиональная</option>
+            <option value="8">8 — Сложная профессиональная</option>
+            <option value="9">9 — Экспертная</option>
+            <option value="10">10 — Исключительная</option>
+          </select>
+        </label>
+
         <!-- =========================
              Режим выпадающих списков
         ========================== -->
@@ -77,23 +91,20 @@
                 onchange="syncRollBuilderControls()"
               >
                 <option value="hindrance">
-                  Помеха — 2d4
+                  Помеха — 3d4
                 </option>
 
                 <option
                   value="normal"
                   selected
                 >
-                  Обычная сцена — d4 + d6
+                  Обычная сцена — 2d4 + d6
                 </option>
 
                 <option value="advantage">
-                  Преимущество — 2d6
+                  Преимущество — 3d6
                 </option>
 
-                <option value="exceptional">
-                  Исключительное преимущество — 2d8
-                </option>
               </select>
             </label>
 
@@ -116,6 +127,12 @@
             </label>
           </div>
         </div>
+
+        <p class="helper-note roll-scene-rule-note">
+          Событие определяют только три Куба сцены. Дубль задаёт триггер:
+          третий куб на 1 ниже даёт Осложнение, на 1 выше — потенциальный
+          Прорыв. Прорыв срабатывает только при успешной проверке.
+        </p>
 
         <!-- =========================
              Режим конструктора
@@ -141,7 +158,7 @@
                 onclick="selectRollScene('hindrance')"
               >
                 <strong>Помеха</strong>
-                <span>2d4</span>
+                <span>3d4</span>
               </button>
 
               <button
@@ -151,7 +168,7 @@
                 onclick="selectRollScene('normal')"
               >
                 <strong>Обычная</strong>
-                <span>d4 + d6</span>
+                <span>2d4 + d6</span>
               </button>
 
               <button
@@ -161,18 +178,9 @@
                 onclick="selectRollScene('advantage')"
               >
                 <strong>Преимущество</strong>
-                <span>2d6</span>
+                <span>3d6</span>
               </button>
 
-              <button
-                type="button"
-                data-scene-key="exceptional"
-                aria-pressed="false"
-                onclick="selectRollScene('exceptional')"
-              >
-                <strong>Исключительная</strong>
-                <span>2d8</span>
-              </button>
             </div>
           </div>
 
@@ -232,7 +240,7 @@
             >
 
             <span>
-              Одновременно бросить Контроль
+              Бросить Контроль при Осложнении
             </span>
           </label>
         </div>
@@ -372,7 +380,7 @@
                 type="number"
                 min="1"
                 max="50"
-                value="10"
+                value="18"
               >
             </label>
           </div>
@@ -400,8 +408,8 @@
         >
           Результат появится здесь.
 
-          После броска станет доступна
-          оптимальная замена одного значения на 4.
+          После броска можно применить биографическую черту
+          или перебросить выбранный куб за 1 Основной Нерв.
         </div>
       </section>
 
@@ -582,6 +590,14 @@
             onclick="refreshRollLog(false)"
           >
             Обновить
+          </button>
+
+          <button
+            type="button"
+            class="secondary-button"
+            onclick="exportRollLogCsv()"
+          >
+            Экспорт CSV
           </button>
 
           <button

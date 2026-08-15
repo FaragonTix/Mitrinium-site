@@ -266,4 +266,3 @@ export async function deleteEnemyTemplate(db, _user, id) {
     .run();
   return { ok: true, deleted: Boolean(result.meta.changes) };
 }
-

@@ -1,0 +1,164 @@
+<script>
+  function pdfSafeText(value) {
+    return String(value ?? '').replace(/\s+/g, ' ').trim();
+  }
+
+  function pdfSection(title, body) {
+    return {
+      margin: [0, 8, 0, 0],
+      table: {
+        widths: ['*'],
+        body: [[{
+          stack: [
+            { text: title.toUpperCase(), style: 'sectionTitle' },
+            body
+          ],
+          margin: [9, 7, 9, 8]
+        }]]
+      },
+      layout: {
+        hLineColor: '#b88742', vLineColor: '#b88742',
+        hLineWidth: function() { return .7; },
+        vLineWidth: function() { return .7; }
+      }
+    };
+  }
+
+  function pdfKeyValueRows(items, columns) {
+    const cells = items.map(function(item) {
+      return {
+        stack: [
+          { text: pdfSafeText(item[0]), style: 'label' },
+          { text: pdfSafeText(item[1] || '—'), style: 'value' }
+        ],
+        margin: [5, 4, 5, 4]
+      };
+    });
+    while (cells.length % columns) cells.push({ text: '' });
+    const rows = [];
+    for (let index = 0; index < cells.length; index += columns) {
+      rows.push(cells.slice(index, index + columns));
+    }
+    return { table: { widths: Array(columns).fill('*'), body: rows }, layout: 'lightHorizontalLines' };
+  }
+
+  function pdfBiographyLines(biography) {
+    const lines = [];
+    Object.entries(biography || {}).forEach(function(entry) {
+      const value = entry[1];
+      if (!value) return;
+      if (typeof value === 'string' || typeof value === 'number') {
+        lines.push(pdfSafeText(value));
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.forEach(function(item) { if (item) lines.push(pdfSafeText(item.name || item.title || item)); });
+        return;
+      }
+      if (typeof value === 'object') {
+        const parts = [value.name, value.title, value.cardName, value.traitName, value.detail]
+          .filter(Boolean).map(pdfSafeText);
+        if (parts.length) lines.push(parts.join(' — '));
+      }
+    });
+    return lines.length ? { ul: lines, margin: [0, 3, 0, 0] } : { text: 'Не указаны', color: '#76624b' };
+  }
+
+  function buildCharacterPdfDefinition(character) {
+    const resources = character.resources || {};
+    const state = character.state || viewerState || {};
+    const money = state.money || {};
+    const attributeRows = Object.entries(character.attributes || {}).map(function(entry) {
+      return [attributes?.[entry[0]]?.name || entry[0], entry[1]];
+    });
+    const skillRows = [];
+    Object.entries(character.skills || {}).forEach(function(groupEntry) {
+      const group = skills?.[groupEntry[0]];
+      Object.entries(groupEntry[1] || {}).forEach(function(skillEntry) {
+        skillRows.push([group?.items?.[skillEntry[0]]?.name || skillEntry[0], skillEntry[1]]);
+      });
+    });
+    const control = normalizeCharacterControl(character.control, character.className);
+    const controlRows = Object.entries(control.methods || {}).map(function(entry) {
+      return [entry[0], 'ур. ' + entry[1].level + ' · бонус ' + (entry[1].bonus >= 0 ? '+' : '') + entry[1].bonus];
+    });
+    const abilityBlocks = (character.abilities || []).map(function(id) {
+      const ability = getAbilityById(id);
+      if (!ability) return { text: pdfSafeText(id) };
+      const details = [
+        ability.prerequisite ? 'Пререквизит: ' + ability.prerequisite : '',
+        ability.pool ? 'Пул: ' + ability.pool : '',
+        ability.control ? 'Контроль: ' + ability.control : '',
+        ability.effect ? 'Эффект: ' + ability.effect : '',
+        ability.breakthrough ? 'Прорыв: ' + ability.breakthrough : '',
+        ability.complications ? 'Осложнения: ' + ability.complications : ''
+      ].filter(Boolean).join('\n');
+      return { stack: [{ text: ability.name, bold: true }, { text: details, margin: [0, 2, 0, 6] }] };
+    });
+    const equipmentBlocks = (character.equipment || []).map(function(id) {
+      const item = getEquipmentById(id);
+      if (!item) return { text: pdfSafeText(id) };
+      return { text: item.name + ' — ' + (getEquipmentDetails(item) || item.category || '') };
+    });
+
+    return {
+      pageSize: 'A4',
+      pageMargins: [30, 38, 30, 34],
+      defaultStyle: { font: 'Roboto', fontSize: 9.4, lineHeight: 1.15, color: '#2a1a0e' },
+      styles: {
+        title: { fontSize: 24, bold: true, color: '#20150c' },
+        subtitle: { fontSize: 10, color: '#76542d' },
+        sectionTitle: { fontSize: 10, bold: true, color: '#8b4f16', margin: [0, 0, 0, 4] },
+        label: { fontSize: 7.5, color: '#806849' },
+        value: { fontSize: 11, bold: true }
+      },
+      footer: function(currentPage, pageCount) {
+        return { text: 'Митриниум · лист персонажа · ' + currentPage + ' / ' + pageCount, alignment: 'center', fontSize: 7, color: '#8b7358' };
+      },
+      content: [
+        {
+          columns: [
+            { width: '*', stack: [
+              { text: character.name || 'Без имени', style: 'title' },
+              { text: [character.className || 'Класс не выбран', ' · уровень ' + (character.level || 1), character.player ? ' · игрок: ' + character.player : ''].join(''), style: 'subtitle' },
+              character.concept ? { text: character.concept, margin: [0, 6, 0, 0] } : { text: '' }
+            ] },
+            { width: 58, text: 'M', alignment: 'center', fontSize: 30, bold: true, color: '#b88742', margin: [0, 7, 0, 0] }
+          ]
+        },
+        pdfSection('Состояние', pdfKeyValueRows([
+          ['Тело', (state.currentBody ?? resources.body ?? 0) + ' / ' + (resources.body ?? 0)],
+          ['Броня', (state.currentArmor ?? 0) + ' / ' + (state.maxArmor ?? 0)],
+          ['Основной Нерв', (state.currentMainNerve ?? resources.mainNerve ?? 0) + ' / ' + (resources.mainNerve ?? 0)],
+          ['Бонусный Нерв', (state.currentBonusNerve ?? resources.bonusNerve ?? 0) + ' / ' + (resources.bonusNerve ?? 0)],
+          ['Деньги', (money.gold || 0) + ' з. · ' + (money.farthings || 0) + ' ф. · ' + (money.pekkels || 0) + ' п.'],
+          ['Обслуживание', (character.equipmentMaintenance || 0) + ' ф.']
+        ], 3)),
+        pdfSection('Биографические черты', pdfBiographyLines(character.biography)),
+        { columns: [
+          { width: '48%', stack: [pdfSection('Атрибуты', pdfKeyValueRows(attributeRows, 2))] },
+          { width: '4%', text: '' },
+          { width: '48%', stack: [pdfSection('Контроль', pdfKeyValueRows(controlRows, 2))] }
+        ] },
+        pdfSection('Навыки', pdfKeyValueRows(skillRows, 5)),
+        pdfSection('Способности', abilityBlocks.length ? { stack: abilityBlocks } : { text: 'Не выбраны' }),
+        pdfSection('Снаряжение', equipmentBlocks.length ? { ul: equipmentBlocks } : { text: 'Не выбрано' }),
+        state.notes ? pdfSection('Заметки', { text: state.notes }) : { text: '' }
+      ]
+    };
+  }
+
+  function exportCharacterPdf() {
+    const character = getViewerCharacter();
+    if (!character || !currentCharacterId || !currentCharacterIsComplete) {
+      window.alert('PDF доступен только для сохранённого законченного персонажа.');
+      return;
+    }
+    if (!window.pdfMake) {
+      window.alert('Модуль PDF не загрузился. Обновите страницу и попробуйте снова.');
+      return;
+    }
+    const safeName = (character.name || 'character').replace(/[^a-zа-яё0-9_-]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
+    window.pdfMake.createPdf(buildCharacterPdfDefinition(character)).download('mitrinium-' + (safeName || 'character') + '.pdf');
+  }
+</script>
