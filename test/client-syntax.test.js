@@ -111,6 +111,34 @@ test("снаряжение использует актуальный катал�
   }
 });
 
+test("каталоги снаряжения имеют независимые быстрые фильтры", async () => {
+  const [editor, styles, equipmentSource, equipmentUiSource] = await Promise.all([
+    readFile(new URL("../apps-script-source/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/Styles.html", import.meta.url), "utf8"),
+    readClassicScript("../apps-script-source/EquipmentData.html"),
+    readClassicScript("../apps-script-source/ScriptsEquipment.html"),
+  ]);
+  const equipmentData = new Function(`${equipmentSource}; return equipmentData;`)();
+  const helpers = new Function(
+    `${equipmentUiSource}; return { getEquipmentFilterCategory, matchesEquipmentFilter };`,
+  )();
+  const byName = Object.fromEntries(equipmentData.map(item => [item.name, item]));
+
+  assert.equal((editor.match(/>Сбросить фильтры<\/button>/g) || []).length, 2);
+  assert.match(editor, /<i class="secondary"><\/i> спасы/);
+  assert.match(styles, /\.equipment-quick-filters button \{[\s\S]*?background: #e6f3fb/);
+  assert.match(styles, /\.equipment-filter-reset \{[\s\S]*?background: #f8e0dc/);
+  for (const filter of ['armor', 'melee', 'ranged', 'consumable', 'other']) {
+    assert.equal((editor.match(new RegExp(`data-equipment-filter="${filter}"`, 'g')) || []).length, 2);
+  }
+  assert.equal(helpers.getEquipmentFilterCategory(byName['Кираса']), 'armor');
+  assert.equal(helpers.getEquipmentFilterCategory(byName['Нож / складной нож']), 'melee');
+  assert.equal(helpers.getEquipmentFilterCategory(byName['Пистоль']), 'ranged');
+  assert.equal(helpers.getEquipmentFilterCategory(byName['Слабый яд']), 'consumable');
+  assert.equal(helpers.getEquipmentFilterCategory(byName['Компас']), 'other');
+  assert.equal(helpers.matchesEquipmentFilter(byName['Пистоль'], 'melee'), false);
+});
+
 test("основные и вторичные рекомендованные навыки настроены для каждого класса", async () => {
   const coreSource = await readFile(
     new URL("../apps-script-source/ScriptsCore.html", import.meta.url),

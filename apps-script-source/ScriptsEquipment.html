@@ -1,6 +1,11 @@
 <script>
   // Снаряжение, рекомендации, стоимость, обслуживание и броня.
 
+  const equipmentFilters = {
+    recommended: 'all',
+    other: 'all'
+  };
+
   function getEquipmentById(equipmentId) {
     return equipmentData.find(item => item.id === equipmentId);
   }
@@ -38,6 +43,33 @@
 
   function isHiddenEquipmentItem(item) {
     return Boolean(item && getEquipmentSearchText(item).includes('особое'));
+  }
+
+  function getEquipmentFilterCategory(item) {
+    if (!item) return 'other';
+    if (item.category === 'Броня') return 'armor';
+    if (isConsumableEquipment(item) || item.category === 'Расходник') return 'consumable';
+    if (item.range || (item.tags || []).some(tag => String(tag).toLowerCase() === 'пистоль')) return 'ranged';
+    if (item.category === 'Оружие' || ['Нож-капельник', 'Трость с кристаллическим навершием'].includes(item.name)) return 'melee';
+    return 'other';
+  }
+
+  function matchesEquipmentFilter(item, filter) {
+    return !filter || filter === 'all' || getEquipmentFilterCategory(item) === filter;
+  }
+
+  function setEquipmentFilter(scope, filter) {
+    if (!Object.prototype.hasOwnProperty.call(equipmentFilters, scope)) return;
+    equipmentFilters[scope] = filter || 'all';
+    renderEquipment();
+  }
+
+  function updateEquipmentFilterButtons() {
+    document.querySelectorAll('[data-equipment-scope][data-equipment-filter]').forEach(button => {
+      const active = equipmentFilters[button.dataset.equipmentScope] === button.dataset.equipmentFilter;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
   }
 
   function getSelectedEquipmentCount(equipmentId) {
@@ -170,6 +202,9 @@
         return a.category.localeCompare(b.category);
       });
 
+    recommendedItems = recommendedItems.filter(item => matchesEquipmentFilter(item, equipmentFilters.recommended));
+    otherItems = otherItems.filter(item => matchesEquipmentFilter(item, equipmentFilters.other));
+
     if (searchQuery) {
       recommendedItems = recommendedItems.filter(item => getEquipmentSearchText(item).includes(searchQuery));
       otherItems = otherItems.filter(item => getEquipmentSearchText(item).includes(searchQuery));
@@ -177,14 +212,15 @@
 
     recommendedList.innerHTML = recommendedItems.length
       ? recommendedItems.map(item => renderEquipmentCard(item, true)).join('')
-      : searchQuery
-        ? '<p class="empty-note">В рекомендациях ничего не найдено.</p>'
+      : searchQuery || equipmentFilters.recommended !== 'all'
+        ? '<p class="empty-note">В рекомендациях по выбранному фильтру ничего не найдено.</p>'
         : '<p class="empty-note">Выберите класс, чтобы увидеть рекомендации.</p>';
 
     otherList.innerHTML = otherItems.length
       ? otherItems.map(item => renderEquipmentCard(item, false)).join('')
       : '<p class="empty-note">В общем списке ничего не найдено.</p>';
 
+    updateEquipmentFilterButtons();
     renderSelectedEquipment();
     renderEquipmentSummary();
   }

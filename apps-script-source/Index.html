@@ -400,7 +400,7 @@
               <input type="checkbox" id="showRecommendedSkills" checked onchange="renderSkills()">
               <span>Показывать рекомендованные</span>
             </label>
-            <span class="skill-recommendation-legend"><i class="primary"></i> основные <i class="secondary"></i> вторичные</span>
+            <span class="skill-recommendation-legend"><i class="primary"></i> основные <i class="secondary"></i> спасы</span>
             <button type="button" class="secondary-button" onclick="resetAllSkills()">Сбросить навыки</button>
           </div>
 
@@ -517,6 +517,15 @@
           <div class="equipment-section">
             <h3>Рекомендовано классу</h3>
 
+            <div class="equipment-quick-filters" aria-label="Фильтры рекомендованного снаряжения">
+              <button type="button" data-equipment-scope="recommended" data-equipment-filter="armor" onclick="setEquipmentFilter('recommended', 'armor')">Броня</button>
+              <button type="button" data-equipment-scope="recommended" data-equipment-filter="melee" onclick="setEquipmentFilter('recommended', 'melee')">Ближнее оружие</button>
+              <button type="button" data-equipment-scope="recommended" data-equipment-filter="ranged" onclick="setEquipmentFilter('recommended', 'ranged')">Дальнее оружие</button>
+              <button type="button" data-equipment-scope="recommended" data-equipment-filter="consumable" onclick="setEquipmentFilter('recommended', 'consumable')">Расходники</button>
+              <button type="button" data-equipment-scope="recommended" data-equipment-filter="other" onclick="setEquipmentFilter('recommended', 'other')">Прочее</button>
+              <button type="button" class="equipment-filter-reset active" data-equipment-scope="recommended" data-equipment-filter="all" aria-pressed="true" onclick="setEquipmentFilter('recommended', 'all')">Сбросить фильтры</button>
+            </div>
+
             <div
               id="recommendedEquipmentList"
               class="equipment-list"
@@ -529,6 +538,15 @@
 
           <div class="equipment-section">
             <h3>Остальное снаряжение</h3>
+
+            <div class="equipment-quick-filters" aria-label="Фильтры остального снаряжения">
+              <button type="button" data-equipment-scope="other" data-equipment-filter="armor" onclick="setEquipmentFilter('other', 'armor')">Броня</button>
+              <button type="button" data-equipment-scope="other" data-equipment-filter="melee" onclick="setEquipmentFilter('other', 'melee')">Ближнее оружие</button>
+              <button type="button" data-equipment-scope="other" data-equipment-filter="ranged" onclick="setEquipmentFilter('other', 'ranged')">Дальнее оружие</button>
+              <button type="button" data-equipment-scope="other" data-equipment-filter="consumable" onclick="setEquipmentFilter('other', 'consumable')">Расходники</button>
+              <button type="button" data-equipment-scope="other" data-equipment-filter="other" onclick="setEquipmentFilter('other', 'other')">Прочее</button>
+              <button type="button" class="equipment-filter-reset active" data-equipment-scope="other" data-equipment-filter="all" aria-pressed="true" onclick="setEquipmentFilter('other', 'all')">Сбросить фильтры</button>
+            </div>
 
             <div
               id="otherEquipmentList"
