@@ -765,6 +765,26 @@
     "tags": []
   },
   {
+    "id": "chistyy-spirt-1-l",
+    "name": "Чистый спирт (1 л)",
+    "category": "Вспомогательное",
+    "price": 100,
+    "priceText": "100 ф",
+    "purpose": "Дорогой хорошо очищенный алкоголь.",
+    "maintenance": 0,
+    "tags": []
+  },
+  {
+    "id": "atronskaya-gorech-nefilt-shot",
+    "name": "Атронская горечь (нефильт.) шот",
+    "category": "Вспомогательное",
+    "price": 100,
+    "priceText": "100 п.",
+    "purpose": "Крепкий травяной ликёр из Плекса.",
+    "maintenance": 0,
+    "tags": []
+  },
+  {
     "id": "kompas",
     "name": "Компас",
     "category": "Вспомогательное",
@@ -985,26 +1005,6 @@
     "tags": []
   },
   {
-    "id": "hvitlak",
-    "name": "Хвитлэк",
-    "category": "Расходник",
-    "price": 50,
-    "priceText": "50 ф",
-    "purpose": "Легальное лекарство от простуды. Расходник.",
-    "maintenance": 0,
-    "tags": []
-  },
-  {
-    "id": "farnalit",
-    "name": "Фарналит",
-    "category": "Расходник",
-    "price": 130,
-    "priceText": "130 ф",
-    "purpose": "Капли с приторным вкусом. Быстро погружает в сон примерно на 1 час. Клиническое средство под контролем.",
-    "maintenance": 0,
-    "tags": []
-  },
-  {
     "id": "serebryanka",
     "name": "Серебрянка",
     "category": "Расходник",
@@ -1110,9 +1110,20 @@
     "polevoy-issledovatelskiy-nabor",
     "krasny-kulon",
     "krasny-monokl",
-    "maly-siniy-kristall",
-    "perchatka-sinego-polya",
     "prostye-karmannye-chasy"
   ]
 };
+
+  const universallyRecommendedEquipment = [
+    "somnol",
+    "argentol",
+    "fibrinat",
+    "mitrinovyy-ranevoy-kollodiy"
+  ];
+
+  Object.values(classRecommendedEquipment).forEach(function(recommended) {
+    universallyRecommendedEquipment.forEach(function(equipmentId) {
+      if (!recommended.includes(equipmentId)) recommended.push(equipmentId);
+    });
+  });
 </script>

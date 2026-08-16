@@ -24,6 +24,12 @@
     };
   }
 
+  function pdfUnbreakableSection(title, body) {
+    const section = pdfSection(title, body);
+    section.unbreakable = true;
+    return section;
+  }
+
   function pdfKeyValueRows(items, columns) {
     const cells = items.map(function(item) {
       return {
@@ -42,26 +48,110 @@
     return { table: { widths: Array(columns).fill('*'), body: rows }, layout: 'lightHorizontalLines' };
   }
 
-  function pdfBiographyLines(biography) {
-    const lines = [];
-    Object.entries(biography || {}).forEach(function(entry) {
-      const value = entry[1];
-      if (!value) return;
-      if (typeof value === 'string' || typeof value === 'number') {
-        lines.push(pdfSafeText(value));
-        return;
+  function pdfBiographyContent(biography) {
+    if (typeof biographyData === 'undefined' || typeof normalizeBiography !== 'function') {
+      return { text: 'Не указаны', color: '#76624b' };
+    }
+
+    const normalized = normalizeBiography(biography || {});
+    const cards = biographyData.sections.map(function(section) {
+      const selection = normalized[section.id] || {};
+      const card = getBiographyCard(section.id, selection.cardId);
+      if (!card) return null;
+
+      const stack = [
+        { text: pdfSafeText(section.title), style: 'biographySection' },
+        { text: pdfSafeText(card.name), bold: true, margin: [0, 1, 0, 2] }
+      ];
+
+      if (selection.detail) {
+        stack.push({
+          text: pdfSafeText((section.detailLabel || 'Уточнение') + ': ' + selection.detail),
+          italics: true,
+          margin: [0, 0, 0, 3]
+        });
       }
-      if (Array.isArray(value)) {
-        value.forEach(function(item) { if (item) lines.push(pdfSafeText(item.name || item.title || item)); });
-        return;
-      }
-      if (typeof value === 'object') {
-        const parts = [value.name, value.title, value.cardName, value.traitName, value.detail]
-          .filter(Boolean).map(pdfSafeText);
-        if (parts.length) lines.push(parts.join(' — '));
-      }
+
+      (card.traits || []).forEach(function(trait) {
+        stack.push({
+          text: [
+            { text: pdfSafeText(trait.name) + ': ', bold: true },
+            pdfSafeText(trait.description)
+          ],
+          margin: [0, 2, 0, 0]
+        });
+      });
+
+      return { width: '*', stack, margin: [4, 3, 4, 4] };
+    }).filter(Boolean);
+
+    return cards.length
+      ? { columns: cards, columnGap: 5 }
+      : { text: 'Не указаны', color: '#76624b' };
+  }
+
+  function pdfSkillGroupColumns(savedSkills) {
+    return Object.entries(skills || {}).map(function(groupEntry) {
+      const groupKey = groupEntry[0];
+      const group = groupEntry[1];
+      const savedGroup = savedSkills?.[groupKey] || {};
+      const body = [[{
+        text: pdfSafeText(group.attributeName).toUpperCase(),
+        colSpan: 2,
+        alignment: 'center',
+        bold: true,
+        color: '#70451f',
+        fillColor: '#f1dfbd',
+        margin: [2, 3, 2, 3]
+      }, {}]];
+
+      Object.entries(group.items || {}).forEach(function(skillEntry) {
+        body.push([
+          { text: pdfSafeText(skillEntry[1].name), margin: [3, 3, 2, 3] },
+          {
+            text: String(Number(savedGroup[skillEntry[0]] ?? skillEntry[1].value ?? 0)),
+            alignment: 'center',
+            bold: true,
+            margin: [1, 3, 1, 3]
+          }
+        ]);
+      });
+
+      return {
+        width: '*',
+        table: {
+          widths: ['*', 13],
+          body,
+          headerRows: 1,
+          keepWithHeaderRows: body.length - 1,
+          dontBreakRows: true
+        },
+        layout: {
+          hLineColor: '#cfb181',
+          vLineColor: '#cfb181',
+          hLineWidth: function() { return .45; },
+          vLineWidth: function() { return .45; }
+        }
+      };
     });
-    return lines.length ? { ul: lines, margin: [0, 3, 0, 0] } : { text: 'Не указаны', color: '#76624b' };
+  }
+
+  function pdfSkillGroupsLayout(savedSkills) {
+    const groups = pdfSkillGroupColumns(savedSkills);
+    const rows = [];
+
+    for (let index = 0; index < groups.length; index += 3) {
+      const columns = groups.slice(index, index + 3);
+      while (columns.length < 3) columns.push({ width: '*', text: '' });
+      rows.push({
+        columns,
+        columnGap: 6,
+        margin: [0, rows.length ? 6 : 0, 0, 0],
+        unbreakable: true
+      });
+    }
+
+    return groups.length ? { stack: rows } : { text: 'Не указаны' };
   }
 
   function buildCharacterPdfDefinition(character) {
@@ -70,13 +160,6 @@
     const money = state.money || {};
     const attributeRows = Object.entries(character.attributes || {}).map(function(entry) {
       return [attributes?.[entry[0]]?.name || entry[0], entry[1]];
-    });
-    const skillRows = [];
-    Object.entries(character.skills || {}).forEach(function(groupEntry) {
-      const group = skills?.[groupEntry[0]];
-      Object.entries(groupEntry[1] || {}).forEach(function(skillEntry) {
-        skillRows.push([group?.items?.[skillEntry[0]]?.name || skillEntry[0], skillEntry[1]]);
-      });
     });
     const control = normalizeCharacterControl(character.control, character.className);
     const controlRows = Object.entries(control.methods || {}).map(function(entry) {
@@ -110,7 +193,8 @@
         subtitle: { fontSize: 10, color: '#76542d' },
         sectionTitle: { fontSize: 10, bold: true, color: '#8b4f16', margin: [0, 0, 0, 4] },
         label: { fontSize: 7.5, color: '#806849' },
-        value: { fontSize: 11, bold: true }
+        value: { fontSize: 11, bold: true },
+        biographySection: { fontSize: 7.5, bold: true, color: '#8b4f16' }
       },
       footer: function(currentPage, pageCount) {
         return { text: 'Митриниум · лист персонажа · ' + currentPage + ' / ' + pageCount, alignment: 'center', fontSize: 7, color: '#8b7358' };
@@ -123,7 +207,7 @@
               { text: [character.className || 'Класс не выбран', ' · уровень ' + (character.level || 1), character.player ? ' · игрок: ' + character.player : ''].join(''), style: 'subtitle' },
               character.concept ? { text: character.concept, margin: [0, 6, 0, 0] } : { text: '' }
             ] },
-            { width: 58, text: 'M', alignment: 'center', fontSize: 30, bold: true, color: '#b88742', margin: [0, 7, 0, 0] }
+            { width: 74, text: 'Mitrinium', alignment: 'center', fontSize: 13, bold: true, color: '#b88742', margin: [0, 12, 0, 0] }
           ]
         },
         pdfSection('Состояние', pdfKeyValueRows([
@@ -134,13 +218,13 @@
           ['Деньги', (money.gold || 0) + ' з. · ' + (money.farthings || 0) + ' ф. · ' + (money.pekkels || 0) + ' п.'],
           ['Обслуживание', (character.equipmentMaintenance || 0) + ' ф.']
         ], 3)),
-        pdfSection('Биографические черты', pdfBiographyLines(character.biography)),
+        pdfSection('Биографические черты', pdfBiographyContent(character.biography)),
         { columns: [
           { width: '48%', stack: [pdfSection('Атрибуты', pdfKeyValueRows(attributeRows, 2))] },
           { width: '4%', text: '' },
           { width: '48%', stack: [pdfSection('Контроль', pdfKeyValueRows(controlRows, 2))] }
         ] },
-        pdfSection('Навыки', pdfKeyValueRows(skillRows, 5)),
+        pdfUnbreakableSection('Навыки', pdfSkillGroupsLayout(character.skills || {})),
         pdfSection('Способности', abilityBlocks.length ? { stack: abilityBlocks } : { text: 'Не выбраны' }),
         pdfSection('Снаряжение', equipmentBlocks.length ? { ul: equipmentBlocks } : { text: 'Не выбрано' }),
         state.notes ? pdfSection('Заметки', { text: state.notes }) : { text: '' }

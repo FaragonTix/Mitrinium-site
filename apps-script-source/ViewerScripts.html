@@ -2,6 +2,7 @@
   let viewerState = null;
   let viewerStateCharacterId = null;
   let viewerStateDirty = false;
+  let viewerResourceMaximums = null;
 
   /* =========================
      Утилиты
@@ -60,6 +61,13 @@
     const resources = character.resources || {};
     const savedState = character.state || {};
     const savedMoney = savedState.money || {};
+    const stateWasInitialized = savedState.initialized !== false && (
+      Object.prototype.hasOwnProperty.call(savedState, 'currentBody') ||
+      Object.prototype.hasOwnProperty.call(savedState, 'currentMainNerve') ||
+      Object.prototype.hasOwnProperty.call(savedState, 'currentBonusNerve') ||
+      Object.prototype.hasOwnProperty.call(savedState, 'money') ||
+      Object.prototype.hasOwnProperty.call(savedState, 'maxArmor')
+    );
 
     const maxBody = Math.max(
       0,
@@ -76,20 +84,30 @@
       NumberOrDefault(resources.bonusNerve, 0)
     );
 
-    const maxArmor = Math.max(
+    const equipmentArmor = typeof getSelectedArmorTotal === 'function'
+      ? getSelectedArmorTotal()
+      : 0;
+    const maxArmor = Math.max(0, NumberOrDefault(
+      stateWasInitialized ? savedState.maxArmor : equipmentArmor,
+      equipmentArmor
+    ));
+    const startingFarthings = Math.max(
       0,
-      NumberOrDefault(savedState.maxArmor, 0)
+      NumberOrDefault(
+        typeof startingMoney === 'number' ? startingMoney : 1000,
+        1000
+      ) - NumberOrDefault(character.equipmentSpent, 0)
     );
 
     return {
       currentBody: clampViewerNumber(
-        savedState.currentBody,
+        stateWasInitialized ? savedState.currentBody : maxBody,
         0,
         maxBody
       ),
 
       currentArmor: clampViewerNumber(
-        savedState.currentArmor,
+        stateWasInitialized ? savedState.currentArmor : maxArmor,
         0,
         maxArmor
       ),
@@ -97,13 +115,13 @@
       maxArmor,
 
       currentMainNerve: clampViewerNumber(
-        savedState.currentMainNerve,
+        stateWasInitialized ? savedState.currentMainNerve : maxMainNerve,
         0,
         maxMainNerve
       ),
 
       currentBonusNerve: clampViewerNumber(
-        savedState.currentBonusNerve,
+        stateWasInitialized ? savedState.currentBonusNerve : maxBonusNerve,
         0,
         maxBonusNerve
       ),
@@ -111,22 +129,53 @@
       money: {
         gold: Math.max(
           0,
-          NumberOrDefault(savedMoney.gold, 0)
+          NumberOrDefault(stateWasInitialized ? savedMoney.gold : 0, 0)
         ),
 
         farthings: Math.max(
           0,
-          NumberOrDefault(savedMoney.farthings, 0)
+          NumberOrDefault(
+            stateWasInitialized ? savedMoney.farthings : startingFarthings,
+            startingFarthings
+          )
         ),
 
         pekkels: Math.max(
           0,
-          NumberOrDefault(savedMoney.pekkels, 0)
+          NumberOrDefault(stateWasInitialized ? savedMoney.pekkels : 0, 0)
         )
       },
 
-      notes: String(savedState.notes || '')
+      notes: String(savedState.notes || ''),
+      initialized: true
     };
+  }
+
+  function getViewerResourceMaximums(character) {
+    const resources = character?.resources || {};
+    return {
+      currentBody: Math.max(0, NumberOrDefault(resources.body, 0)),
+      currentMainNerve: Math.max(0, NumberOrDefault(resources.mainNerve, 0)),
+      currentBonusNerve: Math.max(0, NumberOrDefault(resources.bonusNerve, 0))
+    };
+  }
+
+  function syncViewerResourceMaximums(character) {
+    if (!viewerState) return;
+    const nextMaximums = getViewerResourceMaximums(character);
+
+    if (viewerResourceMaximums) {
+      Object.keys(nextMaximums).forEach(function(key) {
+        const previousMaximum = NumberOrDefault(viewerResourceMaximums[key], 0);
+        const nextMaximum = nextMaximums[key];
+        const current = NumberOrDefault(viewerState[key], 0);
+        viewerState[key] = current >= previousMaximum
+          ? nextMaximum
+          : Math.min(current, nextMaximum);
+      });
+    }
+
+    viewerResourceMaximums = nextMaximums;
   }
 
   function setViewerStateFromCharacter(character) {
@@ -138,6 +187,7 @@
       null;
 
     viewerState = normalizeViewerState(character);
+    viewerResourceMaximums = getViewerResourceMaximums(character);
     viewerStateDirty = false;
 
     renderCharacterViewer();
@@ -155,7 +205,10 @@
     ) {
       viewerStateCharacterId = characterId;
       viewerState = normalizeViewerState(character || {});
+      viewerResourceMaximums = getViewerResourceMaximums(character || {});
       viewerStateDirty = false;
+    } else {
+      syncViewerResourceMaximums(character || {});
     }
 
     return viewerState;

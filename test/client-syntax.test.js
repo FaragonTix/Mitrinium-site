@@ -46,6 +46,57 @@ test("черновики блокируют просмотр и могут бы�
   assert.match(pdf, /createPdf\(buildCharacterPdfDefinition\(character\)\)\.download/);
 });
 
+test("новое состояние просмотра начинается с максимумов и оставшихся денег", async () => {
+  const viewerSource = await readClassicScript("../apps-script-source/ViewerScripts.html");
+  const api = new Function(
+    "getSelectedArmorTotal",
+    "startingMoney",
+    `${viewerSource}; return { normalizeViewerState };`,
+  )(() => 4, 1000);
+  const resources = { body: 12, mainNerve: 5, bonusNerve: 3 };
+
+  const initial = api.normalizeViewerState({
+    resources,
+    equipmentSpent: 300,
+    state: { initialized: false, currentBody: 0, maxArmor: 0, money: { farthings: 0 } },
+  });
+  assert.equal(initial.currentBody, 12);
+  assert.equal(initial.currentMainNerve, 5);
+  assert.equal(initial.currentBonusNerve, 3);
+  assert.equal(initial.currentArmor, 4);
+  assert.equal(initial.maxArmor, 4);
+  assert.equal(initial.money.farthings, 700);
+
+  const saved = api.normalizeViewerState({
+    resources,
+    state: {
+      initialized: true,
+      currentBody: 0,
+      currentMainNerve: 0,
+      currentBonusNerve: 0,
+      currentArmor: 0,
+      maxArmor: 0,
+      money: { gold: 0, farthings: 0, pekkels: 0 },
+    },
+  });
+  assert.equal(saved.currentBody, 0);
+  assert.equal(saved.currentMainNerve, 0);
+  assert.equal(saved.money.farthings, 0);
+});
+
+test("PDF содержит биографические черты, заголовки Атрибутов и полное название", async () => {
+  const pdfSource = await readClassicScript("../apps-script-source/CharacterPdfScripts.html");
+  assert.match(pdfSource, /pdfBiographyContent/);
+  assert.match(pdfSource, /card\.traits/);
+  assert.match(pdfSource, /pdfSkillGroupColumns/);
+  assert.match(pdfSource, /group\.attributeName/);
+  assert.match(pdfSource, /dontBreakRows: true/);
+  assert.match(pdfSource, /unbreakable: true/);
+  assert.match(pdfSource, /pdfUnbreakableSection\('Навыки'/);
+  assert.match(pdfSource, /text: 'Mitrinium'/);
+  assert.doesNotMatch(pdfSource, /text: 'M'/);
+});
+
 test("у каждой способности есть пререквизит, а теги больше не выводятся", async () => {
   const abilitySource = await readClassicScript(
     "../apps-script-source/AbilitiesData.html",
@@ -75,6 +126,7 @@ test("у каждой способности есть пререквизит, а
     byName["Двухзарядный мушкет"].effect,
     "Реакция после атаки крупнокалиберным оружием. Рекрут может сделать второй выстрел следом в этот же ход. Второй выстрел получает Помеху и наносит d6 урона.",
   );
+  assert.equal(byName["Жучок"].prerequisite, "предмет с тегом КК");
 });
 
 test("снаряжение использует актуальный каталог, расходники и рекомендации", async () => {
@@ -93,7 +145,10 @@ test("снаряжение использует актуальный катал�
   assert.equal(equipmentData.length, 81);
   assert.ok(watch);
   assert.ok(equipmentData.some((item) => item.name === "Дермопластическая мазь №7 («Семёрка»)"));
+  assert.ok(equipmentData.some((item) => item.name === "Чистый спирт (1 л)" && item.priceText === "100 ф"));
+  assert.ok(equipmentData.some((item) => item.name === "Атронская горечь (нефильт.) шот" && item.priceText === "100 п."));
   assert.ok(equipmentData.every((item) => item.name !== "Механический ассистент"));
+  assert.ok(equipmentData.every((item) => !["Хвитлэк", "Фарналит"].includes(item.name)));
   assert.equal(
     helpers.isConsumableEquipment(equipmentData.find((item) => item.name === "Слабый яд")),
     true,
@@ -108,7 +163,14 @@ test("снаряжение использует актуальный катал�
   );
   for (const recommended of Object.values(classRecommendedEquipment)) {
     assert.ok(recommended.includes(watch.id));
+    for (const equipmentId of ['somnol', 'argentol', 'fibrinat', 'mitrinovyy-ranevoy-kollodiy']) {
+      assert.ok(recommended.includes(equipmentId));
+    }
   }
+  const equipmentById = Object.fromEntries(equipmentData.map((item) => [item.id, item]));
+  assert.ok(classRecommendedEquipment["Натуралист"].every((equipmentId) =>
+    !(equipmentById[equipmentId]?.tags || []).includes("СК")
+  ));
 });
 
 test("каталоги снаряжения имеют независимые быстрые фильтры", async () => {
@@ -132,11 +194,13 @@ test("каталоги снаряжения имеют независимые б
   assert.match(styles, /\.skill-column \{[\s\S]*?grid-template-rows: auto repeat\(5, 62px\)/);
   assert.match(styles, /\.skill-item \{[\s\S]*?height: 62px/);
   assert.match(styles, /\.skill-recommendation-legend\[hidden\] \{ display: none; \}/);
-  for (const filter of ['armor', 'melee', 'ranged', 'consumable', 'other']) {
+  for (const filter of ['armor', 'melee', 'ranged', 'kit', 'consumable', 'other']) {
     assert.equal((editor.match(new RegExp(`data-equipment-filter="${filter}"`, 'g')) || []).length, 2);
   }
   assert.equal(helpers.getEquipmentFilterCategory(byName['Кираса']), 'armor');
   assert.equal(helpers.getEquipmentFilterCategory(byName['Нож / складной нож']), 'melee');
+  assert.equal(helpers.getEquipmentFilterCategory(byName['Химический распылитель']), 'melee');
+  assert.equal(helpers.getEquipmentFilterCategory(byName['Полевой исследовательский набор']), 'kit');
   assert.equal(helpers.getEquipmentFilterCategory(byName['Пистоль']), 'ranged');
   assert.equal(helpers.getEquipmentFilterCategory(byName['Слабый яд']), 'consumable');
   assert.equal(helpers.getEquipmentFilterCategory(byName['Компас']), 'other');

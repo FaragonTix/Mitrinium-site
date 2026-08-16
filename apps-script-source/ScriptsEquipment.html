@@ -48,8 +48,11 @@
   function getEquipmentFilterCategory(item) {
     if (!item) return 'other';
     if (item.category === 'Броня') return 'armor';
+    if (item.category === 'Набор') return 'kit';
     if (isConsumableEquipment(item) || item.category === 'Расходник') return 'consumable';
-    if (item.range || (item.tags || []).some(tag => String(tag).toLowerCase() === 'пистоль')) return 'ranged';
+    const range = String(item.range || '').toLowerCase();
+    if (range.includes('ближн')) return 'melee';
+    if (range || (item.tags || []).some(tag => String(tag).toLowerCase() === 'пистоль')) return 'ranged';
     if (item.category === 'Оружие' || ['Нож-капельник', 'Трость с кристаллическим навершием'].includes(item.name)) return 'melee';
     return 'other';
   }
@@ -76,10 +79,41 @@
     return selectedEquipment.filter(id => id === equipmentId).length;
   }
 
+  function getAvailableEquipmentFarthings() {
+    if (viewerState?.money && Number.isFinite(Number(viewerState.money.farthings))) {
+      return Math.max(0, Number(viewerState.money.farthings));
+    }
+
+    return Math.max(0, startingMoney - getSelectedEquipmentTotal());
+  }
+
+  function changeEquipmentFarthings(delta) {
+    if (!viewerState) return;
+    viewerState.money = viewerState.money || { gold: 0, farthings: 0, pekkels: 0 };
+    viewerState.money.farthings = Math.max(
+      0,
+      Number(viewerState.money.farthings || 0) + Number(delta || 0)
+    );
+    viewerState.initialized = true;
+    if (typeof markViewerStateUnsaved === 'function') markViewerStateUnsaved();
+  }
+
   function addEquipment(equipmentId) {
     const item = getEquipmentById(equipmentId);
     if (!item || (isEquipmentSelected(equipmentId) && !isConsumableEquipment(item))) return;
+    const price = Math.max(0, Number(item.price || 0));
+    if (price > getAvailableEquipmentFarthings()) {
+      const warning = document.getElementById('equipmentWarning');
+      if (warning) {
+        warning.classList.remove('hidden');
+        warning.textContent = `Недостаточно текущих денег: требуется ${price} ф.`;
+      }
+      return;
+    }
+    const previousArmor = getSelectedArmorTotal();
     selectedEquipment.push(equipmentId);
+    changeEquipmentFarthings(-price);
+    syncViewerArmorWithEquipment(previousArmor);
     renderEquipment();
     refreshViewerIfOpen();
   }
@@ -87,7 +121,11 @@
   function removeEquipment(equipmentId) {
     const index = selectedEquipment.indexOf(equipmentId);
     if (index === -1) return;
+    const item = getEquipmentById(equipmentId);
+    const previousArmor = getSelectedArmorTotal();
     selectedEquipment.splice(index, 1);
+    changeEquipmentFarthings(Number(item?.price || 0));
+    syncViewerArmorWithEquipment(previousArmor);
     renderEquipment();
     refreshViewerIfOpen();
   }
@@ -162,7 +200,7 @@
   function renderEquipmentSummary() {
     const spent = getSelectedEquipmentTotal();
     const maintenance = getSelectedEquipmentMaintenanceTotal();
-    const left = startingMoney - spent;
+    const left = getAvailableEquipmentFarthings();
 
     const spentElement = document.getElementById('equipmentSpent');
     const leftElement = document.getElementById('equipmentLeft');
@@ -175,13 +213,8 @@
 
     if (!warning) return;
 
-    if (left < 0) {
-      warning.classList.remove('hidden');
-      warning.textContent = `Бюджет превышен на ${Math.abs(left)} ф.`;
-    } else {
-      warning.classList.add('hidden');
-      warning.textContent = '';
-    }
+    warning.classList.add('hidden');
+    warning.textContent = '';
   }
 
   function renderEquipment() {
@@ -247,19 +280,22 @@ function getSelectedArmorTotal() {
   }, 0);
 }
 
-function syncViewerArmorWithEquipment() {
+function syncViewerArmorWithEquipment(previousEquipmentArmor) {
   if (!viewerState || typeof getSelectedArmorTotal !== 'function') {
     return;
   }
 
   const maxArmor = getSelectedArmorTotal();
+  const previousArmor = Math.max(0, Number(previousEquipmentArmor || 0));
+  if (maxArmor === previousArmor) return;
 
-  if (viewerState.currentArmor === undefined) {
-    viewerState.currentArmor = maxArmor;
-  }
-
-  if (viewerState.currentArmor > maxArmor) {
-    viewerState.currentArmor = maxArmor;
-  }
+  const wasFull = viewerState.currentArmor === undefined ||
+    Number(viewerState.currentArmor) >= Number(viewerState.maxArmor || previousArmor);
+  viewerState.maxArmor = maxArmor;
+  viewerState.currentArmor = wasFull
+    ? maxArmor
+    : Math.min(Math.max(0, Number(viewerState.currentArmor || 0)), maxArmor);
+  viewerState.initialized = true;
+  if (typeof markViewerStateUnsaved === 'function') markViewerStateUnsaved();
 }
 </script>

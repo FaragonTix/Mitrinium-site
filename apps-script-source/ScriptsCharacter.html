@@ -572,7 +572,10 @@
       abilities: selectedAbilities.slice(),
       equipment: selectedEquipment.slice(),
       equipmentSpent: getSelectedEquipmentTotal(),
-      equipmentMaintenance: getSelectedEquipmentMaintenanceTotal()
+      equipmentMaintenance: getSelectedEquipmentMaintenanceTotal(),
+      state: viewerState
+        ? JSON.parse(JSON.stringify({ ...viewerState, initialized: true }))
+        : undefined
     };
   }
 
@@ -677,7 +680,7 @@
       }
     }
 
-    if (character.equipmentSpent > startingMoney) {
+    if (!currentCharacterId && character.equipmentSpent > startingMoney) {
       errors.push(
         'Стоимость снаряжения превышает 1000 ф.'
       );

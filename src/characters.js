@@ -234,7 +234,7 @@ function validateCharacter(character, { allowIncomplete = false } = {}) {
   }
 }
 
-function sanitizeState(state, resources) {
+export function sanitizeState(state, resources) {
   const safeState = state || {};
   const safeResources = resources || {};
   const money = safeState.money || {};
@@ -267,6 +267,7 @@ function sanitizeState(state, resources) {
       pekkels: Math.max(0, numberOr(money.pekkels, 0)),
     },
     notes: String(safeState.notes || "").slice(0, 10000),
+    initialized: true,
   };
 }
 
@@ -353,6 +354,10 @@ export async function saveCharacter(db, user, input) {
       JSON.stringify(data),
     )
     .run();
+
+  if (input.state && typeof input.state === "object") {
+    await saveCharacterState(db, user, id, input.state);
+  }
 
   return {
     success: true,
@@ -453,15 +458,19 @@ export async function loadCharacter(db, user, id) {
     .first();
 
   let storedState = character.state || {};
+  let hasStoredState = Object.keys(storedState).length > 0;
   if (stateRow?.data_json) {
     try {
       storedState = JSON.parse(stateRow.data_json);
+      hasStoredState = true;
     } catch {
       storedState = {};
+      hasStoredState = false;
     }
   }
 
   character.state = sanitizeState(storedState, character.resources || {});
+  character.state.initialized = hasStoredState;
   return character;
 }
 

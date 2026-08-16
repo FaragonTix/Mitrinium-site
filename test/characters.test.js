@@ -7,6 +7,7 @@ import {
   normalizeCharacterLevel,
   normalizeCharacterSkills,
   saveCharacter,
+  sanitizeState,
 } from "../src/characters.js";
 
 test("старый персонаж без уровня получает первый уровень", () => {
@@ -119,6 +120,20 @@ test("Тело и Нерв рассчитываются по правилам 0.
     mainNerve: 5,
     bonusNerve: 3,
   });
+});
+
+test("сервер сохраняет нулевые текущие показатели как осознанное состояние", () => {
+  const state = sanitizeState({
+    currentBody: 0,
+    currentMainNerve: 0,
+    currentBonusNerve: 0,
+    currentArmor: 0,
+    maxArmor: 0,
+    money: { gold: 0, farthings: 0, pekkels: 0 },
+  }, { body: 12, mainNerve: 5, bonusNerve: 3 });
+  assert.equal(state.currentBody, 0);
+  assert.equal(state.currentMainNerve, 0);
+  assert.equal(state.initialized, true);
 });
 
 test("старые Навыки переносятся в новые группы без потери очков", () => {

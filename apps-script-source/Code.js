@@ -539,10 +539,14 @@ function getCharacterStateById_(
   const lastRow = sheet.getLastRow();
 
   if (lastRow < 2) {
-    return sanitizeCharacterState_(
+    const fallback = sanitizeCharacterState_(
       fallbackState || {},
       resources || {}
     );
+    fallback.initialized = Boolean(
+      fallbackState && Object.keys(fallbackState).length
+    );
+    return fallback;
   }
 
   const values = sheet
@@ -556,7 +560,7 @@ function getCharacterStateById_(
       continue;
     }
 
-    return sanitizeCharacterState_(
+    const savedState = sanitizeCharacterState_(
       {
         currentBody: row[4],
         currentMainNerve: row[5],
@@ -574,12 +578,18 @@ function getCharacterStateById_(
       },
       resources || {}
     );
+    savedState.initialized = true;
+    return savedState;
   }
 
-  return sanitizeCharacterState_(
+  const fallback = sanitizeCharacterState_(
     fallbackState || {},
     resources || {}
   );
+  fallback.initialized = Boolean(
+    fallbackState && Object.keys(fallbackState).length
+  );
+  return fallback;
 }
 
 /* =========================
@@ -664,7 +674,8 @@ function sanitizeCharacterState_(state, resources) {
       )
     },
 
-    notes: String(state.notes || '')
+    notes: String(state.notes || ''),
+    initialized: true
   };
 }
 
@@ -710,7 +721,7 @@ function validateCharacterForSave(character) {
     isAdvancedEditMode
   );
 
-  if (Number(character.equipmentSpent || 0) > 1000) {
+  if (!character.id && Number(character.equipmentSpent || 0) > 1000) {
     throw new Error(
       'Стоимость снаряжения превышает 1000 ф.'
     );
