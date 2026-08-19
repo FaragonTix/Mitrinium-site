@@ -31,6 +31,14 @@ test("клиентские скрипты редактора синтаксич�
   }
 });
 
+test("главная страница содержит ссылки на правила и книгу сеттинга", async () => {
+  const landing = await readFile(new URL("../index.html", import.meta.url), "utf8");
+
+  assert.match(landing, /1u-42AfJ8D4FAS9f41KpYCBMHo95bQSdS/);
+  assert.match(landing, /1Z-Zor0VfLCpU9fWEM2iIslm3RXvRwj8K/);
+  assert.match(landing, />\s*Книга сеттинга\s*</);
+});
+
 test("черновики блокируют просмотр и могут быть сохранены явно", async () => {
   const [index, core, storage, pdf] = await Promise.all([
     readFile(new URL("../apps-script-source/Index.html", import.meta.url), "utf8"),
@@ -127,6 +135,10 @@ test("у каждой способности есть пререквизит, а
     "Реакция после атаки крупнокалиберным оружием. Рекрут может сделать второй выстрел следом в этот же ход. Второй выстрел получает Помеху и наносит d6 урона.",
   );
   assert.equal(byName["Жучок"].prerequisite, "предмет с тегом КК");
+  assert.equal(byName["Резкая ингаляция"].pool, "Нюх + Стрельба");
+  assert.equal(byName["Кислотный плевок"].pool, "Нюх + Стрельба");
+  assert.equal(byName["Кислотные ампулы"].pool, "Сметка + Химия");
+  assert.equal(byName["Токсичный распылитель"].pool, "Сметка + Стрельба");
 });
 
 test("снаряжение использует актуальный каталог, расходники и рекомендации", async () => {
@@ -149,6 +161,10 @@ test("снаряжение использует актуальный катал�
   assert.ok(equipmentData.some((item) => item.name === "Атронская горечь (нефильт.) шот" && item.priceText === "100 п."));
   assert.ok(equipmentData.every((item) => item.name !== "Механический ассистент"));
   assert.ok(equipmentData.every((item) => !["Хвитлэк", "Фарналит"].includes(item.name)));
+  assert.equal(
+    equipmentData.find((item) => item.name === "Химический распылитель")?.pool,
+    "Нюх + Стрельба",
+  );
   assert.equal(
     helpers.isConsumableEquipment(equipmentData.find((item) => item.name === "Слабый яд")),
     true,
