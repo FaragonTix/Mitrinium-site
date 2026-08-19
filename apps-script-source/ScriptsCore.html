@@ -351,6 +351,11 @@
   }
 
   function updateCharacterControlMethod(methodName, field, value) {
+    if (!advancedEditMode) {
+      renderControlEditor();
+      return;
+    }
+
     const method = characterControl.methods[methodName];
     if (!method) return;
 
@@ -388,7 +393,10 @@
 
           <label class="field">
             <span>Уровень</span>
-            <select onchange="updateCharacterControlMethod('${definition.name}', 'level', this.value)">
+            <select
+              ${advancedEditMode ? '' : 'disabled'}
+              onchange="updateCharacterControlMethod('${definition.name}', 'level', this.value)"
+            >
               ${levelOptions}
             </select>
           </label>
@@ -401,6 +409,7 @@
               max="20"
               step="1"
               value="${method.bonus}"
+              ${advancedEditMode ? '' : 'disabled'}
               onchange="updateCharacterControlMethod('${definition.name}', 'bonus', this.value)"
             >
           </label>
@@ -684,10 +693,12 @@
 
     if (
       typeof renderAbilities ===
-      'function'
+        'function'
     ) {
       renderAbilities();
     }
+
+    renderControlEditor();
 
     if (
       typeof renderRollComponentOptions ===

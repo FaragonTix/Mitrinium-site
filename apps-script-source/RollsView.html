@@ -273,6 +273,7 @@
 
               <select
                 id="rollControlMethod"
+                disabled
                 onchange="syncRollBuilderControls()"
               >
                 <option value="fixed1">
@@ -311,6 +312,7 @@
                 <button
                   type="button"
                   data-control-method="fixed1"
+                  disabled
                   aria-pressed="true"
                   onclick="selectRollControlMethod('fixed1')"
                 >
@@ -321,6 +323,7 @@
                 <button
                   type="button"
                   data-control-method="d4"
+                  disabled
                   aria-pressed="false"
                   onclick="selectRollControlMethod('d4')"
                 >
@@ -331,6 +334,7 @@
                 <button
                   type="button"
                   data-control-method="d6"
+                  disabled
                   aria-pressed="false"
                   onclick="selectRollControlMethod('d6')"
                 >
@@ -341,6 +345,7 @@
                 <button
                   type="button"
                   data-control-method="d8"
+                  disabled
                   aria-pressed="false"
                   onclick="selectRollControlMethod('d8')"
                 >
@@ -351,6 +356,7 @@
                 <button
                   type="button"
                   data-control-method="d10"
+                  disabled
                   aria-pressed="false"
                   onclick="selectRollControlMethod('d10')"
                 >
@@ -369,6 +375,7 @@
                 min="-20"
                 max="20"
                 value="0"
+                readonly
               >
             </label>
 
@@ -384,6 +391,11 @@
               >
             </label>
           </div>
+
+          <p class="helper-note">
+            Уровень Методики и классовый бонус берутся из листа персонажа.
+            Изменить их можно только во вкладке «Редактор».
+          </p>
         </div>
 
         <div class="action-row">

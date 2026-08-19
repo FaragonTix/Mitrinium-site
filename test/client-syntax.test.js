@@ -166,6 +166,12 @@ test("снаряжение использует актуальный катал�
     "Нюх + Стрельба",
   );
   assert.equal(
+    equipmentData.find((item) => item.name === "Полевая аптечка")?.purpose,
+    "Состав: раневой коллодий, «Семёрка», несколько (3) доз Сомнола, перевязочный материал и набор слабых антидотов.",
+  );
+  assert.ok(classRecommendedEquipment["Менталист"].includes("pistol"));
+  assert.ok(!classRecommendedEquipment["Менталист"].includes("duelny-pistol"));
+  assert.equal(
     helpers.isConsumableEquipment(equipmentData.find((item) => item.name === "Слабый яд")),
     true,
   );
@@ -321,6 +327,10 @@ test("интерфейс бросков использует новые дейс
   assert.match(view, /Обычная сцена — 2d4 \+ d6/);
   assert.match(view, /Преимущество — 3d6/);
   assert.match(view, /id="rollDifficulty"/);
+  assert.match(view, /id="rollControlMethod"\s+disabled/);
+  assert.match(view, /id="rollControlFlatBonus"[\s\S]*?readonly/);
+  assert.equal((view.match(/data-control-method="[^"]+"\s+disabled/g) || []).length, 5);
+  assert.match(view, /Изменить их можно только во вкладке «Редактор»/);
   assert.match(scripts, /mitriniumApplyBiographyBonus/);
   assert.match(scripts, /mitriniumRerollEfficiencyDie/);
   assert.match(scripts, /roll-event-badge complication/);
@@ -377,6 +387,9 @@ test("редактор использует Атрибуты, Навыки и о
   assert.match(core, /const totalExtraSkillPoints = 18/);
   assert.match(core, /const maxStartingSkillGroupTotal = 5/);
   assert.match(core, /skill\.value = 0/);
+  assert.match(core, /if \(!advancedEditMode\) \{\s*renderControlEditor\(\);\s*return;/);
+  assert.match(core, /\$\{advancedEditMode \? '' : 'disabled'\}/);
+  assert.match(editor, /Уровни Методик и классовые бонусы можно изменять[\s\S]*только в режиме развития персонажа/);
   assert.match(editor, /Все Навыки начинаются с 0/);
   const characterScripts = await readFile(
     new URL("../apps-script-source/ScriptsCharacter.html", import.meta.url),

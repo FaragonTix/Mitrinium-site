@@ -163,9 +163,27 @@ async function handleGoogleLogin(request, env) {
   }
 }
 
+function loginRedirect(request) {
+  const requestUrl = new URL(request.url);
+  const loginUrl = new URL("/login/", requestUrl.origin);
+  loginUrl.searchParams.set("return", `${requestUrl.pathname}${requestUrl.search}`);
+  return Response.redirect(loginUrl.toString(), 302);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (
+      url.pathname === "/editor" ||
+      url.pathname === "/editor/" ||
+      url.pathname === "/editor/index.html"
+    ) {
+      try {
+        await getUser(request, env);
+      } catch {
+        return loginRedirect(request);
+      }
+    }
     if (url.pathname === "/api/auth/config") {
       return json({ ok: true, clientId: env.GOOGLE_CLIENT_ID || "" });
     }
