@@ -113,11 +113,11 @@ function defaultBestiaryDraft() {
 }
 function defaultState() {
   return {
-    version:8,currentScreen:'prep',round:1,combatTargetPz:4,combatLogging:{rolls:false,resources:false,reactions:false,visibleToPlayers:false},players:[1,2,3].map(i=>( {
+    version:9,currentScreen:'prep',round:1,combatTargetPz:4,combatLogging:{rolls:false,resources:false,reactions:false,visibleToPlayers:false},players:[1,2,3].map(i=>( {
       id:newId('p'),name:`Игрок ${i}`,initiative:0
     })),settings:null,targetBp:0,actionMultiplier:1,enemies:[],initiative: {
-      activeId:null
-    },manualDraft:[defaultManualEnemy()],bestiaryDraft:defaultBestiaryDraft(),generatedAt:null
+      activeId:null,order:[]
+    },selectedEnemyId:null,manualDraft:[defaultManualEnemy()],bestiaryDraft:defaultBestiaryDraft(),generatedAt:null
   };
 }
 let state=defaultState();
@@ -623,6 +623,8 @@ function ensurePlayerCount(value) {
     id:newId('p'),name:`Игрок ${state.players.length+1}`,initiative:0
   });
   while(state.players.length>count)state.players.pop();
+  const participantIds=[...state.players.map(player=>player.id),...state.enemies.map(enemy=>enemy.id)];
+  state.initiative.order=[...(state.initiative.order||[]).filter(id=>participantIds.includes(id)),...participantIds.filter(id=>!(state.initiative.order||[]).includes(id))];
   document.getElementById('players').value=state.players.length;
   persistLocal();
 }
@@ -634,6 +636,7 @@ function addPlayer() {
   state.players.push( {
     id:newId('p'),name:`Игрок ${state.players.length+1}`,initiative:0
   });
+  state.initiative.order=[...(state.initiative.order||[]),state.players.at(-1).id];
   document.getElementById('players').value=state.players.length;
   persistLocal();
   renderPlayerSetup();
@@ -647,6 +650,7 @@ function removePlayer(id) {
   }
   state.players=state.players.filter(x=>x.id!==id);
   if(state.initiative.activeId===id)state.initiative.activeId=null;
+  state.initiative.order=(state.initiative.order||[]).filter(participantId=>participantId!==id);
   document.getElementById('players').value=state.players.length;
   persistLocal();
   renderPlayerSetup();
@@ -658,7 +662,7 @@ function updatePlayerName(id,value) {
   if(!player)return;
   player.name=String(value||'').trim()||'Безымянный игрок';
   persistLocal();
-  renderInitiative();
+  updateInitiativeNameInPlace(id,player.name);
 }
 function renderPlayerSetup() {
   const root=document.getElementById('playerSetup');
@@ -789,12 +793,14 @@ function generateEncounter() {
     state.targetBp=Math.round(targetBp);
     state.actionMultiplier=multiplier;
     state.enemies=enemies;
+    state.selectedEnemyId=enemies[0]?.id||null;
     state.round=1;
     state.initiative= {
-      activeId:null
+      activeId:null,
+      order:[...state.players.map(player=>player.id),...enemies.map(enemy=>enemy.id)]
     };
     state.generatedAt=new Date().toISOString();
-    state.version=7;
+    state.version=9;
     persistLocal();
     render();
     showScreen('combat');
@@ -883,10 +889,28 @@ function renderEnemyCard(enemy, {
   return`<article class="enemy-card ${enemy.hp<=0?'defeated':''}"><div class="enemy-head"><div class="enemy-title-row"><div><input class="enemy-name-input" value="${escapeHtml(enemy.name)}" aria-label="Имя противника" onchange="renameCombatEnemy('${enemy.id}',this.value)"><div class="badges"><span class="badge">${escapeHtml(type.label)}</span><span class="badge">${escapeHtml(TAGS[enemy.tagKey]?.label||'Главарь')}</span>${enemy.classLabel?`<span class="badge">${escapeHtml(enemy.classLabel)}</span>`:''}<span class="badge bp">${Math.round(enemy.bp||0)}‰</span></div></div>${interactive?`<button class="small danger" onclick="removeEnemy('${enemy.id}')">Убрать</button>`:''}</div>${interactive?`<div class="enemy-card-actions"><button class="small" onclick="saveCombatEnemyPreset('${enemy.id}')">Сохранить как пресет</button><button class="small" onclick="sendCombatEnemyToEditor('${enemy.id}')">В редактор</button></div>`:''}</div><div class="enemy-body"><div class="statline"><div class="statbox"><b>${enemy.maxHp}</b><span>Тело</span></div><div class="statbox"><b>${enemy.maxArmor}</b><span>Броня</span></div><div class="statbox"><b>${enemy.pz}</b><span>ПЗ</span></div><div class="statbox"><b>${enemy.physicalDefensePool}</b><span>Физ. защ.</span></div><div class="statbox"><b>${enemy.mentalDefensePool}</b><span>Мент. защ.</span></div><div class="statbox"><b>${enemy.speed}</b><span>Скорость</span></div></div><div class="badges"><span class="badge">Реакций ${enemy.reactionLimit}/раунд</span><span class="badge">Атак ${attacks.length}</span>${enemy.maxNerve>0?`<span class="badge">Нерв ${enemy.maxNerve}</span>`:''}</div>${interactive?`<div class="tracker">${resourceRow(enemy,'hp','Тело','')}${resourceRow(enemy,'nerve','Нерв','nerve')}${resourceRow(enemy,'armor','Броня','armor')}</div><label class="scene-control"><span>Кубы сцены</span><select onchange="setScenePreset('${enemy.id}',this.value)">${sceneOptions(enemy.scenePreset||'normal')}</select></label><div class="defense-rolls"><button class="small" onclick="rollEnemyDefense('${enemy.id}','physical')">Физическая защита ${enemy.physicalDefensePool}d6</button><button class="small" onclick="rollEnemyDefense('${enemy.id}','mental')">Ментальная защита ${enemy.mentalDefensePool}d6</button>${defenseRollHtml(enemy,'physical')}${defenseRollHtml(enemy,'mental')}</div>`:''}${properties?`<div class="section"><b>Свойства</b><ul class="rules">${properties}</ul></div>`:''}<div class="section"><b>Атаки</b><div class="attack-list">${attacks.map((a,i)=>attackHtml(enemy,a,i,interactive)).join('')}</div></div>${reactions?`<div class="section"><b>Реакции</b><div class="reactions">${reactions}</div></div>`:''}${conditions?`<div class="section"><b>Состояния</b><div class="conditions">${conditions}</div></div>`:''}</div></article>`;
 }
 function renderEnemyGrid() {
-  const root=document.getElementById('enemyGrid');
-  if(!root)return;
-  root.innerHTML=state.enemies.length?state.enemies.map(e=>renderEnemyCard(e)).join(''):'<div class="empty">Сначала сформируйте бой.</div>';
+  const root=document.getElementById('enemyGrid'),detail=document.getElementById('enemyDetail');
+  if(!root||!detail)return;
+  if(!state.enemies.length) {
+    state.selectedEnemyId=null;
+    root.innerHTML='<div class="empty">Сначала сформируйте бой.</div>';
+    detail.innerHTML='<div class="empty">Выберите противника в списке.</div>';
+    renderCombatMeta();
+    return;
+  }
+  if(!state.enemies.some(enemy=>enemy.id===state.selectedEnemyId))state.selectedEnemyId=state.enemies[0].id;
+  root.innerHTML=state.enemies.map(enemy=> {
+    const selected=enemy.id===state.selectedEnemyId,defeated=enemy.hp<=0;
+    return`<button type="button" class="enemy-summary-card ${selected?'selected':''} ${defeated?'defeated':''}" onclick="selectCombatEnemy('${enemy.id}')"><span class="enemy-summary-head"><strong>${escapeHtml(enemy.name)}</strong><span class="badge">иниц. ${Number(enemy.initiative)||0}</span></span><span class="enemy-summary-meta">${escapeHtml(enemy.typeLabel)} · ${escapeHtml(enemy.tagLabel||'')}</span><span class="enemy-summary-resources"><span>Тело <b>${enemy.hp}/${enemy.maxHp}</b></span>${enemy.maxNerve>0?`<span>Нерв <b>${enemy.nerve}/${enemy.maxNerve}</b></span>`:''}<span>Броня <b>${enemy.armor}/${enemy.maxArmor}</b></span></span></button>`;
+  }).join('');
+  detail.innerHTML=renderEnemyCard(findEnemy(state.selectedEnemyId));
   renderCombatMeta();
+}
+function selectCombatEnemy(id) {
+  if(!findEnemy(id))return;
+  state.selectedEnemyId=id;
+  persistLocal();
+  renderEnemyGrid();
 }
 function findEnemy(id) {
   return state.enemies.find(e=>e.id===id);
@@ -901,7 +925,7 @@ function renameCombatEnemy(id,value) {
   }
   enemy.name=name;
   persistLocal();
-  renderInitiative();
+  updateInitiativeNameInPlace(id,name);
 }
 function flushResourceLog(key) {
   const pending=pendingResourceLogs.get(key);
@@ -933,7 +957,7 @@ function adjustResource(id,field,delta) {
   if(field==='hp')enemy.defeated=enemy.hp<=0;
   persistLocal();
   renderEnemyGrid();
-  renderInitiative();
+  updateInitiativeDefeatedState(id,enemy.hp<=0);
   if(field==='hp'||field==='nerve')queueResourceLog(enemy,field,before,enemy[field]);
 }
 function adjustAttackDurability(id,index,delta) {
@@ -1075,8 +1099,12 @@ function nextRound() {
   if(!state.enemies.length)return;
   state.round++;
   clearReactionUsage();
+  const firstParticipant=initiativeParticipants().find(participant=>!participant.defeated);
+  state.initiative.activeId=firstParticipant?.id||null;
   persistLocal();
-  render();
+  renderInitiative();
+  renderEnemyGrid();
+  document.getElementById('roundNumber').textContent=state.round;
   showToast(`Начался раунд ${state.round}.`);
 }
 function resetRoundReactions(show=true) {
@@ -1102,6 +1130,8 @@ function resetEncounterResources() {
 function removeEnemy(id) {
   state.enemies=state.enemies.filter(e=>e.id!==id);
   if(state.initiative.activeId===id)state.initiative.activeId=null;
+  state.initiative.order=(state.initiative.order||[]).filter(participantId=>participantId!==id);
+  if(state.selectedEnemyId===id)state.selectedEnemyId=state.enemies[0]?.id||null;
   state.enemies.forEach((e,i)=>e.slot=i+1);
   state.actionMultiplier=countMultiplier(state.enemies.length);
   persistLocal();
@@ -1113,22 +1143,51 @@ function initiativeParticipants() {
   })),enemies=state.enemies.map((e,i)=>( {
     id:e.id,name:e.name,initiative:Number(e.initiative)||0,kind:'enemy',kindLabel:e.typeLabel,order:100+i,defeated:e.hp<=0
   }));
-  return[...players,...enemies].sort((a,b)=>b.initiative-a.initiative||(a.kind===b.kind?a.order-b.order:(a.kind==='player'?-1:1)));
+  const participants=[...players,...enemies],byId=new Map(participants.map(participant=>[participant.id,participant]));
+  const savedOrder=Array.isArray(state.initiative.order)?state.initiative.order:[];
+  const ordered=savedOrder.map(id=>byId.get(id)).filter(Boolean);
+  participants.forEach(participant=> {
+    if(!savedOrder.includes(participant.id))ordered.push(participant);
+  });
+  state.initiative.order=ordered.map(participant=>participant.id);
+  return ordered;
 }
 function renderInitiative() {
   const root=document.getElementById('initiativeList');
   if(!root)return;
   const list=initiativeParticipants();
-  root.innerHTML=list.length?list.map((p,i)=>`<div class="initiative-row ${state.initiative.activeId===p.id?'active':''}" ${p.defeated?'style="opacity:.5"':''}><div class="initiative-rank">${i+1}</div><div class="initiative-name">${p.kind==='player'?`<input value="${escapeHtml(p.name)}" onchange="updatePlayerName('${p.id}',this.value)">`:`<b>${escapeHtml(p.name)}</b>`}<div class="initiative-kind">${escapeHtml(p.kindLabel)}</div></div><input class="initiative-score" type="number" value="${p.initiative}" onchange="setInitiative('${p.id}',this.value)"><button class="small" onclick="setActiveInitiative('${p.id}')">Ход</button></div>`).join(''):'<div class="empty">Добавьте участников.</div>';
+  root.innerHTML=list.length?list.map((p,i)=>`<div class="initiative-row ${state.initiative.activeId===p.id?'active':''} ${p.defeated?'defeated':''}" data-initiative-id="${p.id}"><div class="initiative-rank">${i+1}</div><div class="initiative-name">${p.kind==='player'?`<input value="${escapeHtml(p.name)}" onchange="updatePlayerName('${p.id}',this.value)">`:`<b>${escapeHtml(p.name)}</b>`}<div class="initiative-kind">${escapeHtml(p.kindLabel)}</div></div><input class="initiative-score" type="number" value="${p.initiative}" oninput="setInitiative('${p.id}',this.value)"><button class="small" onclick="setActiveInitiative('${p.id}')">Ход</button></div>`).join(''):'<div class="empty">Добавьте участников.</div>';
   const active=list.find(p=>p.id===state.initiative.activeId);
   document.getElementById('activeTurnLabel').textContent=active?`Сейчас ходит: ${active.name}`:'Ход ещё не начат.';
+}
+function initiativeRowById(id) {
+  return Array.from(document.querySelectorAll('.initiative-row')).find(row=>row.dataset.initiativeId===id)||null;
+}
+function updateInitiativeNameInPlace(id,name) {
+  const row=initiativeRowById(id);
+  if(row) {
+    const input=row.querySelector('.initiative-name input'),label=row.querySelector('.initiative-name b');
+    if(input&&document.activeElement!==input)input.value=name;
+    if(label)label.textContent=name;
+  }
+  if(state.initiative.activeId===id)document.getElementById('activeTurnLabel').textContent=`Сейчас ходит: ${name}`;
+}
+function updateInitiativeDefeatedState(id,defeated) {
+  initiativeRowById(id)?.classList.toggle('defeated',Boolean(defeated));
 }
 function setInitiative(id,value) {
   const p=state.players.find(x=>x.id===id)||state.enemies.find(x=>x.id===id);
   if(!p)return;
   p.initiative=Number(value)||0;
   persistLocal();
+  if(p.id===state.selectedEnemyId)renderEnemyGrid();
+}
+function sortInitiative() {
+  const participants=initiativeParticipants().sort((a,b)=>b.initiative-a.initiative||(a.kind===b.kind?a.order-b.order:(a.kind==='player'?-1:1)));
+  state.initiative.order=participants.map(participant=>participant.id);
+  persistLocal();
   renderInitiative();
+  showToast('Инициатива отсортирована по порядку хода.');
 }
 function setActiveInitiative(id) {
   state.initiative.activeId=id;
@@ -1139,21 +1198,18 @@ function resetInitiative() {
   state.players.forEach(p=>p.initiative=0);
   state.enemies.forEach(e=>e.initiative=0);
   state.initiative.activeId=null;
+  state.initiative.order=[...state.players.map(player=>player.id),...state.enemies.map(enemy=>enemy.id)];
   persistLocal();
   renderInitiative();
+  renderEnemyGrid();
 }
 function nextInitiativeTurn() {
   const list=initiativeParticipants().filter(p=>!p.defeated);
   if(!list.length)return;
   const current=list.findIndex(p=>p.id===state.initiative.activeId),next=current<0?0:(current+1)%list.length;
-  if(current>=0&&next===0) {
-    state.round++;
-    clearReactionUsage();
-    showToast(`Начался раунд ${state.round}.`);
-  }
   state.initiative.activeId=list[next].id;
   persistLocal();
-  render();
+  renderInitiative();
 }
 function renderCombatAddForm() {
   const source=document.getElementById('combatAddSource').value;
@@ -1176,6 +1232,8 @@ function addEnemyDuringCombat() {
     enemy=buildEnemy(level,bp,typeKey,tagKey,classKey,state.enemies.length);
   }
   state.enemies.push(enemy);
+  state.selectedEnemyId=enemy.id;
+  state.initiative.order=[...(state.initiative.order||[]),enemy.id];
   state.actionMultiplier=countMultiplier(state.enemies.length);
   persistLocal();
   render();
@@ -1636,7 +1694,7 @@ function editLibraryEnemy(id) {
 }
 /* ---------------- СОХРАНЕНИЕ И МИГРАЦИЯ ---------------- */ function normalizeState(parsed) {
   const base=defaultState(),out= {
-    ...base,...parsed,version:8
+    ...base,...parsed,version:9
   };
   out.combatLogging={
     rolls:Boolean(parsed?.combatLogging?.rolls??parsed?.sharedRollLogging),
@@ -1655,9 +1713,14 @@ function editLibraryEnemy(id) {
       ...e,id:e.id||newId('e'),slot:i+1,typeKey,typeLabel:TYPE_DATA[typeKey].label,tagKey,tagLabel:TAGS[tagKey].label,pz:clamp(Number(e.pz)||3,3,10),physicalDefensePool:clamp(Number(e.physicalDefensePool)||Number(e.pool)||ensureTwoAttacks(e.attacks,typeKey)[0].pool,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),mentalDefensePool:clamp(Number(e.mentalDefensePool)||Number(e.pool)||ensureTwoAttacks(e.attacks,typeKey)[0].pool,DEFENSE_POOL_MIN,DEFENSE_POOL_MAX),scenePreset:SCENE_PRESETS[e.scenePreset]?e.scenePreset:'normal',attacks:ensureTwoAttacks(e.attacks,typeKey),reactions:normalizeReactions(e.reactions),conditions:Array.isArray(e.conditions)?e.conditions:[],properties:Array.isArray(e.properties)?e.properties:(e.rules||[]),initiative:Number(e.initiative)||0,maxHp:Number(e.maxHp??e.hp)||1,hp:Number(e.hp)||0,maxNerve:Number(e.maxNerve??e.nerve)||0,nerve:Number(e.nerve)||0,maxArmor:Number(e.maxArmor??e.armor)||0,armor:Number(e.armor)||0
     };
   });
-  out.initiative=parsed?.initiative|| {
-    activeId:null
+  const participantIds=[...out.players.map(player=>player.id),...out.enemies.map(enemy=>enemy.id)];
+  const parsedInitiative=parsed?.initiative&&typeof parsed.initiative==='object'?parsed.initiative:{};
+  const savedOrder=Array.isArray(parsedInitiative.order)?parsedInitiative.order:[];
+  out.initiative={
+    activeId:participantIds.includes(parsedInitiative.activeId)?parsedInitiative.activeId:null,
+    order:[...savedOrder.filter(id=>participantIds.includes(id)),...participantIds.filter(id=>!savedOrder.includes(id))]
   };
+  out.selectedEnemyId=out.enemies.some(enemy=>enemy.id===parsed?.selectedEnemyId)?parsed.selectedEnemyId:(out.enemies[0]?.id||null);
   out.manualDraft=Array.isArray(parsed?.manualDraft)&&parsed.manualDraft.length?parsed.manualDraft.map(r=>( {
     ...defaultManualEnemy(),...r,tagKey:normalizeTagKey(r.tagKey||r.roleKey)
   })):[defaultManualEnemy()];
@@ -1672,7 +1735,7 @@ function persistLocal() {
   localStorage.setItem(LOCAL_KEY,JSON.stringify(state));
 }
 function restoreLocal() {
-  for(const key of[LOCAL_KEY,'mitriniumEncounterV7','mitriniumEncounterV6','mitriniumEncounterV5','mitriniumEncounterV4','mitriniumEncounterV3','mitriniumEncounterV2','mitriniumEncounterV1']) {
+  for(const key of[LOCAL_KEY,'mitriniumEncounterV8','mitriniumEncounterV7','mitriniumEncounterV6','mitriniumEncounterV5','mitriniumEncounterV4','mitriniumEncounterV3','mitriniumEncounterV2','mitriniumEncounterV1']) {
     const raw=localStorage.getItem(key);
     if(!raw)continue;
     try {

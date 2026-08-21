@@ -187,6 +187,22 @@
             </label>
           </div>
 
+          <details class="name-generator concept-editor">
+            <summary>Концепт персонажа</summary>
+
+            <div class="name-generator-body">
+              <label class="field field-full">
+                <span>Краткое описание</span>
+
+                <textarea
+                  id="concept"
+                  rows="4"
+                  placeholder="Происхождение, характер и цели персонажа"
+                ></textarea>
+              </label>
+            </div>
+          </details>
+
           <details class="name-generator">
             <summary>Генератор имени и фамилии</summary>
 
@@ -255,15 +271,6 @@
             </div>
           </details>
 
-          <label class="field field-full">
-            <span>Концепт</span>
-
-            <textarea
-              id="concept"
-              rows="4"
-              placeholder="Краткое описание, происхождение, характер и цели персонажа"
-            ></textarea>
-          </label>
         </section>
 
         <section class="card">
@@ -378,9 +385,14 @@
               <span>Бонусный Нерв</span>
               <strong id="bonusNerveValue">3</strong>
             </div>
+
+            <div class="resource-card">
+              <span>ПЗ</span>
+              <strong id="protectionValue">3</strong>
+            </div>
           </div>
           <p class="helper-note resource-formulas">
-            Тело = 4 + (Напор + Сноровка) × 2. Основной Нерв = Господство + Нюх. Бонусный Нерв = 3.
+            Тело = 4 + (Напор + Сноровка) × 2. Основной Нерв = Господство + Нюх. Бонусный Нерв = 3. ПЗ = 2 + (Сноровка + Смекалка) / 2 с округлением вверх.
           </p>
         </section>
 
@@ -531,6 +543,7 @@
             <div class="equipment-quick-filters" aria-label="Фильтры рекомендованного снаряжения">
               <button type="button" data-equipment-scope="recommended" data-equipment-filter="armor" onclick="setEquipmentFilter('recommended', 'armor')">Броня</button>
               <button type="button" data-equipment-scope="recommended" data-equipment-filter="melee" onclick="setEquipmentFilter('recommended', 'melee')">Ближнее оружие</button>
+              <button type="button" data-equipment-scope="recommended" data-equipment-filter="thrown" onclick="setEquipmentFilter('recommended', 'thrown')">Метательное оружие</button>
               <button type="button" data-equipment-scope="recommended" data-equipment-filter="ranged" onclick="setEquipmentFilter('recommended', 'ranged')">Дальнее оружие</button>
               <button type="button" data-equipment-scope="recommended" data-equipment-filter="kit" onclick="setEquipmentFilter('recommended', 'kit')">Наборы</button>
               <button type="button" data-equipment-scope="recommended" data-equipment-filter="consumable" onclick="setEquipmentFilter('recommended', 'consumable')">Расходники</button>
@@ -554,6 +567,7 @@
             <div class="equipment-quick-filters" aria-label="Фильтры остального снаряжения">
               <button type="button" data-equipment-scope="other" data-equipment-filter="armor" onclick="setEquipmentFilter('other', 'armor')">Броня</button>
               <button type="button" data-equipment-scope="other" data-equipment-filter="melee" onclick="setEquipmentFilter('other', 'melee')">Ближнее оружие</button>
+              <button type="button" data-equipment-scope="other" data-equipment-filter="thrown" onclick="setEquipmentFilter('other', 'thrown')">Метательное оружие</button>
               <button type="button" data-equipment-scope="other" data-equipment-filter="ranged" onclick="setEquipmentFilter('other', 'ranged')">Дальнее оружие</button>
               <button type="button" data-equipment-scope="other" data-equipment-filter="kit" onclick="setEquipmentFilter('other', 'kit')">Наборы</button>
               <button type="button" data-equipment-scope="other" data-equipment-filter="consumable" onclick="setEquipmentFilter('other', 'consumable')">Расходники</button>

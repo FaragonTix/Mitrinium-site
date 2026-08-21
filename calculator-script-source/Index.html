@@ -130,18 +130,21 @@
           </label>
           <p class="help">Перед атакой врага укажите текущий ПЗ атакуемого персонажа.</p>
           <div class="buttons vertical">
-            <button class="primary" onclick="nextRound()">Следующий раунд</button>
             <button onclick="resetRoundReactions()">Вернуть реакции</button>
             <button class="danger" onclick="resetEncounterResources()">Восстановить врагов</button>
           </div>
         </section>
 
         <section class="panel">
-          <h2>Инициатива</h2>
+          <div class="toolbar compact initiative-heading">
+            <h2 class="no-margin">Инициатива</h2>
+            <button class="small" onclick="sortInitiative()">Отсортировать</button>
+          </div>
           <div id="activeTurnLabel" class="active-turn">Ход ещё не начат.</div>
           <div id="initiativeList" class="initiative-list"></div>
           <div class="buttons vertical">
             <button class="primary" onclick="nextInitiativeTurn()">Следующий ход</button>
+            <button onclick="nextRound()">Следующий раунд</button>
             <button onclick="resetInitiative()">Сбросить инициативу</button>
             <button onclick="addPlayer()">+ Добавить игрока</button>
           </div>
@@ -184,7 +187,10 @@
 
       <section class="panel combat-main">
         <div class="toolbar"><div><h2 class="no-margin">Противники</h2><div id="combatBudget" class="help"></div></div><button onclick="showScreen('bestiary')">Открыть редактор</button></div>
-        <div id="enemyGrid" class="enemy-grid"><div class="empty">Сначала сформируйте бой.</div></div>
+        <div class="combat-enemy-workspace">
+          <div id="enemyGrid" class="enemy-grid"><div class="empty">Сначала сформируйте бой.</div></div>
+          <div id="enemyDetail" class="enemy-detail"><div class="empty">Выберите противника в списке.</div></div>
+        </div>
       </section>
     </div>
   </section>

@@ -4,6 +4,7 @@
   let savedCharactersListIsAdmin = false;
   let hiddenCharactersCount = 0;
   let hiddenSavedCharactersCache = [];
+  let savedCharacterFoldersCache = [];
   let showPersonallyHiddenCharacters = false;
   let characterDeletionPolicy = 'forbidden';
 
@@ -201,6 +202,57 @@
     renderSavedCharactersList();
   }
 
+  function organizeSavedCharactersIntoFolders(list) {
+    if (!savedCharactersListIsAdmin || !list) return;
+
+    const cards = Array.from(list.querySelectorAll('.saved-character-item'));
+    const folders = savedCharacterFoldersCache.slice();
+    const knownFolderIds = new Set(folders.map(function(folder) {
+      return String(folder.id || '');
+    }));
+
+    cards.forEach(function(card) {
+      const folderId = String(card.dataset.folderId || '');
+      if (folderId && !knownFolderIds.has(folderId)) {
+        folders.push({ id: folderId, name: card.dataset.folderName || 'Папка' });
+        knownFolderIds.add(folderId);
+      }
+    });
+
+    const groups = folders.map(function(folder) {
+      return {
+        id: String(folder.id || ''),
+        name: String(folder.name || 'Папка'),
+        cards: cards.filter(function(card) {
+          return String(card.dataset.folderId || '') === String(folder.id || '');
+        })
+      };
+    });
+    groups.push({
+      id: '',
+      name: 'Без папки',
+      cards: cards.filter(function(card) { return !card.dataset.folderId; })
+    });
+
+    list.innerHTML = '';
+    groups.filter(function(group) { return group.cards.length > 0; }).forEach(function(group) {
+      const section = document.createElement('details');
+      section.className = 'saved-character-folder';
+      section.open = true;
+
+      const summary = document.createElement('summary');
+      summary.innerHTML = '<span>' + escapeSavedCharacterText(group.name) + '</span><strong>' + group.cards.length + '</strong>';
+
+      const body = document.createElement('div');
+      body.className = 'saved-character-folder-list';
+      group.cards.forEach(function(card) { body.appendChild(card); });
+
+      section.appendChild(summary);
+      section.appendChild(body);
+      list.appendChild(section);
+    });
+  }
+
   function renderSavedCharactersList() {
     const list =
       document.getElementById(
@@ -392,7 +444,11 @@
             : '';
 
           return `
-            <div class="saved-character-item ${character.personallyHidden ? 'personally-hidden' : ''}">
+            <div
+              class="saved-character-item ${character.personallyHidden ? 'personally-hidden' : ''}"
+              data-folder-id="${escapeSavedCharacterText(character.folderId || '')}"
+              data-folder-name="${escapeSavedCharacterText(character.folderName || '')}"
+            >
               <div>
                 <div class="saved-character-name">
                   ${
@@ -440,6 +496,8 @@
           `;
         })
         .join('');
+
+    organizeSavedCharactersIntoFolders(list);
 
     renderHiddenCharactersControls();
   }
@@ -495,6 +553,11 @@
               ? result.hiddenCharacters
               : [];
 
+          savedCharacterFoldersCache =
+            result && Array.isArray(result.folders)
+              ? result.folders
+              : [];
+
           renderSavedCharactersList();
         }
       )
@@ -502,6 +565,7 @@
         function (error) {
           savedCharactersCache = [];
           hiddenSavedCharactersCache = [];
+          savedCharacterFoldersCache = [];
 
           setLoadStatus(
             error.message ||
@@ -645,15 +709,6 @@
   function hideCharacterFromOwnerList(
     characterId
   ) {
-    const confirmed =
-      window.confirm(
-        'Скрыть персонажа только из вашего личного списка? Данные не будут удалены, а видимость для других пользователей не изменится.'
-      );
-
-    if (!confirmed) {
-      return;
-    }
-
     setLoadStatus(
       'Скрываю персонажа...',
       false

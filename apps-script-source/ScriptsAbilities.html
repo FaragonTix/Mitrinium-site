@@ -18,7 +18,9 @@
   function selectAbilityForDetails(abilityId) {
     activeAbilityId = abilityId;
     renderAbilities();
-    openAbilityDetailsDialog();
+    if (window.matchMedia('(max-width: 700px)').matches) {
+      openAbilityDetailsDialog();
+    }
   }
 
   function toggleAbilitySelection(abilityId) {

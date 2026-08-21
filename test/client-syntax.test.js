@@ -92,21 +92,22 @@ test("новое состояние просмотра начинается с �
   assert.equal(saved.money.farthings, 0);
 });
 
-test("просмотр начинает с имени, состояния, атрибутов, навыков и Контроля", async () => {
+test("просмотр начинает с имени и состояния, показывает атрибуты в навыках, а концепт оставляет внизу", async () => {
   const viewer = await readFile(
     new URL("../apps-script-source/ViewerScripts.html", import.meta.url),
     "utf8",
   );
   const hero = viewer.indexOf('<section class="viewer-hero">');
   const state = viewer.indexOf("<h3>Состояние</h3>", hero);
-  const attributes = viewer.indexOf("<h3>Атрибуты</h3>", state);
-  const skills = viewer.indexOf("<h3>Навыки</h3>", attributes);
+  const skills = viewer.indexOf("<h3>Навыки</h3>", state);
   const control = viewer.indexOf("<h3>Контроль</h3>", skills);
   const concept = viewer.indexOf("<h3>Концепт</h3>", control);
   const biography = viewer.indexOf("<h3>Биографические черты</h3>", control);
-  assert.ok(hero >= 0 && state > hero && attributes > state);
-  assert.ok(skills > attributes && control > skills);
-  assert.ok(concept > control && biography > control);
+  const notes = viewer.indexOf("<h3>Заметки</h3>", biography);
+  assert.ok(hero >= 0 && state > hero && skills > state);
+  assert.ok(control > skills && biography > control);
+  assert.ok(concept > notes);
+  assert.equal(viewer.indexOf("<h3>Атрибуты</h3>", state), -1);
 });
 
 test("личная видимость и админские папки разделены в интерфейсе", async () => {
@@ -118,6 +119,9 @@ test("личная видимость и админские папки разд�
   ]);
   assert.doesNotThrow(() => new Function(admin));
   assert.match(storage, /hiddenSavedCharactersCache/);
+  assert.match(storage, /savedCharacterFoldersCache/);
+  assert.match(storage, /organizeSavedCharactersIntoFolders/);
+  assert.doesNotMatch(storage, /Скрыть персонажа только из вашего личного списка/);
   assert.match(storage, /mitriniumRestoreHiddenCharacter/);
   assert.match(storage, /Скрыто в моём списке/);
   assert.doesNotMatch(storage, /if \(\s*!savedCharactersListIsAdmin\s*\) \{\s*return;\s*\}/);
@@ -142,6 +146,7 @@ test("PDF содержит биографические черты, заголо
   assert.match(pdfSource, /pdfUnbreakableSection\('Навыки'/);
   assert.match(pdfSource, /text: 'Mitrinium'/);
   assert.doesNotMatch(pdfSource, /text: 'M'/);
+  assert.doesNotMatch(pdfSource, /'ур\. ' \+ entry\[1\]\.level/);
 });
 
 test("у каждой способности есть пререквизит, а теги больше не выводятся", async () => {
@@ -198,7 +203,7 @@ test("снаряжение использует актуальный катал�
   )();
   const watch = equipmentData.find((item) => item.name === "Простые карманные часы");
 
-  assert.equal(equipmentData.length, 81);
+  assert.equal(equipmentData.length, 87);
   assert.ok(watch);
   assert.ok(equipmentData.some((item) => item.name === "Дермопластическая мазь №7 («Семёрка»)"));
   assert.ok(equipmentData.some((item) => item.name === "Чистый спирт (1 л)" && item.priceText === "100 ф"));
@@ -209,6 +214,15 @@ test("снаряжение использует актуальный катал�
     equipmentData.find((item) => item.name === "Химический распылитель")?.pool,
     "Нюх + Стрельба",
   );
+  assert.equal(
+    equipmentData.find((item) => item.name === "Химический распылитель")?.exploitation,
+    4,
+  );
+  assert.equal(
+    equipmentData.filter((item) => item.category === "Метательное оружие").length,
+    6,
+  );
+  assert.ok(equipmentData.some((item) => item.name === "Фурма"));
   assert.equal(
     equipmentData.find((item) => item.name === "Полевая аптечка")?.purpose,
     "Состав: раневой коллодий, «Семёрка», несколько (3) доз Сомнола, перевязочный материал и набор слабых антидотов.",
@@ -260,12 +274,13 @@ test("каталоги снаряжения имеют независимые б
   assert.match(styles, /\.skill-column \{[\s\S]*?grid-template-rows: auto repeat\(6, 62px\)/);
   assert.match(styles, /\.skill-item \{[\s\S]*?height: 62px/);
   assert.match(styles, /\.skill-recommendation-legend\[hidden\] \{ display: none; \}/);
-  for (const filter of ['armor', 'melee', 'ranged', 'kit', 'consumable', 'other']) {
+  for (const filter of ['armor', 'melee', 'thrown', 'ranged', 'kit', 'consumable', 'other']) {
     assert.equal((editor.match(new RegExp(`data-equipment-filter="${filter}"`, 'g')) || []).length, 2);
   }
   assert.equal(helpers.getEquipmentFilterCategory(byName['Кираса']), 'armor');
   assert.equal(helpers.getEquipmentFilterCategory(byName['Нож / складной нож']), 'melee');
   assert.equal(helpers.getEquipmentFilterCategory(byName['Химический распылитель']), 'melee');
+  assert.equal(helpers.getEquipmentFilterCategory(byName['Метательный нож']), 'thrown');
   assert.equal(helpers.getEquipmentFilterCategory(byName['Полевой исследовательский набор']), 'kit');
   assert.equal(helpers.getEquipmentFilterCategory(byName['Пистоль']), 'ranged');
   assert.equal(helpers.getEquipmentFilterCategory(byName['Слабый яд']), 'consumable');
@@ -407,6 +422,30 @@ test("опции общего лога находятся в панели сох
   assert.match(calculatorScripts, /renameCombatEnemy/);
 });
 
+test("трекер инициативы сортируется только вручную, а противники открываются в отдельной панели", async () => {
+  const [calculator, calculatorScripts, calculatorStyles] = await Promise.all([
+    readFile(new URL("../calculator-script-source/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../calculator-script-source/Script.html", import.meta.url), "utf8"),
+    readFile(new URL("../calculator-script-source/Styles.html", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(calculator, /onclick="sortInitiative\(\)"[^>]*>Отсортировать/);
+  assert.match(calculator, /onclick="nextRound\(\)"[^>]*>Следующий раунд/);
+  assert.match(calculator, /id="enemyGrid"/);
+  assert.match(calculator, /id="enemyDetail"/);
+  assert.match(calculatorScripts, /function sortInitiative\(\)/);
+  assert.match(calculatorScripts, /state\.initiative\.order=participants\.map/);
+  const setInitiativeBody = calculatorScripts.slice(
+    calculatorScripts.indexOf("function setInitiative("),
+    calculatorScripts.indexOf("function sortInitiative("),
+  );
+  assert.doesNotMatch(setInitiativeBody, /renderInitiative\(\)/);
+  assert.match(calculatorScripts, /function selectCombatEnemy\(id\)/);
+  assert.match(calculatorScripts, /enemy-summary-card/);
+  assert.match(calculatorStyles, /\.combat-enemy-workspace/);
+  assert.match(calculatorStyles, /\.enemy-summary-card\.selected/);
+});
+
 test("выбор куба для переброса остаётся компактным", async () => {
   const [scripts, styles] = await Promise.all([
     readFile(new URL("../apps-script-source/RollsScripts.html", import.meta.url), "utf8"),
@@ -443,6 +482,8 @@ test("редактор использует Атрибуты, Навыки и о
   assert.match(characterScripts, /attributeRulesVersion: 2/);
   assert.match(characterScripts, /attributes\.napor[\s\S]*attributes\.snorovka/);
   assert.match(characterScripts, /attributes\.gospodstvo[\s\S]*attributes\.nyuh/);
+  assert.match(characterScripts, /protection:\s*2 \+ Math\.ceil/);
+  assert.match(editor, /id="protectionValue"/);
   assert.match(characterScripts, /legacySkills/);
   const storageScripts = await readFile(
     new URL("../apps-script-source/ScriptsStorage.html", import.meta.url),
@@ -462,26 +503,26 @@ test("способности открываются без прокрутки, �
 
   assert.match(editor, /id="abilityDetailsDialog"/);
   assert.match(abilityScripts, /openAbilityDetailsDialog\(\)/);
+  assert.match(abilityScripts, /matchMedia\('\(max-width: 700px\)'\)/);
   assert.match(abilityScripts, /Выбрать способность/);
   assert.match(editor, /id="equipmentAvailableSticky"/);
   assert.match(equipmentScripts, /stickyAvailableElement\.textContent/);
   assert.match(styles, /\.equipment-budget-sticky\s*\{[\s\S]*?position:\s*sticky/);
 });
 
-test("просмотр показывает состояние, атрибуты, навыки и затем Контроль", async () => {
+test("просмотр показывает состояние, компактные навыки со значениями атрибутов и затем Контроль", async () => {
   const viewer = await readFile(
     new URL("../apps-script-source/ViewerScripts.html", import.meta.url),
     "utf8",
   );
 
   const stateIndex = viewer.indexOf('<h3>Состояние</h3>');
-  const attributesIndex = viewer.indexOf('<h3>Атрибуты</h3>');
   const skillsIndex = viewer.indexOf('<h3>Навыки</h3>');
   const controlIndex = viewer.indexOf('<h3>Контроль</h3>');
 
-  assert.ok(stateIndex >= 0 && stateIndex < attributesIndex);
-  assert.ok(attributesIndex < skillsIndex);
+  assert.ok(stateIndex >= 0 && stateIndex < skillsIndex);
   assert.ok(skillsIndex < controlIndex);
+  assert.equal(viewer.indexOf('<h3>Атрибуты</h3>'), -1);
   assert.match(viewer, /renderViewerSkills\(character\.skills \|\| \{}, character\.attributes \|\| \{}\)/);
   assert.match(viewer, /class="viewer-skill-attribute-value"/);
 });

@@ -53,6 +53,7 @@ test("список разделяет видимых и лично скрыты�
       id: "visible", created_at: "a", updated_at: "b", name: "Видимый",
       player: "Игрок", class_name: "Рекрут", level: 1,
       owner_email: "player@example.com", data_json: "{}", personally_hidden: 0,
+      folder_id: "campaign", folder_name: "Кампания",
     },
     {
       id: "personal", created_at: "a", updated_at: "b", name: "Лично скрытый",
@@ -66,7 +67,11 @@ test("список разделяет видимых и лично скрыты�
       return {
         bind() { return this; },
         async first() { return null; },
-        async all() { return { results: rows }; },
+        async all() {
+          return sql.includes("FROM character_folders")
+            ? { results: [{ id: "campaign", name: "Кампания" }] }
+            : { results: rows };
+        },
       };
     },
   };
@@ -78,6 +83,8 @@ test("список разделяет видимых и лично скрыты�
   assert.deepEqual(result.characters.map((item) => item.id), ["visible"]);
   assert.deepEqual(result.hiddenCharacters.map((item) => item.id), ["personal"]);
   assert.equal(result.hiddenCount, 1);
+  assert.equal(result.characters[0].folderName, "Кампания");
+  assert.deepEqual(result.folders, [{ id: "campaign", name: "Кампания" }]);
   assert.doesNotMatch(characterQuery, /WHERE c\.hidden = 0/);
 });
 
@@ -179,7 +186,7 @@ test("старая компоновка Атрибутов мигрирует в
   assert.equal(normalized.attributeRulesVersion, 2);
 });
 
-test("Тело и Нерв рассчитываются по правилам 0.4.9", () => {
+test("Тело, Нерв и ПЗ рассчитываются по актуальным правилам", () => {
   assert.deepEqual(calculateCharacterResources({
     napor: 2,
     snorovka: 3,
@@ -190,6 +197,7 @@ test("Тело и Нерв рассчитываются по правилам 0.
     body: 14,
     mainNerve: 5,
     bonusNerve: 3,
+    protection: 4,
   });
 });
 

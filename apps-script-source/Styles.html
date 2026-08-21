@@ -43,7 +43,8 @@
     overflow-x: hidden;
     background: var(--page-bg);
     color: var(--text);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
   }
 
   button,
@@ -460,7 +461,7 @@
 
   .resources-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 14px;
   }
 
@@ -620,7 +621,10 @@
     margin-left: 2px;
     border: 1px solid currentColor;
     border-radius: 50%;
-    font: 700 11px/1 Arial, sans-serif;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
     opacity: 0.55;
   }
 
@@ -995,6 +999,40 @@
     opacity: 0.75;
   }
 
+  .saved-character-folder {
+    min-width: 0;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-medium);
+    background: var(--panel-light);
+    overflow: hidden;
+  }
+
+  .saved-character-folder > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 14px;
+    background: var(--button-bg);
+    font-weight: 750;
+    cursor: pointer;
+  }
+
+  .saved-character-folder > summary strong {
+    min-width: 28px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--panel-light);
+    padding: 2px 8px;
+    text-align: center;
+  }
+
+  .saved-character-folder-list {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+  }
+
   /* =========================
      Просмотрщик
   ========================= */
@@ -1069,6 +1107,15 @@
     gap: 6px;
     align-items: center;
     justify-content: center;
+  }
+
+  .viewer-state-static-value {
+    min-height: 36px;
+    display: grid;
+    place-items: center;
+    font-size: 30px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
   }
 
   .viewer-money-controls {
@@ -1283,6 +1330,10 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
       width: 100%;
       border-radius: var(--radius-medium);
+    }
+
+    .ability-details-panel {
+      display: none;
     }
 
     .mode-switcher button {
@@ -2478,6 +2529,53 @@
   }
 
 
+  /* Компактная раскладка навыков на широком экране. */
+  @media (min-width: 981px) {
+    .skills-grid {
+      gap: 8px;
+    }
+
+    .skill-column {
+      grid-template-rows: auto repeat(6, 48px);
+      gap: 6px;
+      padding: 9px;
+    }
+
+    .skill-item {
+      height: 48px;
+      padding: 4px 5px;
+      font-size: 13px;
+    }
+
+    .skill-item .mini-counter button {
+      width: 24px;
+      height: 24px;
+    }
+
+    .viewer-skills-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .viewer-skill-card {
+      padding: 8px;
+    }
+
+    .viewer-skill-card h4 {
+      margin-bottom: 6px;
+      padding-bottom: 5px;
+      font-size: 14px;
+    }
+
+    .viewer-skill-card-list {
+      gap: 4px;
+    }
+
+    .viewer-skill-row {
+      padding: 4px 8px;
+    }
+  }
+
   /* =========================
      Печать листа персонажа
   ========================= */
@@ -2499,7 +2597,7 @@
 
 
     body {
-      font-family: Georgia, "Times New Roman", serif;
+      font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
       font-size: 9.5pt;
     }
 

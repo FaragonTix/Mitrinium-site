@@ -155,6 +155,9 @@ export function calculateCharacterResources(attributes = {}) {
     body: 4 + (numberOr(attributes.napor, 1) + numberOr(attributes.snorovka, 1)) * 2,
     mainNerve: numberOr(attributes.gospodstvo, 1) + numberOr(attributes.nyuh, 1),
     bonusNerve: 3,
+    protection: 2 + Math.ceil(
+      (numberOr(attributes.snorovka, 1) + numberOr(attributes.smetka, 1)) / 2,
+    ),
   };
 }
 
@@ -420,13 +423,17 @@ export async function listVisibleCharacters(db, user) {
   const query = user.isAdmin
     ? `SELECT c.id, c.created_at, c.updated_at, c.name, c.player,
               c.class_name, c.level, c.owner_email, c.data_json,
+              fa.folder_id, f.name AS folder_name,
               CASE WHEN p.character_id IS NULL THEN 0 ELSE 1 END AS personally_hidden
        FROM characters c
        LEFT JOIN character_list_preferences p
          ON p.character_id = c.id AND p.user_email = ?1
+       LEFT JOIN character_folder_assignments fa ON fa.character_id = c.id
+       LEFT JOIN character_folders f ON f.id = fa.folder_id
        ORDER BY c.updated_at DESC`
     : `SELECT c.id, c.created_at, c.updated_at, c.name, c.player,
               c.class_name, c.level, c.owner_email, c.data_json,
+              '' AS folder_id, '' AS folder_name,
               CASE WHEN p.character_id IS NULL THEN 0 ELSE 1 END AS personally_hidden
        FROM characters c
        LEFT JOIN character_list_preferences p
@@ -448,16 +455,30 @@ export async function listVisibleCharacters(db, user) {
       className: row.class_name,
       level: normalizeCharacterLevel(row.level),
       ownerEmail: row.owner_email,
+      folderId: row.folder_id || "",
+      folderName: row.folder_name || "",
       isComplete: data.isComplete !== false,
       personallyHidden: Boolean(row.personally_hidden),
     };
   });
   const visibleCharacters = summaries.filter((item) => !item.personallyHidden);
   const hiddenCharacters = summaries.filter((item) => item.personallyHidden);
+  let folders = [];
+  if (user.isAdmin) {
+    const { results: folderRows = [] } = await db
+      .prepare(
+        `SELECT id, name
+         FROM character_folders
+         ORDER BY name COLLATE NOCASE ASC`,
+      )
+      .all();
+    folders = folderRows.map((row) => ({ id: row.id, name: row.name }));
+  }
 
   return {
     characters: visibleCharacters,
     hiddenCharacters,
+    folders,
     isAdmin: user.isAdmin,
     deletionPolicy,
     hiddenCount: hiddenCharacters.length,

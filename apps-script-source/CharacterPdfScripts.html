@@ -163,7 +163,8 @@
     });
     const control = normalizeCharacterControl(character.control, character.className);
     const controlRows = Object.entries(control.methods || {}).map(function(entry) {
-      return [entry[0], 'ур. ' + entry[1].level + ' · бонус ' + (entry[1].bonus >= 0 ? '+' : '') + entry[1].bonus];
+      const bonus = Number(entry[1] && entry[1].bonus) || 0;
+      return [entry[0], (bonus >= 0 ? '+' : '') + bonus];
     });
     const abilityBlocks = (character.abilities || []).map(function(id) {
       const ability = getAbilityById(id);
@@ -216,6 +217,7 @@
           ['Броня', (state.currentArmor ?? 0) + ' / ' + (state.maxArmor ?? 0)],
           ['Основной Нерв', (state.currentMainNerve ?? resources.mainNerve ?? 0) + ' / ' + (resources.mainNerve ?? 0)],
           ['Бонусный Нерв', (state.currentBonusNerve ?? resources.bonusNerve ?? 0) + ' / ' + (resources.bonusNerve ?? 0)],
+          ['ПЗ', resources.protection ?? 0],
           ['Деньги', (money.gold || 0) + ' з. · ' + (money.farthings || 0) + ' ф. · ' + (money.pekkels || 0) + ' п.'],
           ['Обслуживание', (character.equipmentMaintenance || 0) + ' ф.']
         ], 3)),

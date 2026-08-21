@@ -297,12 +297,14 @@
             viewerState.currentBonusNerve,
             NumberOrDefault(resources.bonusNerve, 0)
           )}
-        </div>
-      </section>
 
-      <section class="viewer-card">
-        <h3>Атрибуты</h3>
-        ${renderViewerAttributes(character.attributes || {})}
+          <div class="viewer-state-counter viewer-state-static">
+            <div class="viewer-state-label">ПЗ</div>
+            <div class="viewer-state-static-value">
+              ${NumberOrDefault(resources.protection, 0)}
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="viewer-card">
@@ -314,17 +316,6 @@
         <h3>Контроль</h3>
         ${renderViewerControl(character.control, className)}
       </section>
-
-      ${
-        concept
-          ? `
-            <section class="viewer-card">
-              <h3>Концепт</h3>
-              <p>${escapeViewerHtml(concept)}</p>
-            </section>
-          `
-          : ''
-      }
 
       <section class="viewer-card">
         <h3>Биографические черты</h3>
@@ -386,6 +377,17 @@
           oninput="setViewerNotes(this.value)"
         >${escapeViewerHtml(viewerState.notes)}</textarea>
       </section>
+
+      ${
+        concept
+          ? `
+            <section class="viewer-card viewer-concept-card">
+              <h3>Концепт</h3>
+              <p>${escapeViewerHtml(concept)}</p>
+            </section>
+          `
+          : ''
+      }
 
       <section class="viewer-card">
         <div class="action-row">
