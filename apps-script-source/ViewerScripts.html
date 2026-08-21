@@ -271,22 +271,6 @@
         </div>
       </section>
 
-      ${
-        concept
-          ? `
-            <section class="viewer-card">
-              <h3>Концепт</h3>
-              <p>${escapeViewerHtml(concept)}</p>
-            </section>
-          `
-          : ''
-      }
-
-      <section class="viewer-card">
-        <h3>Биографические черты</h3>
-        ${renderViewerBiography(character.biography || {})}
-      </section>
-
       <section class="viewer-card">
         <h3>Состояние</h3>
 
@@ -323,12 +307,28 @@
 
       <section class="viewer-card">
         <h3>Навыки</h3>
-        ${renderViewerSkills(character.skills || {})}
+        ${renderViewerSkills(character.skills || {}, character.attributes || {})}
       </section>
 
       <section class="viewer-card">
         <h3>Контроль</h3>
         ${renderViewerControl(character.control, className)}
+      </section>
+
+      ${
+        concept
+          ? `
+            <section class="viewer-card">
+              <h3>Концепт</h3>
+              <p>${escapeViewerHtml(concept)}</p>
+            </section>
+          `
+          : ''
+      }
+
+      <section class="viewer-card">
+        <h3>Биографические черты</h3>
+        ${renderViewerBiography(character.biography || {})}
       </section>
 
       <section class="viewer-card">
@@ -893,7 +893,7 @@
      Навыки
   ========================= */
 
-  function renderViewerSkills(savedSkills) {
+  function renderViewerSkills(savedSkills, savedAttributes) {
     return `
       <div class="viewer-skills-grid">
         ${Object.entries(skills)
@@ -901,6 +901,10 @@
             const groupKey = groupEntry[0];
             const group = groupEntry[1];
             const savedGroup = savedSkills[groupKey] || {};
+            const attributeValue = NumberOrDefault(
+              (savedAttributes || {})[groupKey],
+              attributes[groupKey] ? attributes[groupKey].value : 0
+            );
 
             const skillItems = Object.entries(group.items)
               .map(function(skillEntry) {
@@ -927,7 +931,10 @@
 
             return `
               <div class="viewer-skill-card">
-                <h4>${escapeViewerHtml(group.attributeName)}</h4>
+                <h4>
+                  <span>${escapeViewerHtml(group.attributeName)}</span>
+                  <span class="viewer-skill-attribute-value" title="Значение атрибута">${attributeValue}</span>
+                </h4>
 
                 <div class="viewer-skill-card-list">
                   ${skillItems}
@@ -951,13 +958,12 @@
       <div class="viewer-control-grid">
         ${controlMethodDefinitions.map(function (definition) {
           const method = control.methods[definition.name];
-          const level = controlMethodLevels[method.level];
 
           return `
             <div class="viewer-control-method ${method.bonus ? 'active' : ''}">
               <div>
                 <strong>${escapeViewerHtml(definition.name)}</strong>
-                <span>Уровень ${level.roman} · ${level.die}</span>
+                <span>Фиксированный бонус</span>
               </div>
 
               <strong>${method.bonus >= 0 ? '+' : ''}${method.bonus}</strong>
@@ -1003,6 +1009,7 @@
             </div>
 
             ${ability.pool ? `<div class="ability-description-row"><strong>Пул:</strong><p>${escapeViewerHtml(ability.pool)}</p></div>` : ''}
+            ${ability.distance ? `<div class="ability-description-row"><strong>Дистанция:</strong><p>${escapeViewerHtml(ability.distance)}</p></div>` : ''}
             ${ability.control ? `<div class="ability-description-row"><strong>Контроль:</strong><p>${escapeViewerHtml(ability.control)}</p></div>` : ''}
             ${ability.effect ? `<div class="ability-description-row"><strong>Эффект:</strong><p>${escapeViewerHtml(ability.effect)}</p></div>` : ''}
             ${ability.breakthrough ? `<div class="ability-description-row"><strong>Прорыв:</strong><p>${escapeViewerHtml(ability.breakthrough)}</p></div>` : ''}

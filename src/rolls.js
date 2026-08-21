@@ -9,18 +9,21 @@ const CLASS_ICONS = {
 
 const SCENE_DICE = {
   hindrance: [4, 4, 4],
-  normal: [4, 4, 6],
-  advantage: [6, 6, 6],
+  normal: [4, 6, 8],
+  advantage: [8, 8, 8],
 };
 
 const DIFFICULTY_LABELS = {
-  4: "Элементарная",
-  5: "Простая",
-  6: "Квалифицированная",
-  7: "Профессиональная",
-  8: "Сложная профессиональная",
-  9: "Экспертная",
-  10: "Исключительная",
+  5: "Элементарная",
+  6: "Простая",
+  7: "Обычная / стандартная",
+  8: "Квалифицированная",
+  9: "Профессиональная",
+  10: "Сложная профессиональная",
+  11: "Экспертная",
+  12: "Исключительная",
+  13: "Предельная",
+  14: "Почти невозможная",
 };
 
 function text(value, fallback = "", maximum = 200) {
@@ -60,23 +63,9 @@ function evaluate(dice) {
     String(item.source || "").startsWith("Куб сцены"),
   );
   const sceneValues = sceneDice.map((item) => Number(item.value) || 0);
-  const frequencies = new Map();
-  for (const value of sceneValues) {
-    frequencies.set(value, (frequencies.get(value) || 0) + 1);
-  }
-  const duplicateEntry = [...frequencies.entries()].find(
-    ([, count]) => count === 2,
-  );
-  const sceneTrigger = duplicateEntry?.[0] ?? null;
-  const sceneThirdValue = duplicateEntry
-    ? sceneValues.find((value) => value !== sceneTrigger) ?? null
-    : null;
-  const sceneEvent =
-    sceneTrigger !== null && sceneThirdValue === sceneTrigger - 1
-      ? "complication"
-      : sceneTrigger !== null && sceneThirdValue === sceneTrigger + 1
-        ? "breakthrough"
-        : "none";
+  const allEven = sceneValues.length === 3 && sceneValues.every((value) => value % 2 === 0);
+  const allOdd = sceneValues.length === 3 && sceneValues.every((value) => value % 2 === 1);
+  const sceneEvent = allOdd ? "complication" : allEven ? "breakthrough" : "none";
   const ef = sum(topValues) - sum(bottomValues);
 
   return {
@@ -84,8 +73,8 @@ function evaluate(dice) {
     topValues,
     bottomValues,
     sceneValues,
-    sceneTrigger,
-    sceneThirdValue,
+    sceneTrigger: null,
+    sceneThirdValue: null,
     sceneEvent,
     complication: sceneEvent === "complication" ? "Осложнение" : "Нет",
     potentialBreakthrough: sceneEvent === "breakthrough",
@@ -95,8 +84,8 @@ function evaluate(dice) {
 }
 
 function outcome(ef) {
-  if (ef < 4) return "Ниже элементарной сложности";
-  return DIFFICULTY_LABELS[Math.min(10, Math.floor(ef))];
+  if (ef < 5) return "Ниже элементарной сложности";
+  return DIFFICULTY_LABELS[Math.min(14, Math.floor(ef))];
 }
 
 function component(input, fallback) {
@@ -110,7 +99,7 @@ function component(input, fallback) {
 }
 
 function rollDifficulty(value) {
-  return integer(value, 4, 10, 6);
+  return integer(value, 5, 14, 7);
 }
 
 function resolveBreakthrough(evaluation, finalEf, difficulty) {
@@ -120,22 +109,19 @@ function resolveBreakthrough(evaluation, finalEf, difficulty) {
 }
 
 function rollControl(input = {}) {
-  const methodSides = { d4: 4, d6: 6, d8: 8, d10: 10 };
   const methodName = text(input.methodName, "", 30);
-  const methodKey = text(input.methodKey, "fixed1", 20);
-  const sides = methodSides[methodKey] || 0;
+  const methodKey = "fixed";
   const d20 = die(20);
-  const methodValue = sides ? die(sides) : 1;
   const flatBonus = integer(input.flatBonus, -20, 20, 0);
-  const difficulty = integer(input.difficulty, 1, 50, 18);
-  const total = d20 + methodValue + flatBonus;
+  const difficulty = integer(input.difficulty, 1, 50, 16);
+  const total = d20 + flatBonus;
 
   return {
     d20,
     methodName,
     methodKey,
-    methodSides: sides,
-    methodValue,
+    methodSides: 0,
+    methodValue: 0,
     flatBonus,
     difficulty,
     total,
@@ -149,9 +135,9 @@ function normalizeControlRequest(input = {}) {
   return {
     enabled: Boolean(input.enabled),
     methodName: text(input.methodName, "", 30),
-    methodKey: text(input.methodKey, "fixed1", 20),
+    methodKey: "fixed",
     flatBonus: integer(input.flatBonus, -20, 20, 0),
-    difficulty: integer(input.difficulty, 1, 50, 18),
+    difficulty: integer(input.difficulty, 1, 50, 16),
   };
 }
 

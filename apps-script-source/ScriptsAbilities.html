@@ -18,6 +18,7 @@
   function selectAbilityForDetails(abilityId) {
     activeAbilityId = abilityId;
     renderAbilities();
+    openAbilityDetailsDialog();
   }
 
   function toggleAbilitySelection(abilityId) {
@@ -105,6 +106,35 @@
       </div>`;
   }
 
+  function getAbilityDetailsMarkup(ability) {
+    return `
+      <div class="ability-detail-title">${ability.name}</div>
+      <div class="ability-detail-meta">${getAbilityShortMeta(ability)}</div>
+      <div class="ability-description-block">
+        <div class="ability-description-row"><strong>Пререквизит:</strong><p>${ability.prerequisite || 'Нет'}</p></div>
+        ${ability.pool ? `<div class="ability-description-row"><strong>Пул:</strong><p>${ability.pool}</p></div>` : ''}
+        ${ability.distance ? `<div class="ability-description-row"><strong>Дистанция:</strong><p>${ability.distance}</p></div>` : ''}
+        ${ability.control ? `<div class="ability-description-row"><strong>Контроль:</strong><p>${ability.control}</p></div>` : ''}
+        ${ability.effect ? `<div class="ability-description-row"><strong>Эффект:</strong><p>${ability.effect}</p></div>` : ''}
+        ${ability.breakthrough ? `<div class="ability-description-row"><strong>Прорыв:</strong><p>${ability.breakthrough}</p></div>` : ''}
+        ${ability.complications ? `<div class="ability-description-row"><strong>Осложнения:</strong><p>${ability.complications}</p></div>` : ''}
+      </div>`;
+  }
+
+  function renderAbilityDialogContent(ability) {
+    const content = document.getElementById('abilityDetailsDialogContent');
+    if (!content) return;
+
+    content.innerHTML = `
+      <div class="ability-dialog-scroll">${getAbilityDetailsMarkup(ability)}</div>
+      <div class="ability-dialog-actions">
+        <button type="button" class="secondary-button" onclick="closeAbilityDetailsDialog()">Закрыть</button>
+        <button type="button" class="primary-button" onclick="toggleAbilitySelection('${ability.id}')">
+          ${isAbilitySelected(ability.id) ? 'Убрать способность' : 'Выбрать способность'}
+        </button>
+      </div>`;
+  }
+
   function renderAbilityDetails() {
     const panel = document.getElementById('abilityDetailsPanel');
     if (!panel) return;
@@ -120,17 +150,25 @@
       return;
     }
 
-    panel.innerHTML = `
-      <div class="ability-detail-title">${ability.name}</div>
-      <div class="ability-detail-meta">${getAbilityShortMeta(ability)}</div>
-      <div class="ability-description-block">
-        <div class="ability-description-row"><strong>Пререквизит:</strong><p>${ability.prerequisite || 'Нет'}</p></div>
-        ${ability.pool ? `<div class="ability-description-row"><strong>Пул:</strong><p>${ability.pool}</p></div>` : ''}
-        ${ability.control ? `<div class="ability-description-row"><strong>Контроль:</strong><p>${ability.control}</p></div>` : ''}
-        ${ability.effect ? `<div class="ability-description-row"><strong>Эффект:</strong><p>${ability.effect}</p></div>` : ''}
-        ${ability.breakthrough ? `<div class="ability-description-row"><strong>Прорыв:</strong><p>${ability.breakthrough}</p></div>` : ''}
-        ${ability.complications ? `<div class="ability-description-row"><strong>Осложнения:</strong><p>${ability.complications}</p></div>` : ''}
-      </div>`;
+    panel.innerHTML = getAbilityDetailsMarkup(ability);
+    renderAbilityDialogContent(ability);
+  }
+
+  function openAbilityDetailsDialog() {
+    const dialog = document.getElementById('abilityDetailsDialog');
+    const ability = getAbilityById(activeAbilityId);
+    if (!dialog || !ability) return;
+    renderAbilityDialogContent(ability);
+    if (!dialog.open) dialog.showModal();
+  }
+
+  function closeAbilityDetailsDialog() {
+    const dialog = document.getElementById('abilityDetailsDialog');
+    if (dialog && dialog.open) dialog.close();
+  }
+
+  function closeAbilityDialogFromBackdrop(event) {
+    if (event && event.target === event.currentTarget) closeAbilityDetailsDialog();
   }
 
   function renderAbilities() {

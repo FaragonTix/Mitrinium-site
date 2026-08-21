@@ -3,6 +3,8 @@
 
   let savedCharactersListIsAdmin = false;
   let hiddenCharactersCount = 0;
+  let hiddenSavedCharactersCache = [];
+  let showPersonallyHiddenCharacters = false;
   let characterDeletionPolicy = 'forbidden';
 
   function setSaveStatus(
@@ -222,8 +224,12 @@
       .trim()
       .toLocaleLowerCase('ru-RU');
 
+    const sourceCharacters = showPersonallyHiddenCharacters
+      ? savedCharactersCache.concat(hiddenSavedCharactersCache)
+      : savedCharactersCache;
+
     const filteredCharacters =
-      savedCharactersCache.filter(
+      sourceCharacters.filter(
         function (character) {
           if (!query) {
             return true;
@@ -248,14 +254,12 @@
         }
       );
 
-    if (
-      savedCharactersCache.length === 0
-    ) {
+    if (sourceCharacters.length === 0) {
       list.innerHTML = '';
 
       setLoadStatus(
-        hiddenCharactersCount > 0
-          ? 'Все доступные персонажи скрыты.'
+        hiddenCharactersCount > 0 && !showPersonallyHiddenCharacters
+          ? 'Все персонажи скрыты в вашем личном списке.'
           : 'Сохранённых персонажей пока нет.',
         false
       );
@@ -288,13 +292,13 @@
         'Показано персонажей: ' +
           filteredCharacters.length +
           ' из ' +
-          savedCharactersCache.length,
+          sourceCharacters.length,
         false
       );
     } else {
       setLoadStatus(
         'Найдено персонажей: ' +
-          savedCharactersCache.length,
+          sourceCharacters.length,
         false
       );
     }
@@ -355,32 +359,40 @@
             ? '<span class="character-draft-chip">не закончен</span>'
             : '';
 
-          const hideButton = savedCharactersListIsAdmin
-              ? `
-                <button
-                  type="button"
-                  class="equipment-button saved-character-hide-button"
-                  onclick="hideCharacterFromOwnerList(
-                    '${characterId}'
-                  )"
-                >
-                  Скрыть
-                </button>
-              `
-              : characterDeletionPolicy !== 'forbidden'
-                ? `
-                  <button
-                    type="button"
-                    class="equipment-button saved-character-hide-button"
-                    onclick="deleteOwnCharacterFromList('${characterId}')"
-                  >
-                    Удалить
-                  </button>
-                `
-                : '';
+          const hideButton = character.personallyHidden
+            ? `
+              <button
+                type="button"
+                class="equipment-button saved-character-hide-button"
+                onclick="restoreCharacterToOwnerList('${characterId}')"
+              >
+                Показывать
+              </button>
+            `
+            : `
+              <button
+                type="button"
+                class="equipment-button saved-character-hide-button"
+                onclick="hideCharacterFromOwnerList('${characterId}')"
+              >
+                Скрыть из списка
+              </button>
+            `;
+
+          const deleteButton = !savedCharactersListIsAdmin && characterDeletionPolicy !== 'forbidden'
+            ? `
+              <button
+                type="button"
+                class="equipment-button saved-character-hide-button"
+                onclick="deleteOwnCharacterFromList('${characterId}')"
+              >
+                Удалить
+              </button>
+            `
+            : '';
 
           return `
-            <div class="saved-character-item">
+            <div class="saved-character-item ${character.personallyHidden ? 'personally-hidden' : ''}">
               <div>
                 <div class="saved-character-name">
                   ${
@@ -422,6 +434,7 @@
                 </button>
 
                 ${hideButton}
+                ${deleteButton}
               </div>
             </div>
           `;
@@ -477,12 +490,18 @@
               ? result.characters
               : [];
 
+          hiddenSavedCharactersCache =
+            result && Array.isArray(result.hiddenCharacters)
+              ? result.hiddenCharacters
+              : [];
+
           renderSavedCharactersList();
         }
       )
       .withFailureHandler(
         function (error) {
           savedCharactersCache = [];
+          hiddenSavedCharactersCache = [];
 
           setLoadStatus(
             error.message ||
@@ -626,15 +645,9 @@
   function hideCharacterFromOwnerList(
     characterId
   ) {
-    if (
-      !savedCharactersListIsAdmin
-    ) {
-      return;
-    }
-
     const confirmed =
       window.confirm(
-        'Скрыть персонажа из вашего списка? Данные не будут удалены.'
+        'Скрыть персонажа только из вашего личного списка? Данные не будут удалены, а видимость для других пользователей не изменится.'
       );
 
     if (!confirmed) {
@@ -666,6 +679,19 @@
       );
   }
 
+  function restoreCharacterToOwnerList(characterId) {
+    setLoadStatus('Возвращаю персонажа в ваш список...', false);
+
+    google.script.run
+      .withSuccessHandler(function () {
+        loadSavedCharactersList();
+      })
+      .withFailureHandler(function (error) {
+        setLoadStatus(error.message || 'Ошибка возврата персонажа.', true);
+      })
+      .mitriniumRestoreHiddenCharacter(characterId);
+  }
+
   function deleteOwnCharacterFromList(characterId) {
     const keepsCopy = characterDeletionPolicy === 'archive';
     const confirmed = window.confirm(
@@ -690,12 +716,6 @@
   }
 
   function restoreAllHiddenCharacters() {
-    if (
-      !savedCharactersListIsAdmin
-    ) {
-      return;
-    }
-
     setLoadStatus(
       'Возвращаю скрытых персонажей...',
       false
@@ -734,16 +754,6 @@
         '.hidden-character-controls'
       );
 
-    if (
-      !savedCharactersListIsAdmin
-    ) {
-      if (controls) {
-        controls.remove();
-      }
-
-      return;
-    }
-
     if (!controls) {
       controls =
         document.createElement('div');
@@ -770,11 +780,20 @@
 
     controls.innerHTML = `
       <span class="hidden-character-count">
-        Скрыто:
+        Скрыто в моём списке:
         <strong>
           ${hiddenCharactersCount}
         </strong>
       </span>
+
+      <label class="checkbox-line hidden-character-toggle">
+        <input
+          type="checkbox"
+          ${showPersonallyHiddenCharacters ? 'checked' : ''}
+          onchange="showPersonallyHiddenCharacters = this.checked; renderSavedCharactersList()"
+        >
+        <span>Показать скрытых</span>
+      </label>
 
       <button
         type="button"

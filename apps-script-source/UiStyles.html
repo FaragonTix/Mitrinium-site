@@ -1159,6 +1159,44 @@
   .draft-save-dialog form { padding: 24px; }
   .draft-save-dialog h2 { margin-top: 0; }
 
+  .ability-details-dialog {
+    width: min(720px, calc(100% - 24px));
+    max-height: min(760px, calc(100dvh - 24px));
+    padding: 0;
+    border: 1px solid #b27b34;
+    border-radius: 14px;
+    color: #33200f;
+    background: #fff8e9;
+  }
+  .ability-details-dialog::backdrop { background: rgba(25, 17, 9, .72); }
+  .ability-details-dialog[open] { display: grid; }
+  #abilityDetailsDialogContent {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: 0;
+    max-height: min(760px, calc(100dvh - 24px));
+  }
+  .ability-dialog-scroll {
+    min-height: 0;
+    overflow: auto;
+    padding: 20px 20px 0;
+  }
+  .ability-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid #d1b982;
+    background: #fff8e9;
+    padding: 14px 20px;
+  }
+
+  @media (max-width: 700px) {
+    .ability-dialog-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
   .viewer-print-footer
   .print-character-button {
     min-width: 210px;

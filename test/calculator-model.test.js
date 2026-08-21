@@ -34,12 +34,12 @@ async function loadCalculatorModel() {
   )(windowStub, documentStub, localStorageStub, undefined);
 }
 
-test("модель калькулятора использует три Куба сцены редакции 0.4.6", async () => {
+test("модель калькулятора использует три Куба сцены редакции 0.5.1", async () => {
   const model = await loadCalculatorModel();
 
-  assert.deepEqual(model.MODEL_SCENE_DICE, [4, 4, 6]);
+  assert.deepEqual(model.MODEL_SCENE_DICE, [4, 6, 8]);
   assert.deepEqual(model.SCENE_PRESETS.hindrance.dice, [4, 4, 4]);
-  assert.deepEqual(model.SCENE_PRESETS.advantage.dice, [6, 6, 6]);
+  assert.deepEqual(model.SCENE_PRESETS.advantage.dice, [8, 8, 8]);
 
   const distribution = model.efficiencyDetailDistribution(3);
   const probability = [...distribution.values()].reduce((sum, value) => sum + value, 0);

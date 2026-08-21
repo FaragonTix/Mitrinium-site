@@ -493,7 +493,7 @@
 
   .skill-column {
     display: grid;
-    grid-template-rows: auto repeat(5, 62px);
+    grid-template-rows: auto repeat(6, 62px);
     align-content: start;
     gap: 10px;
     min-width: 0;
@@ -600,6 +600,45 @@
     min-width: 14px;
   }
 
+  .skill-info summary {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: help;
+    list-style: none;
+  }
+
+  .skill-info summary::-webkit-details-marker { display: none; }
+
+  .skill-info summary::after {
+    content: '?';
+    flex: 0 0 auto;
+    display: inline-grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    margin-left: 2px;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font: 700 11px/1 Arial, sans-serif;
+    opacity: 0.55;
+  }
+
+  .skill-info p {
+    position: absolute;
+    z-index: 12;
+    width: min(300px, calc(100vw - 48px));
+    margin: 7px 0 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-small);
+    background: var(--panel-light);
+    box-shadow: 0 7px 20px rgba(63, 39, 13, 0.22);
+    padding: 9px 11px;
+    font-size: 13px;
+    font-weight: normal;
+    line-height: 1.35;
+  }
+
   /* =========================
      Способности
   ========================= */
@@ -704,6 +743,8 @@
   }
 
   .ability-details-panel {
+    position: sticky;
+    top: 12px;
     min-width: 0;
     min-height: 220px;
     border: 1px solid var(--field-border);
@@ -921,6 +962,27 @@
     border-radius: var(--radius-medium);
     background: var(--panel-soft);
     padding: 12px;
+  }
+
+  .equipment-budget-sticky {
+    position: sticky;
+    top: 8px;
+    z-index: 8;
+    display: flex;
+    justify-content: center;
+    gap: 0.4em;
+    width: fit-content;
+    margin: 0 0 12px auto;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--panel-light);
+    box-shadow: 0 3px 10px rgba(63, 39, 13, 0.16);
+    padding: 7px 13px;
+  }
+
+  .saved-character-item.personally-hidden {
+    opacity: 0.68;
+    border-style: dashed;
   }
 
   .saved-character-name {
@@ -1186,6 +1248,7 @@
     }
 
     .ability-details-panel {
+      position: static;
       min-height: 0;
     }
   }
@@ -1390,6 +1453,10 @@
 }
 
 .viewer-skill-card h4 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   margin: 0 0 10px;
   border-bottom: 1px solid var(--border-soft);
   padding-bottom: 8px;
@@ -1569,6 +1636,18 @@
 
 .biography-detail-field {
   margin-bottom: 12px;
+}
+
+.viewer-skill-attribute-value {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--button-bg);
+  font-size: 14px;
+  line-height: 1;
 }
 
 .education-selected-card {
@@ -1874,8 +1953,8 @@
 
   .control-method-editor-row {
     display: grid;
-    grid-template-columns: minmax(90px, 1fr) minmax(135px, 1.35fr) minmax(105px, 0.8fr);
-    align-items: end;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
     gap: 10px;
     padding: 12px;
     border: 1px solid var(--border-soft);
@@ -1883,9 +1962,30 @@
     background: var(--panel-soft);
   }
 
-  .control-method-editor-row > strong {
-    align-self: center;
+  .control-method-editor-row.class-method {
+    border-color: var(--border);
+    background: var(--panel-accent);
+  }
+
+  .control-method-editor-row > div:first-child {
+    display: grid;
+    gap: 3px;
+  }
+
+  .control-method-editor-row > div:first-child > strong {
     font-size: 18px;
+  }
+
+  .control-method-editor-row small {
+    color: var(--muted);
+    line-height: 1.2;
+  }
+
+  .control-method-editor-row .mini-counter input {
+    width: 58px;
+    min-width: 58px;
+    padding: 7px 4px;
+    text-align: center;
   }
 
   .control-method-editor-row .field {
@@ -2130,6 +2230,11 @@
   .roll-die.replaced {
     border-color: #8b2921;
     background: #f4d4c4;
+  }
+
+  .hidden-character-toggle {
+    margin: 0;
+    font-size: 13px;
   }
 
   .roll-die.selectable {

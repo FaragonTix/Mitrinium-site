@@ -294,8 +294,8 @@ function mitriniumRollEfficiency(
 
   const sceneDiceMap = {
     hindrance: [4, 4, 4],
-    normal: [4, 4, 6],
-    advantage: [6, 6, 6]
+    normal: [4, 6, 8],
+    advantage: [8, 8, 8]
   };
 
   const sceneKey =
@@ -1358,44 +1358,9 @@ function mitriniumEvaluateEfficiencyDice_(
       }
     );
 
-  const sceneFrequencies = {};
-
-  sceneValues.forEach(
-    function (value) {
-      sceneFrequencies[value] =
-        (sceneFrequencies[value] || 0) + 1;
-    }
-  );
-
-  let sceneTrigger = null;
-
-  Object.keys(sceneFrequencies)
-    .some(function (value) {
-      if (sceneFrequencies[value] === 2) {
-        sceneTrigger = Number(value);
-        return true;
-      }
-
-      return false;
-    });
-
-  const sceneThirdValue =
-    sceneTrigger === null
-      ? null
-      : sceneValues.filter(
-          function (value) {
-            return value !== sceneTrigger;
-          }
-        )[0] ?? null;
-
-  const sceneEvent =
-    sceneTrigger !== null &&
-    sceneThirdValue === sceneTrigger - 1
-      ? 'complication'
-      : sceneTrigger !== null &&
-          sceneThirdValue === sceneTrigger + 1
-        ? 'breakthrough'
-        : 'none';
+  const allEven = sceneValues.length === 3 && sceneValues.every(function (value) { return value % 2 === 0; });
+  const allOdd = sceneValues.length === 3 && sceneValues.every(function (value) { return value % 2 === 1; });
+  const sceneEvent = allOdd ? 'complication' : allEven ? 'breakthrough' : 'none';
 
   const ef =
     topSum -
@@ -1420,10 +1385,10 @@ function mitriniumEvaluateEfficiencyDice_(
       sceneValues,
 
     sceneTrigger:
-      sceneTrigger,
+      null,
 
     sceneThirdValue:
-      sceneThirdValue,
+      null,
 
     potentialBreakthrough:
       sceneEvent === 'breakthrough',
@@ -1463,7 +1428,7 @@ function mitriniumGetBreakthroughLabel_(
 ) {
   if (
     potentialBreakthrough &&
-    ef >= Number(difficulty || 6)
+    ef >= Number(difficulty || 7)
   ) {
     return 'Прорыв';
   }
@@ -1476,22 +1441,25 @@ function mitriniumGetEfOutcome_(
   ef
 ) {
   const labels = {
-    4: 'Элементарная',
-    5: 'Простая',
-    6: 'Квалифицированная',
-    7: 'Профессиональная',
-    8: 'Сложная профессиональная',
-    9: 'Экспертная',
-    10: 'Исключительная'
+    5: 'Элементарная',
+    6: 'Простая',
+    7: 'Обычная / стандартная',
+    8: 'Квалифицированная',
+    9: 'Профессиональная',
+    10: 'Сложная профессиональная',
+    11: 'Экспертная',
+    12: 'Исключительная',
+    13: 'Предельная',
+    14: 'Почти невозможная'
   };
 
   const value = Math.floor(Number(ef) || 0);
 
-  if (value < 4) {
+  if (value < 5) {
     return 'Ниже элементарной сложности';
   }
 
-  return labels[Math.min(10, value)];
+  return labels[Math.min(14, value)];
 }
 
 
@@ -1504,18 +1472,7 @@ function mitriniumRollControl_(
 ) {
   request = request || {};
 
-  const methodSidesMap = {
-    d4: 4,
-    d6: 6,
-    d8: 8,
-    d10: 10
-  };
-
-  const methodKey =
-    String(
-      request.methodKey ||
-      'fixed1'
-    );
+  const methodKey = 'fixed';
 
   const methodName =
     mitriniumSanitizeText_(
@@ -1532,26 +1489,8 @@ function mitriniumRollControl_(
   const d20 =
     mitriniumRollDie_(20);
 
-  let methodValue = 1;
-  let methodSides = 0;
-
-  if (
-    Object.prototype
-      .hasOwnProperty.call(
-        methodSidesMap,
-        methodKey
-      )
-  ) {
-    methodSides =
-      methodSidesMap[
-        methodKey
-      ];
-
-    methodValue =
-      mitriniumRollDie_(
-        methodSides
-      );
-  }
+  const methodValue = 0;
+  const methodSides = 0;
 
   const flatBonus =
     mitriniumClampInteger_(
@@ -1566,13 +1505,11 @@ function mitriniumRollControl_(
       request.difficulty,
       1,
       50,
-      18
+      16
     );
 
   const total =
-    d20 +
-    methodValue +
-    flatBonus;
+    d20 + flatBonus;
 
   return {
     methodName:
@@ -1637,7 +1574,7 @@ function mitriniumSanitizeExistingControl_(
     methodKey:
       mitriniumSanitizeText_(
         control.methodKey,
-        'fixed1',
+        'fixed',
         20
       ),
 
@@ -1654,7 +1591,7 @@ function mitriniumSanitizeExistingControl_(
         control.methodValue,
         0,
         20,
-        1
+        0
       ),
 
     flatBonus:
@@ -1670,7 +1607,7 @@ function mitriniumSanitizeExistingControl_(
         control.difficulty,
         1,
         50,
-        18
+        16
       ),
 
     total:

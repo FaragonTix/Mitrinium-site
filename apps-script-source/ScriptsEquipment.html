@@ -205,10 +205,12 @@
     const spentElement = document.getElementById('equipmentSpent');
     const leftElement = document.getElementById('equipmentLeft');
     const maintenanceElement = document.getElementById('equipmentMaintenance');
+    const stickyAvailableElement = document.getElementById('equipmentAvailableSticky');
     const warning = document.getElementById('equipmentWarning');
 
     if (spentElement) spentElement.textContent = `${spent} ф`;
     if (leftElement) leftElement.textContent = `${left} ф`;
+    if (stickyAvailableElement) stickyAvailableElement.textContent = `${left} ф`;
     if (maintenanceElement) maintenanceElement.textContent = `${maintenance} ф`;
 
     if (!warning) return;

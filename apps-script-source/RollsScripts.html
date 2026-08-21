@@ -83,7 +83,7 @@
 
     if (!method) return;
 
-    methodSelect.value = controlMethodLevels[method.level].methodKey;
+    methodSelect.value = 'fixed';
     bonusInput.value = String(method.bonus);
     syncRollBuilderControls();
   }
@@ -806,7 +806,7 @@
     const controlMethod =
       document.getElementById(
         'rollControlMethod'
-      )?.value || 'fixed1';
+      )?.value || 'fixed';
 
     const randomSides =
       document.getElementById(
@@ -1025,7 +1025,7 @@
           document.getElementById(
             'rollDifficulty'
           )?.value,
-          6
+            7
         ),
 
       firstComponent:
@@ -1055,7 +1055,7 @@
         methodKey:
           document.getElementById(
             'rollControlMethod'
-          )?.value || 'fixed1',
+          )?.value || 'fixed',
 
         flatBonus:
           rollNumber(
@@ -1070,7 +1070,7 @@
             document.getElementById(
               'rollControlDifficulty'
             )?.value,
-            18
+            16
           )
       }
     };
@@ -1709,19 +1709,7 @@
   }
 
   function renderControlResult(control) {
-    const methodText =
-      control.methodSides
-        ? (
-          'd' +
-          control.methodSides +
-          ': ' +
-          control.methodValue
-        )
-        : 'фиксированный +1';
-
-    const methodLabel = control.methodName
-      ? control.methodName + ', ' + methodText
-      : methodText;
+    const methodLabel = control.methodName || 'Методика';
 
     return `
       <div class="roll-control-result">
@@ -2112,64 +2100,6 @@
         12000
       );
   }
-
-  /* =========================
-     Скрытие без browser confirm
-  ========================= */
-
-  function hideCharacterWithoutNativeDialog(
-    characterId
-  ) {
-    if (!characterId) {
-      return;
-    }
-
-    if (
-      typeof setLoadStatus ===
-      'function'
-    ) {
-      setLoadStatus(
-        'Скрываю персонажа...',
-        false
-      );
-    }
-
-    google.script.run
-      .withSuccessHandler(
-        function () {
-          if (
-            typeof loadSavedCharactersList ===
-            'function'
-          ) {
-            loadSavedCharactersList();
-          }
-        }
-      )
-      .withFailureHandler(
-        function (error) {
-          if (
-            typeof setLoadStatus ===
-            'function'
-          ) {
-            setLoadStatus(
-              error.message ||
-                'Ошибка скрытия персонажа.',
-              true
-            );
-          }
-        }
-      )
-      .mitriniumHideCharacter(
-        characterId
-      );
-  }
-
-  // Перекрываем обе версии старого имени функции.
-  window.hideCharacterFromOwnerList =
-    hideCharacterWithoutNativeDialog;
-
-  window.hideCharacterFromList =
-    hideCharacterWithoutNativeDialog;
 
   /* =========================
      Запуск

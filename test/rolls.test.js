@@ -24,8 +24,8 @@ const testUser = { email: "player@example.com" };
 test("сцена всегда добавляет три куба новой геометрии", async () => {
   const cases = {
     hindrance: [4, 4, 4],
-    normal: [4, 4, 6],
-    advantage: [6, 6, 6],
+    normal: [4, 6, 8],
+    advantage: [8, 8, 8],
   };
 
   for (const [sceneKey, expectedSides] of Object.entries(cases)) {
@@ -192,23 +192,23 @@ test("Нерв перебрасывает только выбранный куб
   assert.equal(result.nerveRerolls.length, 1);
 });
 
-test("шкала результата Эффективности сохранена", () => {
-  assert.equal(__test.outcome(3), "Ниже элементарной сложности");
-  assert.equal(__test.outcome(4), "Элементарная");
-  assert.equal(__test.outcome(6), "Квалифицированная");
-  assert.equal(__test.outcome(8), "Сложная профессиональная");
-  assert.equal(__test.outcome(10), "Исключительная");
+test("шкала результата Эффективности соответствует редакции 0.5.1", () => {
+  assert.equal(__test.outcome(4), "Ниже элементарной сложности");
+  assert.equal(__test.outcome(5), "Элементарная");
+  assert.equal(__test.outcome(7), "Обычная / стандартная");
+  assert.equal(__test.outcome(10), "Сложная профессиональная");
+  assert.equal(__test.outcome(14), "Почти невозможная");
 });
 
-test("Осложнение даёт дубль с третьим Кубом сцены на единицу ниже", () => {
+test("Осложнение дают три нечётных Куба сцены", () => {
   const complication = __test.evaluate([
     { sides: 4, value: 3, source: "Куб сцены 1" },
-    { sides: 6, value: 3, source: "Куб сцены 2" },
-    { sides: 6, value: 2, source: "Куб сцены 3" },
+    { sides: 6, value: 5, source: "Куб сцены 2" },
+    { sides: 8, value: 7, source: "Куб сцены 3" },
     { sides: 6, value: 1, source: "Навык" },
     { sides: 6, value: 6, source: "Атрибут" },
   ]);
-  const componentDuplicateOnly = __test.evaluate([
+  const mixedParity = __test.evaluate([
     { sides: 4, value: 2, source: "Куб сцены 1" },
     { sides: 6, value: 3, source: "Куб сцены 2" },
     { sides: 6, value: 4, source: "Куб сцены 3" },
@@ -217,20 +217,18 @@ test("Осложнение даёт дубль с третьим Кубом сц
   ]);
 
   assert.equal(complication.complication, "Осложнение");
-  assert.equal(complication.sceneTrigger, 3);
-  assert.equal(complication.sceneThirdValue, 2);
-  assert.equal(componentDuplicateOnly.complication, "Нет");
+  assert.equal(mixedParity.complication, "Нет");
 });
 
-test("Прорыв даёт дубль с третьим Кубом сцены на единицу выше и успешная проверка", () => {
+test("Прорыв дают три чётных Куба сцены и успешная проверка", () => {
   const potential = __test.evaluate([
-    { sides: 4, value: 3, source: "Куб сцены 1" },
-    { sides: 6, value: 3, source: "Куб сцены 2" },
-    { sides: 6, value: 4, source: "Куб сцены 3" },
+    { sides: 4, value: 2, source: "Куб сцены 1" },
+    { sides: 6, value: 4, source: "Куб сцены 2" },
+    { sides: 8, value: 6, source: "Куб сцены 3" },
     { sides: 6, value: 6, source: "Навык" },
     { sides: 6, value: 1, source: "Атрибут" },
   ]);
-  const triple = __test.evaluate([
+  const mixedParity = __test.evaluate([
     { sides: 4, value: 3, source: "Куб сцены 1" },
     { sides: 6, value: 3, source: "Куб сцены 2" },
     { sides: 6, value: 3, source: "Куб сцены 3" },
@@ -240,7 +238,7 @@ test("Прорыв даёт дубль с третьим Кубом сцены �
   assert.equal(potential.potentialBreakthrough, true);
   assert.equal(__test.resolveBreakthrough(potential, 7, 6), "Прорыв");
   assert.equal(__test.resolveBreakthrough(potential, 5, 6), "Нет");
-  assert.equal(triple.potentialBreakthrough, false);
+  assert.equal(mixedParity.potentialBreakthrough, false);
 });
 
 test("опция Контроля срабатывает только при Осложнении", () => {

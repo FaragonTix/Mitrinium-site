@@ -68,7 +68,7 @@ const DIFFICULTY_BANDS = {
 };
 
 /* В модели БС используется обычная сцена редакции 0.4.6. */
-const MODEL_SCENE_DICE = [4,4,6];
+const MODEL_SCENE_DICE = [4,6,8];
 const DEFAULT_ATTACKS = 2;
 const DEFAULT_REACTIONS = 2;
 const MAX_ATTACKS = 5;
@@ -92,9 +92,9 @@ const DEFENSE_POOL_MODIFIERS = {
   }
 };
 const SCENE_PRESETS = {
-  normal:{label:'Обычная (2d4 + d6)',dice:[4,4,6]},
+  normal:{label:'Обычная (d4 + d6 + d8)',dice:[4,6,8]},
   hindrance:{label:'Помеха (3d4)',dice:[4,4,4]},
-  advantage:{label:'Преимущество (3d6)',dice:[6,6,6]}
+  advantage:{label:'Преимущество (3d8)',dice:[8,8,8]}
 };
 
 const CONDITIONS = ['Ослепление','Ошеломление','Дезориентация','Испуг','Замедление','Связан','Отравление','Пониженная видимость','Удушье','При смерти'];
@@ -1351,7 +1351,7 @@ const REACTION_LIBRARY = {
       "id": "mechanism_3",
       "name": "Баллистический расчёт",
       "trigger": "Механизм объявляет атаку.",
-      "effect": "Его Кубы сцены для этой атаки становятся 3d6.",
+      "effect": "Его Кубы сцены для этой атаки становятся 3d8.",
       "limitText": "2 раза за бой.",
       "zoneSize": "",
       "uses": 2,

@@ -200,11 +200,14 @@
 
         html += `
           <div class="skill-item ${isPrimary ? 'recommended-primary' : ''} ${isSecondary ? 'recommended-secondary' : ''}">
-            <span class="skill-name">
-              <span class="skill-name-text">${hyphenateSkillName(skill.name)}</span>
-              ${isPrimary ? '<span class="skill-recommended-mark primary" aria-label="Основной навык класса" title="Основной навык класса">★</span>' : ''}
-              ${isSecondary ? '<span class="skill-recommended-mark secondary" aria-label="Спас класса" title="Спас класса">◆</span>' : ''}
-            </span>
+            <details class="skill-name skill-info">
+              <summary>
+                <span class="skill-name-text">${hyphenateSkillName(skill.name)}</span>
+                ${isPrimary ? '<span class="skill-recommended-mark primary" aria-label="Основной навык класса" title="Основной навык класса">★</span>' : ''}
+                ${isSecondary ? '<span class="skill-recommended-mark secondary" aria-label="Спас класса" title="Спас класса">◆</span>' : ''}
+              </summary>
+              <p>${skill.description || 'Описание отсутствует.'}</p>
+            </details>
 
             <div class="mini-counter">
               <button
@@ -235,7 +238,9 @@
   function hyphenateSkillName(name) {
     const namesWithBreaks = {
       'Фехтование': 'Фех&shy;то&shy;ва&shy;ние',
-      'Атлетика': 'Ат&shy;ле&shy;ти&shy;ка',
+      'Координация': 'Ко&shy;ор&shy;ди&shy;на&shy;ция',
+      'Вождение': 'Вож&shy;де&shy;ние',
+      'Метание': 'Ме&shy;та&shy;ние',
       'Стойкость': 'Стой&shy;кость',
       'Выживание': 'Вы&shy;жи&shy;ва&shy;ние',
       'Уклонение': 'Ук&shy;ло&shy;не&shy;ние',
@@ -245,12 +250,15 @@
       'Стрельба': 'Стрель&shy;ба',
       'Знание улиц': 'Зна&shy;ние улиц',
       'Психология': 'Пси&shy;хо&shy;ло&shy;гия',
+      'Восприятие': 'Вос&shy;при&shy;я&shy;тие',
       'Механизмы': 'Ме&shy;ха&shy;низ&shy;мы',
       'Медицина': 'Ме&shy;ди&shy;ци&shy;на',
       'Эрудиция': 'Эру&shy;ди&shy;ция',
+      'Экономика': 'Эко&shy;но&shy;ми&shy;ка',
       'Убеждение': 'Убеж&shy;де&shy;ние',
       'Командование': 'Ко&shy;ман&shy;до&shy;ва&shy;ние',
-      'Дисциплина': 'Дис&shy;цип&shy;ли&shy;на'
+      'Дисциплина': 'Дис&shy;цип&shy;ли&shy;на',
+      'Этикет': 'Эти&shy;кет'
     };
 
     return namesWithBreaks[name] || name;
@@ -564,7 +572,7 @@
       biography: collectBiographyForSave(),
       control: collectCharacterControl(),
       advancedEditMode: advancedEditMode,
-      skillRulesVersion: 5,
+      skillRulesVersion: 6,
       attributeRulesVersion: 2,
       attributes: collectAttributesForSave(),
       skills: collectSkillsForSave(),
@@ -633,6 +641,13 @@
       errors.push('Распределите все очки Навыков.');
     }
 
+    if (
+      !advancedEditMode &&
+      getControlPointsLeft() !== 0
+    ) {
+      errors.push('Распределите все 3 очка Методик.');
+    }
+
     if (!advancedEditMode) {
       Object.values(skills).forEach(function (group) {
         const groupTotal = Object.values(group.items).reduce(
@@ -646,7 +661,7 @@
           errors.push(
             'Сумма Навыков Атрибута «' +
             group.attributeName +
-            '» не может превышать 5.'
+            '» не может превышать 6.'
           );
         }
       });
@@ -805,6 +820,57 @@
         }
       };
       result.skillRulesVersion = 5;
+    }
+
+    if (Number(result.skillRulesVersion || 0) < 6) {
+      const previous = result.skills || {};
+      const value = function(groupKey, skillKey) {
+        const parsed = Number(previous[groupKey]?.[skillKey]);
+        return Number.isFinite(parsed) ? Math.max(0, Math.min(3, Math.round(parsed))) : 0;
+      };
+      result.skills = {
+        napor: {
+          fehtovanie: value('napor', 'fehtovanie'),
+          draka: value('snorovka', 'draka'),
+          metanie: 0,
+          stoikost: value('napor', 'stoikost'),
+          sila: value('napor', 'sila'),
+          vyzhivanie: value('napor', 'vyzhivanie')
+        },
+        snorovka: {
+          koordinatsiya: value('napor', 'atletika'),
+          vozhdenie: 0,
+          uklonenie: value('snorovka', 'uklonenie'),
+          skrytnost: value('snorovka', 'skrytnost'),
+          lovkostRuk: value('snorovka', 'lovkostRuk'),
+          obman: value('snorovka', 'obman')
+        },
+        nyuh: {
+          vnimatelnost: value('nyuh', 'vnimatelnost'),
+          strelba: value('nyuh', 'strelba'),
+          priroda: value('nyuh', 'priroda'),
+          znanieUlits: value('nyuh', 'znanieUlits'),
+          psihologiya: value('nyuh', 'psihologiya'),
+          vospriyatie: 0
+        },
+        smetka: {
+          mehanizmy: value('smetka', 'mehanizmy'),
+          himiya: value('smetka', 'himiya'),
+          medicina: value('smetka', 'medicina'),
+          zakon: value('smetka', 'zakon'),
+          erudiciya: value('smetka', 'erudiciya'),
+          ekonomika: 0
+        },
+        gospodstvo: {
+          ugrozy: value('gospodstvo', 'ugrozy'),
+          ubezhdenie: value('gospodstvo', 'ubezhdenie'),
+          komandovanie: value('gospodstvo', 'komandovanie'),
+          disciplina: value('gospodstvo', 'disciplina'),
+          scena: value('gospodstvo', 'scena'),
+          etiket: 0
+        }
+      };
+      result.skillRulesVersion = 6;
     }
     return result;
   }

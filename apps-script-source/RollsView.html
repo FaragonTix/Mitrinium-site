@@ -64,13 +64,16 @@
           <span>Сложность проверки</span>
 
           <select id="rollDifficulty">
-            <option value="4">4 — Элементарная</option>
-            <option value="5">5 — Простая</option>
-            <option value="6" selected>6 — Квалифицированная</option>
-            <option value="7">7 — Профессиональная</option>
-            <option value="8">8 — Сложная профессиональная</option>
-            <option value="9">9 — Экспертная</option>
-            <option value="10">10 — Исключительная</option>
+            <option value="5">5 — Элементарная</option>
+            <option value="6">6 — Простая</option>
+            <option value="7" selected>7 — Обычная / стандартная</option>
+            <option value="8">8 — Квалифицированная</option>
+            <option value="9">9 — Профессиональная</option>
+            <option value="10">10 — Сложная профессиональная</option>
+            <option value="11">11 — Экспертная</option>
+            <option value="12">12 — Исключительная</option>
+            <option value="13">13 — Предельная</option>
+            <option value="14">14 — Почти невозможная</option>
           </select>
         </label>
 
@@ -98,11 +101,11 @@
                   value="normal"
                   selected
                 >
-                  Обычная сцена — 2d4 + d6
+                  Обычная сцена — d4 + d6 + d8
                 </option>
 
                 <option value="advantage">
-                  Преимущество — 3d6
+                  Преимущество — 3d8
                 </option>
 
               </select>
@@ -129,9 +132,9 @@
         </div>
 
         <p class="helper-note roll-scene-rule-note">
-          Событие определяют только три Куба сцены. Дубль задаёт триггер:
-          третий куб на 1 ниже даёт Осложнение, на 1 выше — потенциальный
-          Прорыв. Прорыв срабатывает только при успешной проверке.
+          Событие определяют только три Куба сцены: три нечётных значения
+          дают Осложнение, три чётных — потенциальный Прорыв. Прорыв
+          срабатывает только при успешной проверке.
         </p>
 
         <!-- =========================
@@ -168,7 +171,7 @@
                 onclick="selectRollScene('normal')"
               >
                 <strong>Обычная</strong>
-                <span>2d4 + d6</span>
+                <span>d4 + d6 + d8</span>
               </button>
 
               <button
@@ -178,7 +181,7 @@
                 onclick="selectRollScene('advantage')"
               >
                 <strong>Преимущество</strong>
-                <span>3d6</span>
+                <span>3d8</span>
               </button>
 
             </div>
@@ -266,113 +269,15 @@
               </select>
             </label>
 
-            <!-- Методика в режиме списков -->
-
-            <label class="field roll-select-only">
-              <span>Куб Методики</span>
-
-              <select
-                id="rollControlMethod"
-                disabled
-                onchange="syncRollBuilderControls()"
-              >
-                <option value="fixed1">
-                  I — фиксированный +1
-                </option>
-
-                <option value="d4">
-                  II — d4
-                </option>
-
-                <option value="d6">
-                  III — d6
-                </option>
-
-                <option value="d8">
-                  IV — d8
-                </option>
-
-                <option value="d10">
-                  V — d10
-                </option>
-              </select>
-            </label>
-
-            <!-- Методика в режиме конструктора -->
-
-            <div class="field roll-builder-only hidden">
-              <span>Куб Методики</span>
-
-              <div
-                id="rollControlMethodButtons"
-                class="roll-choice-button-grid"
-                role="group"
-                aria-label="Куб Методики"
-              >
-                <button
-                  type="button"
-                  data-control-method="fixed1"
-                  disabled
-                  aria-pressed="true"
-                  onclick="selectRollControlMethod('fixed1')"
-                >
-                  <strong>I</strong>
-                  <span>+1</span>
-                </button>
-
-                <button
-                  type="button"
-                  data-control-method="d4"
-                  disabled
-                  aria-pressed="false"
-                  onclick="selectRollControlMethod('d4')"
-                >
-                  <strong>II</strong>
-                  <span>d4</span>
-                </button>
-
-                <button
-                  type="button"
-                  data-control-method="d6"
-                  disabled
-                  aria-pressed="false"
-                  onclick="selectRollControlMethod('d6')"
-                >
-                  <strong>III</strong>
-                  <span>d6</span>
-                </button>
-
-                <button
-                  type="button"
-                  data-control-method="d8"
-                  disabled
-                  aria-pressed="false"
-                  onclick="selectRollControlMethod('d8')"
-                >
-                  <strong>IV</strong>
-                  <span>d8</span>
-                </button>
-
-                <button
-                  type="button"
-                  data-control-method="d10"
-                  disabled
-                  aria-pressed="false"
-                  onclick="selectRollControlMethod('d10')"
-                >
-                  <strong>V</strong>
-                  <span>d10</span>
-                </button>
-              </div>
-            </div>
+            <input id="rollControlMethod" type="hidden" value="fixed">
 
             <label class="field">
-              <span>Плоский бонус</span>
+              <span>Бонус Методики</span>
 
               <input
                 id="rollControlFlatBonus"
                 type="number"
-                min="-20"
+                min="0"
                 max="20"
                 value="0"
                 readonly
@@ -387,14 +292,14 @@
                 type="number"
                 min="1"
                 max="50"
-                value="18"
+                value="16"
               >
             </label>
           </div>
 
           <p class="helper-note">
-            Уровень Методики и классовый бонус берутся из листа персонажа.
-            Изменить их можно только во вкладке «Редактор».
+            Фиксированный бонус Методики берётся из листа персонажа.
+            Стандартная сложность Контроля — 16.
           </p>
         </div>
 

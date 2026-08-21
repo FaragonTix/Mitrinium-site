@@ -16,13 +16,18 @@ import {
 } from "./calculator.js";
 import {
   adminDeleteCharacter,
+  adminCreateCharacterFolder,
+  adminDeleteCharacterFolder,
   adminListCharacters,
+  adminRenameCharacterFolder,
   adminSaveCharacter,
+  adminSetCharacterFolder,
   adminSetCharacterVisibility,
   deleteOwnCharacter,
   hideCharacter,
   listVisibleCharacters,
   loadCharacter,
+  restoreHiddenCharacter,
   restoreHiddenCharacters,
   saveCharacter,
   saveCharacterState,
@@ -78,6 +83,8 @@ async function dispatch(method, args, env, user) {
     mitriniumDeleteOwnCharacter: () => deleteOwnCharacter(env.DB, user, args[0]),
     mitriniumRestoreHiddenCharacters: () =>
       restoreHiddenCharacters(env.DB, user),
+    mitriniumRestoreHiddenCharacter: () =>
+      restoreHiddenCharacter(env.DB, user, args[0]),
     mitriniumRollEfficiency: () =>
       rollEfficiency(env.DB, user, args[0]),
     mitriniumApplyBiographyBonus: () =>
@@ -92,6 +99,14 @@ async function dispatch(method, args, env, user) {
     adminSaveCharacter: () => adminSaveCharacter(env.DB, user, args[0]),
     adminSetCharacterVisibility: () =>
       adminSetCharacterVisibility(env.DB, user, args[0], args[1]),
+    adminCreateCharacterFolder: () =>
+      adminCreateCharacterFolder(env.DB, user, args[0]),
+    adminRenameCharacterFolder: () =>
+      adminRenameCharacterFolder(env.DB, user, args[0], args[1]),
+    adminDeleteCharacterFolder: () =>
+      adminDeleteCharacterFolder(env.DB, user, args[0]),
+    adminSetCharacterFolder: () =>
+      adminSetCharacterFolder(env.DB, user, args[0], args[1]),
     adminDeleteCharacter: () =>
       adminDeleteCharacter(env.DB, user, args[0]),
     adminGetCharacterDeletionPolicy: () => adminGetCharacterDeletionPolicy(env.DB, user),

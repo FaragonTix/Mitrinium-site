@@ -92,6 +92,45 @@ test("новое состояние просмотра начинается с �
   assert.equal(saved.money.farthings, 0);
 });
 
+test("просмотр начинает с имени, состояния, атрибутов, навыков и Контроля", async () => {
+  const viewer = await readFile(
+    new URL("../apps-script-source/ViewerScripts.html", import.meta.url),
+    "utf8",
+  );
+  const hero = viewer.indexOf('<section class="viewer-hero">');
+  const state = viewer.indexOf("<h3>Состояние</h3>", hero);
+  const attributes = viewer.indexOf("<h3>Атрибуты</h3>", state);
+  const skills = viewer.indexOf("<h3>Навыки</h3>", attributes);
+  const control = viewer.indexOf("<h3>Контроль</h3>", skills);
+  const concept = viewer.indexOf("<h3>Концепт</h3>", control);
+  const biography = viewer.indexOf("<h3>Биографические черты</h3>", control);
+  assert.ok(hero >= 0 && state > hero && attributes > state);
+  assert.ok(skills > attributes && control > skills);
+  assert.ok(concept > control && biography > control);
+});
+
+test("личная видимость и админские папки разделены в интерфейсе", async () => {
+  const [storage, admin, adminView, migration] = await Promise.all([
+    readFile(new URL("../apps-script-source/ScriptsStorage.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/client/admin/admin.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/client/admin/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../migrations/0007_character_visibility_folders.sql", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotThrow(() => new Function(admin));
+  assert.match(storage, /hiddenSavedCharactersCache/);
+  assert.match(storage, /mitriniumRestoreHiddenCharacter/);
+  assert.match(storage, /Скрыто в моём списке/);
+  assert.doesNotMatch(storage, /if \(\s*!savedCharactersListIsAdmin\s*\) \{\s*return;\s*\}/);
+  assert.match(adminView, /Папки персонажей/);
+  assert.match(adminView, /Скрыть персонажа от игрока/);
+  assert.match(admin, /adminSetCharacterFolder/);
+  assert.match(admin, /adminCreateCharacterFolder/);
+  assert.match(admin, /Скрыть от игрока/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS character_list_preferences/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS character_folders/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS character_folder_assignments/);
+});
+
 test("PDF содержит биографические черты, заголовки Атрибутов и полное название", async () => {
   const pdfSource = await readClassicScript("../apps-script-source/CharacterPdfScripts.html");
   assert.match(pdfSource, /pdfBiographyContent/);
@@ -115,7 +154,12 @@ test("у каждой способности есть пререквизит, а
     "utf8",
   );
 
-  assert.equal(abilities.length, 88);
+  assert.equal(abilities.length, 90);
+  for (const className of ["Психопат", "Кустарь", "Воротила", "Рекрут", "Менталист", "Натуралист"]) {
+    for (const category of ["ultimate", "favorite", "common"]) {
+      assert.equal(abilities.filter((ability) => ability.className === className && ability.category === category).length, 5);
+    }
+  }
   assert.ok(abilities.every((ability) => ability.prerequisite));
   assert.doesNotMatch(abilityRenderer, /ability\.tags/);
 
@@ -134,11 +178,11 @@ test("у каждой способности есть пререквизит, а
     byName["Двухзарядный мушкет"].effect,
     "Реакция после атаки крупнокалиберным оружием. Рекрут может сделать второй выстрел следом в этот же ход. Второй выстрел получает Помеху и наносит d6 урона.",
   );
-  assert.equal(byName["Жучок"].prerequisite, "предмет с тегом КК");
+  assert.equal(byName["Жучок"].prerequisite, "предмет с тегом КК.");
   assert.equal(byName["Резкая ингаляция"].pool, "Нюх + Стрельба");
-  assert.equal(byName["Кислотный плевок"].pool, "Нюх + Стрельба");
-  assert.equal(byName["Кислотные ампулы"].pool, "Сметка + Химия");
-  assert.equal(byName["Токсичный распылитель"].pool, "Сметка + Стрельба");
+  assert.equal(byName["Кислотный плевок"].pool, "Напор + Метание");
+  assert.equal(byName["Кислотные ампулы"].pool, "Смекалка + Химия");
+  assert.equal(byName["Токсичный распылитель"].pool, "Смекалка + Стрельба");
 });
 
 test("снаряжение использует актуальный каталог, расходники и рекомендации", async () => {
@@ -213,7 +257,7 @@ test("каталоги снаряжения имеют независимые б
   assert.match(styles, /\.equipment-quick-filters button \{[\s\S]*?background: #dce5e8/);
   assert.match(styles, /\.equipment-filter-reset \{[\s\S]*?background: #eadbd6/);
   assert.match(styles, /\.skill-name-text \{[\s\S]*?hyphens: auto/);
-  assert.match(styles, /\.skill-column \{[\s\S]*?grid-template-rows: auto repeat\(5, 62px\)/);
+  assert.match(styles, /\.skill-column \{[\s\S]*?grid-template-rows: auto repeat\(6, 62px\)/);
   assert.match(styles, /\.skill-item \{[\s\S]*?height: 62px/);
   assert.match(styles, /\.skill-recommendation-legend\[hidden\] \{ display: none; \}/);
   for (const filter of ['armor', 'melee', 'ranged', 'kit', 'consumable', 'other']) {
@@ -324,13 +368,13 @@ test("интерфейс бросков использует новые дейс
 
   assert.match(view, /Бросить Контроль при Осложнении/);
   assert.match(view, /Помеха — 3d4/);
-  assert.match(view, /Обычная сцена — 2d4 \+ d6/);
-  assert.match(view, /Преимущество — 3d6/);
+  assert.match(view, /Обычная сцена — d4 \+ d6 \+ d8/);
+  assert.match(view, /Преимущество — 3d8/);
   assert.match(view, /id="rollDifficulty"/);
-  assert.match(view, /id="rollControlMethod"\s+disabled/);
+  assert.match(view, /id="rollControlMethod"\s+type="hidden"\s+value="fixed"/);
   assert.match(view, /id="rollControlFlatBonus"[\s\S]*?readonly/);
-  assert.equal((view.match(/data-control-method="[^"]+"\s+disabled/g) || []).length, 5);
-  assert.match(view, /Изменить их можно только во вкладке «Редактор»/);
+  assert.equal((view.match(/data-control-method="[^"]+"\s+disabled/g) || []).length, 0);
+  assert.match(view, /Стандартная сложность Контроля — 16/);
   assert.match(scripts, /mitriniumApplyBiographyBonus/);
   assert.match(scripts, /mitriniumRerollEfficiencyDie/);
   assert.match(scripts, /roll-event-badge complication/);
@@ -374,7 +418,7 @@ test("выбор куба для переброса остаётся компа�
   assert.doesNotMatch(styles, /translateY\(-3px\) scale\(1\.06\)/);
 });
 
-test("редактор использует Атрибуты, Навыки и ограничения версии 0.4.9", async () => {
+test("редактор использует Атрибуты, Навыки и ограничения версии 0.5.1", async () => {
   const core = await readFile(
     new URL("../apps-script-source/ScriptsCore.html", import.meta.url),
     "utf8",
@@ -384,18 +428,18 @@ test("редактор использует Атрибуты, Навыки и о
     "utf8",
   );
 
-  assert.match(core, /const totalExtraSkillPoints = 18/);
-  assert.match(core, /const maxStartingSkillGroupTotal = 5/);
+  assert.match(core, /const totalExtraSkillPoints = 21/);
+  assert.match(core, /const maxStartingSkillGroupTotal = 6/);
   assert.match(core, /skill\.value = 0/);
-  assert.match(core, /if \(!advancedEditMode\) \{\s*renderControlEditor\(\);\s*return;/);
-  assert.match(core, /\$\{advancedEditMode \? '' : 'disabled'\}/);
-  assert.match(editor, /Уровни Методик и классовые бонусы можно изменять[\s\S]*только в режиме развития персонажа/);
+  assert.match(core, /const startingControlPoints = 3/);
+  assert.match(core, /changeCharacterControlBonus/);
+  assert.match(editor, /Контроль = d20 \+ фиксированный бонус Методики/);
   assert.match(editor, /Все Навыки начинаются с 0/);
   const characterScripts = await readFile(
     new URL("../apps-script-source/ScriptsCharacter.html", import.meta.url),
     "utf8",
   );
-  assert.match(characterScripts, /skillRulesVersion: 5/);
+  assert.match(characterScripts, /skillRulesVersion: 6/);
   assert.match(characterScripts, /attributeRulesVersion: 2/);
   assert.match(characterScripts, /attributes\.napor[\s\S]*attributes\.snorovka/);
   assert.match(characterScripts, /attributes\.gospodstvo[\s\S]*attributes\.nyuh/);
@@ -406,4 +450,38 @@ test("редактор использует Атрибуты, Навыки и о
   );
   assert.match(storageScripts, /clampLoadedStat\([\s\S]*loadedSkills/);
   assert.match(storageScripts, /group\[skillKey\][\s\S]*0/);
+});
+
+test("способности открываются без прокрутки, а бюджет снаряжения остаётся видимым", async () => {
+  const [editor, abilityScripts, equipmentScripts, styles] = await Promise.all([
+    readFile(new URL("../apps-script-source/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/ScriptsAbilities.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/ScriptsEquipment.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/Styles.html", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(editor, /id="abilityDetailsDialog"/);
+  assert.match(abilityScripts, /openAbilityDetailsDialog\(\)/);
+  assert.match(abilityScripts, /Выбрать способность/);
+  assert.match(editor, /id="equipmentAvailableSticky"/);
+  assert.match(equipmentScripts, /stickyAvailableElement\.textContent/);
+  assert.match(styles, /\.equipment-budget-sticky\s*\{[\s\S]*?position:\s*sticky/);
+});
+
+test("просмотр показывает состояние, атрибуты, навыки и затем Контроль", async () => {
+  const viewer = await readFile(
+    new URL("../apps-script-source/ViewerScripts.html", import.meta.url),
+    "utf8",
+  );
+
+  const stateIndex = viewer.indexOf('<h3>Состояние</h3>');
+  const attributesIndex = viewer.indexOf('<h3>Атрибуты</h3>');
+  const skillsIndex = viewer.indexOf('<h3>Навыки</h3>');
+  const controlIndex = viewer.indexOf('<h3>Контроль</h3>');
+
+  assert.ok(stateIndex >= 0 && stateIndex < attributesIndex);
+  assert.ok(attributesIndex < skillsIndex);
+  assert.ok(skillsIndex < controlIndex);
+  assert.match(viewer, /renderViewerSkills\(character\.skills \|\| \{}, character\.attributes \|\| \{}\)/);
+  assert.match(viewer, /class="viewer-skill-attribute-value"/);
 });

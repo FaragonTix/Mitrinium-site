@@ -119,7 +119,7 @@ h2 { font-size: 30px; }
 .button.danger { border-color: #743b36; color: #ffb0a7; background: #2a1715; }
 
 .toolbar {
-  display: grid; grid-template-columns: minmax(260px, 1fr) 210px auto auto auto;
+  display: grid; grid-template-columns: minmax(230px, 1fr) 190px 190px auto auto auto;
   gap: 14px; align-items: end; margin: 34px 0 22px;
   padding: 18px; border: 1px solid var(--line); border-radius: 12px;
   background: rgb(23 25 22 / 78%);
@@ -148,6 +148,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--gold-dark); }
 .character-name { margin: 0 0 4px; font: 500 22px Georgia, serif; }
 .meta { color: var(--muted); font-size: 13px; }
 .owner { overflow-wrap: anywhere; }
+.card-folder-select { display: block; margin-top: 9px; }
+.card-folder-select select { padding: 7px 9px; font-size: 12px; }
+.folder-badge { border-color: #65552d; color: #e8c979; }
 .badge {
   display: inline-block; margin-left: 8px; padding: 2px 7px;
   border: 1px solid var(--line); border-radius: 999px;
@@ -158,6 +161,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--gold-dark); }
   padding: 50px; border: 1px dashed var(--line); border-radius: 12px;
   color: var(--muted); text-align: center;
 }
+.empty.compact { padding: 18px; }
+.folder-list { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+.folder-item { align-items: center; }
+.folder-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 8px; }
 .notice {
   margin-bottom: 16px; padding: 12px 15px; border: 1px solid #796023;
   border-radius: 8px; color: #ffe0a0; background: #2b2312;

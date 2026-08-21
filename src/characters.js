@@ -25,23 +25,23 @@ export function normalizeCharacterLevel(value) {
 const CONTROL_METHOD_NAMES = ["Порох", "Пар", "Кристаллы", "Реагенты"];
 
 const CLASS_CONTROL_BONUSES = {
-  Психопат: { Реагенты: 3, Порох: 2 },
-  Кустарь: { Пар: 3, Кристаллы: 2 },
-  Воротила: { Порох: 2, Реагенты: 1, Кристаллы: 2 },
-  Рекрут: { Порох: 3, Пар: 2 },
-  Менталист: { Кристаллы: 3, Реагенты: 1, Порох: 1 },
-  Натуралист: { Реагенты: 2, Кристаллы: 2, Порох: 1 },
+  Психопат: { Реагенты: 1, Порох: 1, Пар: 1 },
+  Кустарь: { Пар: 1, Кристаллы: 1, Реагенты: 1 },
+  Воротила: { Порох: 1, Реагенты: 1, Кристаллы: 1 },
+  Рекрут: { Порох: 1, Пар: 1, Реагенты: 1 },
+  Менталист: { Кристаллы: 1, Реагенты: 1, Порох: 1 },
+  Натуралист: { Реагенты: 1, Кристаллы: 1, Порох: 1 },
 };
 
-const SKILL_RULES_VERSION = 5;
+const SKILL_RULES_VERSION = 6;
 const ATTRIBUTE_RULES_VERSION = 2;
 
 const SKILL_SCHEMA = {
-  napor: ["fehtovanie", "atletika", "stoikost", "sila", "vyzhivanie"],
-  snorovka: ["draka", "uklonenie", "skrytnost", "lovkostRuk", "obman"],
-  nyuh: ["vnimatelnost", "strelba", "priroda", "znanieUlits", "psihologiya"],
-  smetka: ["mehanizmy", "himiya", "medicina", "zakon", "erudiciya"],
-  gospodstvo: ["ugrozy", "ubezhdenie", "komandovanie", "disciplina", "scena"],
+  napor: ["fehtovanie", "draka", "metanie", "stoikost", "sila", "vyzhivanie"],
+  snorovka: ["koordinatsiya", "vozhdenie", "uklonenie", "skrytnost", "lovkostRuk", "obman"],
+  nyuh: ["vnimatelnost", "strelba", "priroda", "znanieUlits", "psihologiya", "vospriyatie"],
+  smetka: ["mehanizmy", "himiya", "medicina", "zakon", "erudiciya", "ekonomika"],
+  gospodstvo: ["ugrozy", "ubezhdenie", "komandovanie", "disciplina", "scena", "etiket"],
 };
 
 const LEGACY_SKILL_PATHS = {
@@ -96,6 +96,34 @@ const VERSION_4_SKILL_PATHS = {
   "gospodstvo:obman": "snorovka:obman",
   "gospodstvo:komandovanie": "gospodstvo:komandovanie",
   "gospodstvo:ubezhdenie": "gospodstvo:ubezhdenie",
+  "gospodstvo:scena": "gospodstvo:scena",
+};
+
+const VERSION_5_SKILL_PATHS = {
+  "napor:fehtovanie": "napor:fehtovanie",
+  "napor:atletika": "snorovka:koordinatsiya",
+  "napor:stoikost": "napor:stoikost",
+  "napor:sila": "napor:sila",
+  "napor:vyzhivanie": "napor:vyzhivanie",
+  "snorovka:draka": "napor:draka",
+  "snorovka:uklonenie": "snorovka:uklonenie",
+  "snorovka:skrytnost": "snorovka:skrytnost",
+  "snorovka:lovkostRuk": "snorovka:lovkostRuk",
+  "snorovka:obman": "snorovka:obman",
+  "nyuh:vnimatelnost": "nyuh:vnimatelnost",
+  "nyuh:strelba": "nyuh:strelba",
+  "nyuh:priroda": "nyuh:priroda",
+  "nyuh:znanieUlits": "nyuh:znanieUlits",
+  "nyuh:psihologiya": "nyuh:psihologiya",
+  "smetka:mehanizmy": "smetka:mehanizmy",
+  "smetka:himiya": "smetka:himiya",
+  "smetka:medicina": "smetka:medicina",
+  "smetka:zakon": "smetka:zakon",
+  "smetka:erudiciya": "smetka:erudiciya",
+  "gospodstvo:ugrozy": "gospodstvo:ugrozy",
+  "gospodstvo:ubezhdenie": "gospodstvo:ubezhdenie",
+  "gospodstvo:komandovanie": "gospodstvo:komandovanie",
+  "gospodstvo:disciplina": "gospodstvo:disciplina",
   "gospodstvo:scena": "gospodstvo:scena",
 };
 
@@ -164,7 +192,8 @@ export function normalizeCharacterSkills(character = {}) {
   const migrated = {};
   for (const [path, value] of Object.entries(normalizedSource)) {
     const version4Path = savedVersion < 4 ? (LEGACY_SKILL_PATHS[path] || path) : path;
-    const currentPath = savedVersion < 5 ? (VERSION_4_SKILL_PATHS[version4Path] || version4Path) : version4Path;
+    const version5Path = savedVersion < 5 ? (VERSION_4_SKILL_PATHS[version4Path] || version4Path) : version4Path;
+    const currentPath = savedVersion < 6 ? (VERSION_5_SKILL_PATHS[version5Path] || version5Path) : version5Path;
     migrated[currentPath] = value;
   }
   const skills = {};
@@ -194,11 +223,13 @@ export function normalizeCharacterControl(value, className = "") {
     const saved =
       source[name] && typeof source[name] === "object" ? source[name] : {};
     methods[name] = {
-      level: clamp(Math.round(numberOr(saved.level, 1)), 1, 5),
-      bonus: clamp(
-        Math.round(numberOr(saved.bonus, classBonuses[name] || 0)),
-        -20,
-        20,
+      bonus: Math.max(
+        classBonuses[name] || 0,
+        clamp(
+          Math.round(numberOr(saved.bonus, classBonuses[name] || 0)),
+          0,
+          20,
+        ),
       ),
     };
   }
@@ -288,6 +319,12 @@ function assertOwner(record, user, message) {
   }
 }
 
+function assertPlayerCanAccess(record, user) {
+  if (record?.hidden && !user.isAdmin) {
+    throw new Error("Персонаж скрыт администратором.");
+  }
+}
+
 function assertAdmin(user) {
   if (!user.isAdmin) {
     throw new Error("Действие доступно только администратору.");
@@ -302,6 +339,15 @@ function normalizeEmail(value) {
   return email;
 }
 
+export function normalizeCharacterFolderName(value) {
+  const name = String(value || "").trim().replace(/\s+/g, " ");
+  if (!name) throw new Error("Укажите название папки.");
+  if (name.length > 80) {
+    throw new Error("Название папки не должно превышать 80 символов.");
+  }
+  return name;
+}
+
 export async function saveCharacter(db, user, input) {
   input = normalizeCharacterSkills(normalizeCharacterAttributes(input || {}));
   const level = normalizeCharacterLevel(input?.level);
@@ -313,6 +359,7 @@ export async function saveCharacter(db, user, input) {
   const existing = await getRecord(db, id);
   if (existing) {
     assertOwner(existing, user, "Нельзя редактировать чужого персонажа.");
+    assertPlayerCanAccess(existing, user);
   }
 
   const timestamp = now();
@@ -371,49 +418,56 @@ export async function saveCharacter(db, user, input) {
 export async function listVisibleCharacters(db, user) {
   const deletionPolicy = await getCharacterDeletionPolicy(db);
   const query = user.isAdmin
-    ? `SELECT id, created_at, updated_at, name, player, class_name, level, owner_email, data_json
-       FROM characters WHERE hidden = 0 ORDER BY updated_at DESC`
-    : `SELECT id, created_at, updated_at, name, player, class_name, level, owner_email, data_json
-       FROM characters
-       WHERE hidden = 0 AND owner_email = ?1
-       ORDER BY updated_at DESC`;
+    ? `SELECT c.id, c.created_at, c.updated_at, c.name, c.player,
+              c.class_name, c.level, c.owner_email, c.data_json,
+              CASE WHEN p.character_id IS NULL THEN 0 ELSE 1 END AS personally_hidden
+       FROM characters c
+       LEFT JOIN character_list_preferences p
+         ON p.character_id = c.id AND p.user_email = ?1
+       ORDER BY c.updated_at DESC`
+    : `SELECT c.id, c.created_at, c.updated_at, c.name, c.player,
+              c.class_name, c.level, c.owner_email, c.data_json,
+              CASE WHEN p.character_id IS NULL THEN 0 ELSE 1 END AS personally_hidden
+       FROM characters c
+       LEFT JOIN character_list_preferences p
+         ON p.character_id = c.id AND p.user_email = ?1
+       WHERE c.hidden = 0 AND c.owner_email = ?1
+       ORDER BY c.updated_at DESC`;
 
-  const statement = db.prepare(query);
-  const { results = [] } = user.isAdmin
-    ? await statement.all()
-    : await statement.bind(user.email).all();
+  const { results = [] } = await db.prepare(query).bind(user.email).all();
 
-  const hiddenRow = user.isAdmin
-    ? await db
-        .prepare("SELECT COUNT(*) AS count FROM characters WHERE hidden = 1")
-        .first()
-    : { count: 0 };
+  const summaries = results.map((row) => {
+    let data = {};
+    try { data = JSON.parse(row.data_json || "{}"); } catch { data = {}; }
+    return {
+      id: row.id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      name: row.name,
+      player: row.player,
+      className: row.class_name,
+      level: normalizeCharacterLevel(row.level),
+      ownerEmail: row.owner_email,
+      isComplete: data.isComplete !== false,
+      personallyHidden: Boolean(row.personally_hidden),
+    };
+  });
+  const visibleCharacters = summaries.filter((item) => !item.personallyHidden);
+  const hiddenCharacters = summaries.filter((item) => item.personallyHidden);
 
   return {
-    characters: results.map((row) => {
-      let data = {};
-      try { data = JSON.parse(row.data_json || "{}"); } catch { data = {}; }
-      return {
-        id: row.id,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        name: row.name,
-        player: row.player,
-        className: row.class_name,
-        level: normalizeCharacterLevel(row.level),
-        ownerEmail: row.owner_email,
-        isComplete: data.isComplete !== false,
-      };
-    }),
+    characters: visibleCharacters,
+    hiddenCharacters,
     isAdmin: user.isAdmin,
     deletionPolicy,
-    hiddenCount: Number(hiddenRow?.count || 0),
+    hiddenCount: hiddenCharacters.length,
   };
 }
 
 export async function deleteOwnCharacter(db, user, id) {
   const record = await getRecord(db, id);
   assertOwner(record, user, "Нельзя удалить чужого персонажа.");
+  assertPlayerCanAccess(record, user);
   const policy = await getCharacterDeletionPolicy(db);
   if (policy === "forbidden" && !user.isAdmin) {
     throw new Error("Администратор запретил пользователям удалять персонажей.");
@@ -432,6 +486,7 @@ export async function deleteOwnCharacter(db, user, id) {
 export async function loadCharacter(db, user, id) {
   const record = await getRecord(db, id);
   assertOwner(record, user, "Нельзя открыть чужого персонажа.");
+  assertPlayerCanAccess(record, user);
 
   let character;
   try {
@@ -477,6 +532,7 @@ export async function loadCharacter(db, user, id) {
 export async function saveCharacterState(db, user, id, state) {
   const record = await getRecord(db, id);
   assertOwner(record, user, "Нельзя менять состояние чужого персонажа.");
+  assertPlayerCanAccess(record, user);
 
   const character = JSON.parse(record.data_json);
   const sanitized = sanitizeState(state, character.resources || {});
@@ -500,29 +556,53 @@ export async function saveCharacterState(db, user, id, state) {
 }
 
 export async function hideCharacter(db, user, id) {
-  if (!user.isAdmin) {
-    throw new Error("Скрывать персонажей может только администратор.");
-  }
+  const record = await getRecord(db, id);
+  assertOwner(record, user, "Нельзя скрыть чужого персонажа.");
+  assertPlayerCanAccess(record, user);
 
-  const result = await db
-    .prepare("UPDATE characters SET hidden = 1 WHERE id = ?1")
-    .bind(String(id))
+  await db
+    .prepare(
+      `INSERT INTO character_list_preferences (user_email, character_id, hidden_at)
+       VALUES (?1, ?2, ?3)
+       ON CONFLICT(user_email, character_id) DO UPDATE SET
+         hidden_at = excluded.hidden_at`,
+    )
+    .bind(user.email, String(id), now())
     .run();
 
-  if (!result.meta.changes) throw new Error("Персонаж не найден.");
-
   const row = await db
-    .prepare("SELECT COUNT(*) AS count FROM characters WHERE hidden = 1")
+    .prepare(
+      `SELECT COUNT(*) AS count
+       FROM character_list_preferences p
+       JOIN characters c ON c.id = p.character_id
+       WHERE p.user_email = ?1
+         AND (?2 = 1 OR (c.owner_email = ?1 AND c.hidden = 0))`,
+    )
+    .bind(user.email, user.isAdmin ? 1 : 0)
     .first();
   return { success: true, hiddenCount: Number(row?.count || 0) };
 }
 
 export async function restoreHiddenCharacters(db, user) {
-  if (!user.isAdmin) {
-    throw new Error("Возвращать персонажей может только администратор.");
-  }
-  await db.prepare("UPDATE characters SET hidden = 0 WHERE hidden = 1").run();
+  await db
+    .prepare("DELETE FROM character_list_preferences WHERE user_email = ?1")
+    .bind(user.email)
+    .run();
   return { success: true, hiddenCount: 0 };
+}
+
+export async function restoreHiddenCharacter(db, user, id) {
+  const record = await getRecord(db, id);
+  assertOwner(record, user, "Нельзя вернуть чужого персонажа.");
+  assertPlayerCanAccess(record, user);
+  await db
+    .prepare(
+      `DELETE FROM character_list_preferences
+       WHERE user_email = ?1 AND character_id = ?2`,
+    )
+    .bind(user.email, String(id))
+    .run();
+  return { success: true, id: String(id) };
 }
 
 export async function adminListCharacters(db, user) {
@@ -531,10 +611,23 @@ export async function adminListCharacters(db, user) {
     .prepare(
       `SELECT c.id, c.created_at, c.updated_at, c.name, c.player,
               c.class_name, c.level, c.owner_email, c.hidden, c.data_json,
+              fa.folder_id, f.name AS folder_name,
               s.data_json AS state_json
        FROM characters c
        LEFT JOIN character_states s ON s.character_id = c.id
+       LEFT JOIN character_folder_assignments fa ON fa.character_id = c.id
+       LEFT JOIN character_folders f ON f.id = fa.folder_id
        ORDER BY c.updated_at DESC`,
+    )
+    .all();
+  const { results: folderRows = [] } = await db
+    .prepare(
+      `SELECT f.id, f.name, f.created_at, f.updated_at, f.created_by,
+              COUNT(a.character_id) AS character_count
+       FROM character_folders f
+       LEFT JOIN character_folder_assignments a ON a.folder_id = f.id
+       GROUP BY f.id, f.name, f.created_at, f.updated_at, f.created_by
+       ORDER BY f.name COLLATE NOCASE ASC`,
     )
     .all();
 
@@ -556,12 +649,54 @@ export async function adminListCharacters(db, user) {
         level,
         ownerEmail: row.owner_email,
         hidden: Boolean(row.hidden),
+        folderId: row.folder_id || "",
+        folderName: row.folder_name || "",
         isComplete: data.isComplete,
         data,
         state: row.state_json ? JSON.parse(row.state_json) : null,
       };
     }),
+    folders: folderRows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      createdBy: row.created_by,
+      characterCount: Number(row.character_count || 0),
+    })),
   };
+}
+
+async function setCharacterFolder(db, characterId, folderId) {
+  const normalizedCharacterId = String(characterId || "");
+  const normalizedFolderId = String(folderId || "").trim();
+  if (!normalizedCharacterId) throw new Error("Персонаж не найден.");
+
+  if (!normalizedFolderId) {
+    await db
+      .prepare("DELETE FROM character_folder_assignments WHERE character_id = ?1")
+      .bind(normalizedCharacterId)
+      .run();
+    return "";
+  }
+
+  const folder = await db
+    .prepare("SELECT id FROM character_folders WHERE id = ?1")
+    .bind(normalizedFolderId)
+    .first();
+  if (!folder) throw new Error("Папка не найдена.");
+
+  await db
+    .prepare(
+      `INSERT INTO character_folder_assignments (character_id, folder_id, updated_at)
+       VALUES (?1, ?2, ?3)
+       ON CONFLICT(character_id) DO UPDATE SET
+         folder_id = excluded.folder_id,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(normalizedCharacterId, normalizedFolderId, now())
+    .run();
+  return normalizedFolderId;
 }
 
 export async function adminSaveCharacter(db, user, input = {}) {
@@ -635,7 +770,9 @@ export async function adminSaveCharacter(db, user, input = {}) {
     await saveCharacterState(db, user, id, input.state);
   }
 
-  return { success: true, id, ownerEmail };
+  await setCharacterFolder(db, id, input.folderId);
+
+  return { success: true, id, ownerEmail, folderId: String(input.folderId || "") };
 }
 
 export async function adminSetCharacterVisibility(db, user, id, hidden) {
@@ -648,6 +785,66 @@ export async function adminSetCharacterVisibility(db, user, id, hidden) {
     .run();
   if (!result.meta.changes) throw new Error("Персонаж не найден.");
   return { success: true, id: String(id), hidden: Boolean(hidden) };
+}
+
+export async function adminCreateCharacterFolder(db, user, name) {
+  assertAdmin(user);
+  const normalizedName = normalizeCharacterFolderName(name);
+  const existing = await db
+    .prepare("SELECT id FROM character_folders WHERE name = ?1 COLLATE NOCASE")
+    .bind(normalizedName)
+    .first();
+  if (existing) throw new Error("Папка с таким названием уже существует.");
+
+  const id = crypto.randomUUID();
+  const timestamp = now();
+  await db
+    .prepare(
+      `INSERT INTO character_folders (id, name, created_at, updated_at, created_by)
+       VALUES (?1, ?2, ?3, ?3, ?4)`,
+    )
+    .bind(id, normalizedName, timestamp, user.email)
+    .run();
+  return { success: true, folder: { id, name: normalizedName, characterCount: 0 } };
+}
+
+export async function adminRenameCharacterFolder(db, user, id, name) {
+  assertAdmin(user);
+  const normalizedName = normalizeCharacterFolderName(name);
+  const duplicate = await db
+    .prepare(
+      "SELECT id FROM character_folders WHERE name = ?1 COLLATE NOCASE AND id <> ?2",
+    )
+    .bind(normalizedName, String(id))
+    .first();
+  if (duplicate) throw new Error("Папка с таким названием уже существует.");
+
+  const result = await db
+    .prepare(
+      "UPDATE character_folders SET name = ?2, updated_at = ?3 WHERE id = ?1",
+    )
+    .bind(String(id), normalizedName, now())
+    .run();
+  if (!result.meta.changes) throw new Error("Папка не найдена.");
+  return { success: true, id: String(id), name: normalizedName };
+}
+
+export async function adminDeleteCharacterFolder(db, user, id) {
+  assertAdmin(user);
+  const result = await db
+    .prepare("DELETE FROM character_folders WHERE id = ?1")
+    .bind(String(id))
+    .run();
+  if (!result.meta.changes) throw new Error("Папка не найдена.");
+  return { success: true, id: String(id) };
+}
+
+export async function adminSetCharacterFolder(db, user, characterId, folderId) {
+  assertAdmin(user);
+  const character = await getRecord(db, characterId);
+  if (!character) throw new Error("Персонаж не найден.");
+  const savedFolderId = await setCharacterFolder(db, characterId, folderId);
+  return { success: true, id: String(characterId), folderId: savedFolderId };
 }
 
 export async function adminDeleteCharacter(db, user, id) {

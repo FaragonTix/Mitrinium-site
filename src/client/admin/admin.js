@@ -5,16 +5,19 @@ const elements = Object.fromEntries(
     "characterForm", "cancelButton", "dialogEyebrow", "dialogTitle",
     "characterId", "characterName", "playerName", "className",
     "characterLevel", "ownerEmail",
+    "characterFolder",
     "currentBody", "currentMainNerve", "currentBonusNerve", "currentArmor",
     "maxArmor", "gold", "farthings", "pekkels", "notes", "hidden",
     "characterJson",
     "adminForm", "adminEmail", "adminList",
     "selectVisibleButton", "exportSelectedButton", "deletionPolicy",
+    "folderForm", "folderName", "folderList", "folderFilter",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
 let characters = [];
 let admins = [];
+let folders = [];
 const selectedCharacterIds = new Set();
 
 async function rpc(method, ...args) {
@@ -50,9 +53,12 @@ function escapeHtml(value) {
 function filteredCharacters() {
   const query = elements.searchInput.value.trim().toLowerCase();
   const visibility = elements.visibilityFilter.value;
+  const folderId = elements.folderFilter.value;
   return characters.filter((item) => {
     if (visibility === "visible" && item.hidden) return false;
     if (visibility === "hidden" && !item.hidden) return false;
+    if (folderId === "none" && item.folderId) return false;
+    if (folderId !== "all" && folderId !== "none" && item.folderId !== folderId) return false;
     return !query || [
       item.name,
       item.player,
@@ -64,11 +70,29 @@ function filteredCharacters() {
   });
 }
 
+function folderOptions(selectedId = "", includeAll = false) {
+  const base = includeAll
+    ? '<option value="all">Все папки</option><option value="none">Без папки</option>'
+    : '<option value="">Без папки</option>';
+  return base + folders.map((folder) => `
+    <option value="${escapeHtml(folder.id)}" ${folder.id === selectedId ? "selected" : ""}>
+      ${escapeHtml(folder.name)}
+    </option>`).join("");
+}
+
+function syncFolderSelects() {
+  const currentFilter = elements.folderFilter.value || "all";
+  elements.folderFilter.innerHTML = folderOptions(currentFilter, true);
+  elements.folderFilter.value = ["all", "none", ...folders.map((folder) => folder.id)]
+    .includes(currentFilter) ? currentFilter : "all";
+  elements.characterFolder.innerHTML = folderOptions(elements.characterFolder.value || "");
+}
+
 function render() {
   const items = filteredCharacters();
   const hiddenCount = characters.filter((item) => item.hidden).length;
   elements.summary.textContent =
-    `${characters.length} всего · ${hiddenCount} скрыто · ${selectedCharacterIds.size} выбрано`;
+    `${characters.length} всего · ${hiddenCount} скрыто от игроков · ${selectedCharacterIds.size} выбрано`;
   elements.exportSelectedButton.disabled = selectedCharacterIds.size === 0;
 
   if (!items.length) {
@@ -84,8 +108,9 @@ function render() {
       </label>
       <div>
         <h3 class="character-name">${escapeHtml(item.name || "Без имени")}
-          ${item.hidden ? '<span class="badge">скрыт</span>' : ""}
+          ${item.hidden ? '<span class="badge">скрыт от игрока</span>' : ""}
           ${item.isComplete === false ? '<span class="badge draft">черновик</span>' : ""}
+          ${item.folderName ? `<span class="badge folder-badge">${escapeHtml(item.folderName)}</span>` : ""}
         </h3>
         <div class="meta">${escapeHtml(item.className || "Без класса")}
           · уровень ${escapeHtml(item.level || 1)}
@@ -94,15 +119,39 @@ function render() {
       <div class="owner">
         <div>${escapeHtml(item.ownerEmail)}</div>
         <div class="meta">Изменён ${new Date(item.updatedAt).toLocaleString("ru-RU")}</div>
+        <label class="card-folder-select">
+          <span>Папка</span>
+          <select data-character-folder="${item.id}">
+            ${folderOptions(item.folderId || "")}
+          </select>
+        </label>
       </div>
       <div class="card-actions">
         <button class="button ghost" data-action="edit" data-id="${item.id}">Изменить</button>
         <button class="button ghost" data-action="visibility" data-id="${item.id}">
-          ${item.hidden ? "Вернуть" : "Скрыть"}
+          ${item.hidden ? "Показывать игроку" : "Скрыть от игрока"}
         </button>
         <button class="button danger" data-action="delete" data-id="${item.id}">Удалить</button>
       </div>
     </article>`).join("");
+}
+
+function renderFolders() {
+  if (!folders.length) {
+    elements.folderList.innerHTML = '<div class="empty compact">Папок пока нет.</div>';
+    return;
+  }
+  elements.folderList.innerHTML = folders.map((folder) => `
+    <div class="admin-item folder-item">
+      <div>
+        <strong>${escapeHtml(folder.name)}</strong>
+        <div class="meta">Персонажей: ${folder.characterCount}</div>
+      </div>
+      <div class="folder-actions">
+        <button class="button ghost" type="button" data-folder-action="rename" data-folder-id="${folder.id}">Переименовать</button>
+        <button class="button danger" type="button" data-folder-action="delete" data-folder-id="${folder.id}">Удалить папку</button>
+      </div>
+    </div>`).join("");
 }
 
 function renderAdmins() {
@@ -142,6 +191,8 @@ function openDialog(character = null) {
   elements.className.value = character?.className || "Рекрут";
   elements.characterLevel.value = character?.level || data.level || 1;
   elements.ownerEmail.value = character?.ownerEmail || "";
+  elements.characterFolder.innerHTML = folderOptions(character?.folderId || "");
+  elements.characterFolder.value = character?.folderId || "";
   elements.hidden.checked = Boolean(character?.hidden);
   elements.currentBody.value = state.currentBody ?? "";
   elements.currentMainNerve.value = state.currentMainNerve ?? "";
@@ -168,13 +219,16 @@ async function loadCharacters() {
   if (!user.isAdmin) throw new Error("У аккаунта нет прав администратора.");
   elements.identity.textContent = `Администратор: ${user.email}`;
   characters = result.characters;
+  folders = result.folders || [];
   for (const id of [...selectedCharacterIds]) {
     if (!characters.some((item) => item.id === id)) selectedCharacterIds.delete(id);
   }
   admins = adminResult.admins;
   elements.deletionPolicy.value = policyResult.policy;
+  syncFolderSelects();
   render();
   renderAdmins();
+  renderFolders();
 }
 
 elements.characterForm.addEventListener("submit", async (event) => {
@@ -191,6 +245,7 @@ elements.characterForm.addEventListener("submit", async (event) => {
       className: elements.className.value,
       level: numberValue(elements.characterLevel),
       ownerEmail: elements.ownerEmail.value,
+      folderId: elements.characterFolder.value,
       hidden: elements.hidden.checked,
       data,
       state: {
@@ -239,7 +294,9 @@ elements.characterList.addEventListener("click", async (event) => {
     if (button.dataset.action === "visibility") {
       await rpc("adminSetCharacterVisibility", character.id, !character.hidden);
       await loadCharacters();
-      showNotice(character.hidden ? "Персонаж возвращён." : "Персонаж скрыт.");
+      showNotice(character.hidden
+        ? "Персонаж снова виден игроку."
+        : "Персонаж скрыт от игрока, но остаётся доступен в dashboard.");
     }
     if (button.dataset.action === "delete") {
       const confirmed = window.confirm(
@@ -250,6 +307,59 @@ elements.characterList.addEventListener("click", async (event) => {
       await rpc("adminDeleteCharacter", character.id);
       await loadCharacters();
       showNotice("Персонаж удалён.");
+    }
+  } catch (error) {
+    showNotice(error.message, true);
+  }
+});
+
+elements.characterList.addEventListener("change", async (event) => {
+  const select = event.target.closest("select[data-character-folder]");
+  if (!select) return;
+  try {
+    await rpc("adminSetCharacterFolder", select.dataset.characterFolder, select.value);
+    await loadCharacters();
+    showNotice(select.value ? "Персонаж перемещён в папку." : "Персонаж убран из папки.");
+  } catch (error) {
+    showNotice(error.message, true);
+    await loadCharacters();
+  }
+});
+
+elements.folderForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    await rpc("adminCreateCharacterFolder", elements.folderName.value);
+    elements.folderForm.reset();
+    await loadCharacters();
+    showNotice("Папка создана.");
+  } catch (error) {
+    showNotice(error.message, true);
+  }
+});
+
+elements.folderList.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-folder-action]");
+  if (!button) return;
+  const folder = folders.find((item) => item.id === button.dataset.folderId);
+  if (!folder) return;
+
+  try {
+    if (button.dataset.folderAction === "rename") {
+      const name = window.prompt("Новое название папки", folder.name);
+      if (name === null || name.trim() === folder.name) return;
+      await rpc("adminRenameCharacterFolder", folder.id, name);
+      await loadCharacters();
+      showNotice("Папка переименована.");
+    }
+    if (button.dataset.folderAction === "delete") {
+      const confirmed = window.confirm(
+        `Удалить папку «${folder.name}»? Персонажи останутся в dashboard без папки.`,
+      );
+      if (!confirmed) return;
+      await rpc("adminDeleteCharacterFolder", folder.id);
+      await loadCharacters();
+      showNotice("Папка удалена; персонажи сохранены.");
     }
   } catch (error) {
     showNotice(error.message, true);
@@ -284,6 +394,7 @@ elements.adminList.addEventListener("click", async (event) => {
 
 elements.searchInput.addEventListener("input", render);
 elements.visibilityFilter.addEventListener("change", render);
+elements.folderFilter.addEventListener("change", render);
 elements.deletionPolicy.addEventListener("change", async () => {
   try {
     const result = await rpc("adminSetCharacterDeletionPolicy", elements.deletionPolicy.value);

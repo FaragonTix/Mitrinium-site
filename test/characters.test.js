@@ -4,11 +4,82 @@ import {
   calculateCharacterResources,
   normalizeCharacterControl,
   normalizeCharacterAttributes,
+  normalizeCharacterFolderName,
   normalizeCharacterLevel,
   normalizeCharacterSkills,
+  hideCharacter,
+  listVisibleCharacters,
+  restoreHiddenCharacter,
   saveCharacter,
   sanitizeState,
 } from "../src/characters.js";
+
+test("названия админских папок нормализуются и ограничены", () => {
+  assert.equal(normalizeCharacterFolderName("  Плейтест   Керона  "), "Плейтест Керона");
+  assert.throws(() => normalizeCharacterFolderName(""), /название папки/i);
+  assert.throws(() => normalizeCharacterFolderName("а".repeat(81)), /80 символов/);
+});
+
+test("личное скрытие игрока не меняет серверную видимость персонажа", async () => {
+  const statements = [];
+  const db = {
+    prepare(sql) {
+      statements.push(sql);
+      return {
+        bind() { return this; },
+        async first() {
+          if (sql.includes("FROM characters WHERE id")) {
+            return { id: "c1", owner_email: "player@example.com", hidden: 0 };
+          }
+          return { count: 1 };
+        },
+        async run() { return { meta: { changes: 1 } }; },
+      };
+    },
+  };
+
+  await hideCharacter(db, { email: "player@example.com", isAdmin: false }, "c1");
+  await restoreHiddenCharacter(db, { email: "player@example.com", isAdmin: false }, "c1");
+
+  assert.ok(statements.some((sql) => sql.includes("INSERT INTO character_list_preferences")));
+  assert.ok(statements.some((sql) => sql.includes("DELETE FROM character_list_preferences")));
+  assert.ok(!statements.some((sql) => /UPDATE characters SET hidden/.test(sql)));
+});
+
+test("список разделяет видимых и лично скрытых персонажей", async () => {
+  let characterQuery = "";
+  const rows = [
+    {
+      id: "visible", created_at: "a", updated_at: "b", name: "Видимый",
+      player: "Игрок", class_name: "Рекрут", level: 1,
+      owner_email: "player@example.com", data_json: "{}", personally_hidden: 0,
+    },
+    {
+      id: "personal", created_at: "a", updated_at: "b", name: "Лично скрытый",
+      player: "Игрок", class_name: "Рекрут", level: 1,
+      owner_email: "player@example.com", data_json: "{}", personally_hidden: 1,
+    },
+  ];
+  const db = {
+    prepare(sql) {
+      if (sql.includes("FROM characters c")) characterQuery = sql;
+      return {
+        bind() { return this; },
+        async first() { return null; },
+        async all() { return { results: rows }; },
+      };
+    },
+  };
+
+  const result = await listVisibleCharacters(
+    db,
+    { email: "admin@example.com", isAdmin: true },
+  );
+  assert.deepEqual(result.characters.map((item) => item.id), ["visible"]);
+  assert.deepEqual(result.hiddenCharacters.map((item) => item.id), ["personal"]);
+  assert.equal(result.hiddenCount, 1);
+  assert.doesNotMatch(characterQuery, /WHERE c\.hidden = 0/);
+});
 
 test("старый персонаж без уровня получает первый уровень", () => {
   assert.equal(normalizeCharacterLevel(undefined), 1);
@@ -24,16 +95,16 @@ test("уровень персонажа принимается только в �
   assert.throws(() => normalizeCharacterLevel(1.5), /целым числом/);
 });
 
-test("Контроль получает актуальные классовые бонусы и первый уровень", () => {
+test("Контроль получает по +1 к трём основным Методикам класса", () => {
   const control = normalizeCharacterControl(undefined, "Психопат");
 
-  assert.deepEqual(control.methods.Реагенты, { level: 1, bonus: 3 });
-  assert.deepEqual(control.methods.Порох, { level: 1, bonus: 2 });
-  assert.deepEqual(control.methods.Пар, { level: 1, bonus: 0 });
-  assert.deepEqual(control.methods.Кристаллы, { level: 1, bonus: 0 });
+  assert.deepEqual(control.methods.Реагенты, { bonus: 1 });
+  assert.deepEqual(control.methods.Порох, { bonus: 1 });
+  assert.deepEqual(control.methods.Пар, { bonus: 1 });
+  assert.deepEqual(control.methods.Кристаллы, { bonus: 0 });
 });
 
-test("уровни и бонусы Методик нормализуются", () => {
+test("фиксированные бонусы Методик нормализуются", () => {
   const control = normalizeCharacterControl(
     {
       methods: {
@@ -44,9 +115,9 @@ test("уровни и бонусы Методик нормализуются", (
     "Рекрут",
   );
 
-  assert.deepEqual(control.methods.Порох, { level: 5, bonus: 7 });
-  assert.deepEqual(control.methods.Пар, { level: 5, bonus: -20 });
-  assert.deepEqual(control.methods.Кристаллы, { level: 1, bonus: 0 });
+  assert.deepEqual(control.methods.Порох, { bonus: 7 });
+  assert.deepEqual(control.methods.Пар, { bonus: 1 });
+  assert.deepEqual(control.methods.Кристаллы, { bonus: 0 });
 });
 
 test("старые Навыки однократно переводятся со шкалы 1–3 на 0–3", () => {
@@ -57,9 +128,9 @@ test("старые Навыки однократно переводятся со
   });
 
   assert.equal(migrated.skills.napor.stoikost, 0);
-  assert.equal(migrated.skills.snorovka.draka, 1);
+  assert.equal(migrated.skills.napor.draka, 1);
   assert.equal(migrated.skills.gospodstvo.ugrozy, 2);
-  assert.equal(migrated.skillRulesVersion, 5);
+  assert.equal(migrated.skillRulesVersion, 6);
   assert.deepEqual(
     normalizeCharacterSkills(migrated).skills,
     migrated.skills,
@@ -74,8 +145,8 @@ test("персонаж новой редакции без маркера рас�
   });
 
   assert.equal(normalized.skills.napor.stoikost, 0);
-  assert.equal(normalized.skills.snorovka.draka, 2);
-  assert.equal(normalized.skillRulesVersion, 5);
+  assert.equal(normalized.skills.napor.draka, 2);
+  assert.equal(normalized.skillRulesVersion, 6);
 });
 
 test("ошибочно помеченный формат v2 также восстанавливается", () => {
@@ -91,7 +162,7 @@ test("ошибочно помеченный формат v2 также восс�
     },
   });
 
-  assert.equal(normalized.skillRulesVersion, 5);
+  assert.equal(normalized.skillRulesVersion, 6);
 });
 
 test("старая компоновка Атрибутов мигрирует в редакцию 0.4.9", () => {
@@ -157,7 +228,7 @@ test("старые Навыки переносятся в новые групп�
   assert.equal(normalized.skills.napor.vyzhivanie, 1);
 });
 
-test("навыки редакции 4 переходят в новую компоновку редакции 5", () => {
+test("навыки редакции 4 переходят в новую компоновку редакции 6", () => {
   const normalized = normalizeCharacterSkills({
     skillRulesVersion: 4,
     skills: {
@@ -168,14 +239,15 @@ test("навыки редакции 4 переходят в новую комп�
       gospodstvo: { ugrozy: 1, obman: 2, komandovanie: 1, ubezhdenie: 1, scena: 1 },
     },
   });
-  assert.equal(normalized.skillRulesVersion, 5);
+  assert.equal(normalized.skillRulesVersion, 6);
   assert.equal(normalized.skills.napor.fehtovanie, 2);
-  assert.equal(normalized.skills.snorovka.draka, 2);
+  assert.equal(normalized.skills.napor.draka, 2);
   assert.equal(normalized.skills.snorovka.obman, 2);
   assert.equal(normalized.skills.nyuh.strelba, 2);
   assert.equal(normalized.skills.gospodstvo.disciplina, 2);
   assert.equal(normalized.skills.smetka.erudiciya, 2);
   assert.equal(normalized.skills.napor.sila, 0);
+  assert.equal(normalized.skills.snorovka.koordinatsiya, 1);
 });
 
 test("незаконченный персонаж сохраняется как черновик", async () => {

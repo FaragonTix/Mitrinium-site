@@ -65,6 +65,24 @@
         </label>
       </section>
 
+      <section class="admin-roles folder-panel" aria-labelledby="foldersTitle">
+        <div class="admin-roles-heading">
+          <div>
+            <p class="eyebrow">Сортировка dashboard</p>
+            <h2 id="foldersTitle">Папки персонажей</h2>
+            <p class="policy-description">Папки видны только администраторам и не меняют списки игроков.</p>
+          </div>
+          <form id="folderForm" class="admin-add-form">
+            <label>
+              <span>Название новой папки</span>
+              <input id="folderName" maxlength="80" required placeholder="Например: Кампания в Кероне">
+            </label>
+            <button class="button primary" type="submit">Создать</button>
+          </form>
+        </div>
+        <div id="folderList" class="admin-list folder-list" aria-live="polite"></div>
+      </section>
+
       <section class="toolbar" aria-label="Фильтры">
         <label class="search">
           <span>Поиск</span>
@@ -72,11 +90,18 @@
             placeholder="Имя, игрок или email">
         </label>
         <label>
-          <span>Видимость</span>
+          <span>Видимость для игрока</span>
           <select id="visibilityFilter">
             <option value="all">Все</option>
-            <option value="visible">Только активные</option>
-            <option value="hidden">Только скрытые</option>
+            <option value="visible">Видимые игрокам</option>
+            <option value="hidden">Скрытые от игроков</option>
+          </select>
+        </label>
+        <label>
+          <span>Папка</span>
+          <select id="folderFilter">
+            <option value="all">Все папки</option>
+            <option value="none">Без папки</option>
           </select>
         </label>
         <div class="summary" id="summary"></div>
@@ -120,6 +145,11 @@
           </label>
           <label><span>Google email владельца *</span>
             <input id="ownerEmail" type="email" required>
+          </label>
+          <label><span>Папка dashboard</span>
+            <select id="characterFolder">
+              <option value="">Без папки</option>
+            </select>
           </label>
         </div>
 
