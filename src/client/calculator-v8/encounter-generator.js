@@ -220,14 +220,28 @@ function structuralSignature(entries) {
 
 function prepareLibrary(library, settings, random) {
   const allowed = new Set(settings.allowedTags), forbidden = new Set(settings.forbiddenTags);
-  return library.map(makeLibraryEntry).filter((entry) => {
+  const eligible = library.map(makeLibraryEntry).filter((entry) => {
     const tags = tagsOf(entry);
     if (entry.bs < settings.bs.min || entry.bs > settings.bs.max) return false;
     if (allowed.size && ![...allowed].some((tag) => tags.has(tag))) return false;
     if ([...forbidden].some((tag) => tags.has(tag))) return false;
     return true;
-  }).map((entry) => ({ entry, order: random() })).sort((a, b) => a.order - b.order || a.entry.bs - b.entry.bs)
-    .slice(0, settings.candidateLimit).map((item) => item.entry);
+  });
+  const buckets = new Map();
+  eligible.forEach((entry) => {
+    const key = entry.archetype || entry.role || "other";
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push({ entry, order: random() });
+  });
+  const groups = [...buckets.values()].map((items) => items.sort((a, b) => a.order - b.order || a.entry.bs - b.entry.bs));
+  const selected = [];
+  for (let depth = 0; selected.length < settings.candidateLimit && groups.some((group) => group[depth]); depth += 1) {
+    for (const group of groups) {
+      if (group[depth]) selected.push(group[depth].entry);
+      if (selected.length >= settings.candidateLimit) break;
+    }
+  }
+  return selected;
 }
 
 export function generateEncounterOptions({ library, locked = [], settings: rawSettings, evaluate }) {

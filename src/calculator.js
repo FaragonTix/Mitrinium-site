@@ -77,6 +77,16 @@ function normalizeAttacks(value, typeKey) {
       maxDurability: technical
         ? clampNumber(raw.maxDurability || raw.durability, 2, 99, 2)
         : 0,
+      tacticalKind: ["primary", "secondary", "special"].includes(raw.tacticalKind)
+        ? raw.tacticalKind
+        : "",
+      purpose: cleanText(raw.purpose, 1200),
+      tags: Array.isArray(raw.tags)
+        ? raw.tags.map((tag) => cleanText(tag, 60)).filter(Boolean).slice(0, 20)
+        : [],
+      provides: Array.isArray(raw.provides)
+        ? raw.provides.map((item) => cleanText(item, 80)).filter(Boolean).slice(0, 20)
+        : [],
     };
   });
 }
@@ -114,6 +124,16 @@ export function normalizeEnemyTemplate(enemy) {
     typeKey === "humanoid"
       ? Math.max(0, ...attacks.map((attack) => attack.maxDurability || 0))
       : 0;
+  const tacticalRole = ["brute", "shooter", "skirmisher", "tank", "controller", "striker", "support", "artillery"].includes(enemy.tacticalRole)
+    ? enemy.tacticalRole
+    : "";
+  const cleanAction = (action = {}) => ({
+    name: cleanText(action.name, 200), purpose: cleanText(action.purpose, 1200),
+    effect: cleanText(action.effect, 2500), trigger: cleanText(action.trigger, 1200),
+    uses: clampNumber(action.uses, 0, 99, 0),
+    tags: Array.isArray(action.tags) ? action.tags.map((item) => cleanText(item, 60)).filter(Boolean).slice(0, 20) : [],
+    provides: Array.isArray(action.provides) ? action.provides.map((item) => cleanText(item, 80)).filter(Boolean).slice(0, 20) : [],
+  });
 
   return {
     id: cleanText(enemy.id, 100) || crypto.randomUUID(),
@@ -154,6 +174,26 @@ export function normalizeEnemyTemplate(enemy) {
           .slice(0, 30)
       : [],
     notes: cleanText(enemy.notes, 5000),
+    tacticalPregenId: cleanText(enemy.tacticalPregenId, 160),
+    tacticalRole,
+    tacticalTier: ["minion", "chief", "boss"].includes(enemy.tacticalTier) ? enemy.tacticalTier : "",
+    chassis: cleanText(enemy.chassis, 80),
+    preferredRange: cleanText(enemy.preferredRange, 120),
+    tacticalIdentity: cleanText(enemy.tacticalIdentity, 1200),
+    tacticalScaleFallback: Boolean(enemy.tacticalScaleFallback),
+    diversityTags: Array.isArray(enemy.diversityTags) ? enemy.diversityTags.map((item) => cleanText(item, 80)).filter(Boolean).slice(0, 30) : [],
+    primary: cleanAction(enemy.primary), secondary: cleanAction(enemy.secondary),
+    reaction: cleanAction(enemy.reaction), special: cleanAction(enemy.special),
+    tactics: {
+      opener: cleanText(enemy.tactics?.opener, 1600), loop: cleanText(enemy.tactics?.loop, 1600),
+      if_pressured: cleanText(enemy.tactics?.if_pressured, 1600), weakness: cleanText(enemy.tactics?.weakness, 1600),
+    },
+    semanticContract: {
+      must_provide: Array.isArray(enemy.semanticContract?.must_provide) ? enemy.semanticContract.must_provide.map((item) => cleanText(item, 80)).filter(Boolean).slice(0, 20) : [],
+      reaction_requires: Array.isArray(enemy.semanticContract?.reaction_requires) ? enemy.semanticContract.reaction_requires.map((item) => cleanText(item, 80)).filter(Boolean).slice(0, 20) : [],
+      forbid_if_missing: Array.isArray(enemy.semanticContract?.forbid_if_missing) ? enemy.semanticContract.forbid_if_missing.map((item) => cleanText(item, 80)).filter(Boolean).slice(0, 20) : [],
+      primary_attack_semantics: enemy.semanticContract?.primary_attack_semantics === "explicit" ? "explicit" : "",
+    },
     createdAt: cleanText(enemy.createdAt, 80),
     updatedAt: cleanText(enemy.updatedAt, 80),
   };

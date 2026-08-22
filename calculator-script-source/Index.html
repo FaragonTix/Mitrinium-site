@@ -316,9 +316,12 @@
 <script type="module">
   import * as MitriniumV8 from "./mitrinium-v8-core.js";
   import * as MitriniumEncounterGenerator from "./encounter-generator.js";
+  import * as MitriniumTacticalPregens from "./tactical-pregens.js";
   window.MitriniumV8 = MitriniumV8;
   window.MitriniumEncounterGenerator = MitriniumEncounterGenerator;
+  window.MitriniumTacticalPregens = MitriniumTacticalPregens;
   window.mitriniumV8Ready = MitriniumV8.loadMitriniumV8();
+  window.mitriniumTacticalBankReady = MitriniumTacticalPregens.loadTacticalPregenBank();
 </script>
 <?!= include('Dict'); ?>
 <?!= include('Script'); ?>

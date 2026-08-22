@@ -26,3 +26,26 @@ test("калькулятор отклоняет статблок без назв
     /Укажите название противника/,
   );
 });
+
+test("калькулятор сохраняет tactical pregen metadata и явную primary semantics", () => {
+  const enemy = normalizeEnemyTemplate({
+    name: "Тактический враг", typeKey: "humanoid", tacticalPregenId: "brute_club_guard",
+    tacticalRole: "brute", tacticalTier: "chief", chassis: "humanoid",
+    tacticalIdentity: "держать ближний бой", preferredRange: "ближняя",
+    attacks: [
+      { name: "Натиск", pool: 5, damage: "d8", tacticalKind: "primary", tags: ["melee"], provides: ["heavy_melee"] },
+      { name: "Толчок", pool: 5, damage: "d6", tacticalKind: "secondary", tags: ["control"] },
+    ],
+    primary: { name: "Натиск", provides: ["heavy_melee"] },
+    secondary: { name: "Толчок" }, reaction: { name: "Не отпустить", trigger: "цель уходит" },
+    special: { name: "Продавить", uses: 1 },
+    tactics: { opener: "сблизиться", loop: "primary → reaction", weakness: "дистанция" },
+    semanticContract: { must_provide: ["heavy_melee"], reaction_requires: ["melee_attack"], primary_attack_semantics: "explicit" },
+  });
+  assert.equal(enemy.tacticalPregenId, "brute_club_guard");
+  assert.equal(enemy.tacticalRole, "brute");
+  assert.equal(enemy.tacticalTier, "chief");
+  assert.equal(enemy.attacks[0].tacticalKind, "primary");
+  assert.deepEqual(enemy.attacks[0].provides, ["heavy_melee"]);
+  assert.equal(enemy.semanticContract.primary_attack_semantics, "explicit");
+});
