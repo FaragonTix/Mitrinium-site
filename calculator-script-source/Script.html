@@ -822,6 +822,16 @@ function generatorSettingsFromUi() {
   };
 }
 function changeGeneratorSeed() {document.getElementById('generatorSeed').value=numberValue('generatorSeed',1)+1;void generateEncounter();}
+function shiftPercentTarget(prefix,delta) {const min=document.getElementById(`${prefix}Min`),max=document.getElementById(`${prefix}Max`);if(min)min.value=clamp(Number(min.value)+delta,0,100);if(max)max.value=clamp(Number(max.value)+delta,0,100);}
+function tuneGenerator(command) {
+  if(['easier'].includes(command)){shiftPercentTarget('targetWin',10);shiftPercentTarget('targetKo',-10);}
+  if(['harder'].includes(command)){shiftPercentTarget('targetWin',-10);shiftPercentTarget('targetKo',10);}
+  if(['lower-ko','keep-win-lower-ko'].includes(command))shiftPercentTarget('targetKo',-10);
+  if(command==='higher-ko')shiftPercentTarget('targetKo',10);
+  if(command==='keep-ko-lower-win')shiftPercentTarget('targetWin',-10);
+  if(['fewer','more'].includes(command)) {document.getElementById('enemyCountMode').value='exact';document.getElementById('enemyCount').value=clamp(numberValue('enemyCount',state.enemies.length||3)+(command==='more'?1:-1),1,12);renderGeneratorConstraints();}
+  markGeneratorCustom();void generateEncounter();
+}
 const GENERATOR_PRESETS_KEY='mitriniumGeneratorPresetsV1';
 function savedGeneratorPresets() {try{return JSON.parse(localStorage.getItem(GENERATOR_PRESETS_KEY)||'{}');}catch{return {};}}
 function renderGeneratorPresetOptions() {const select=document.getElementById('generatorPresetSelect');if(!select)return;const current=select.value,presets=savedGeneratorPresets();select.innerHTML='<option value="">Сохранённые пресеты…</option>'+optionList(Object.keys(presets).map(name=>[name,name]),current);}
