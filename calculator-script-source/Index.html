@@ -109,6 +109,12 @@
           <h2>Прогноз столкновения v8</h2>
           <div id="budgetSummary" class="summary"></div>
           <div id="v8Prediction" class="v8-prediction"><div class="empty">Сформируйте бой, чтобы получить прогноз.</div></div>
+          <details class="manual-tuning"><summary>Подстроить текущий бой</summary><div class="buttons">
+            <button onclick="tuneGenerator('easier')">Сделать легче</button><button onclick="tuneGenerator('harder')">Сделать сложнее</button>
+            <button onclick="tuneGenerator('lower-ko')">Снизить KO</button><button onclick="tuneGenerator('higher-ko')">Повысить KO</button>
+            <button onclick="tuneGenerator('keep-win-lower-ko')">Сохранить P(win), снизить KO</button><button onclick="tuneGenerator('keep-ko-lower-win')">Сохранить KO, снизить P(win)</button>
+            <button onclick="tuneGenerator('fewer')">Уменьшить число врагов</button><button onclick="tuneGenerator('more')">Увеличить число врагов</button>
+          </div></details>
           <div id="v8CalibrationWarning" class="callout v8-warning hidden"></div>
           <div class="callout"><b>Production-модель Mitrinium v8</b><p>Весь состав рассчитывается одновременно по профилям Тела, Брони, ПЗ, пула, Expl, урона и Пробития. Старые ‰ и множители количества в прогноз не входят. Категории сложности задаются отдельной настраиваемой UI-шкалой.</p></div>
         </section>
