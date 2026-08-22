@@ -550,18 +550,39 @@
     background: linear-gradient(135deg, #e7e8e8, #c8cbd0);
   }
 
+  .skill-item.secondary-skill {
+    border-color: #a4a8ae;
+    background: linear-gradient(135deg, #f4f1e9, #e2e3e5);
+  }
+
+  .skill-item.recommended-primary.secondary-skill {
+    border-color: #b8872f;
+    background: linear-gradient(135deg, #f2d99f 0 76%, #d8dade 76% 100%);
+  }
+
+  .skill-item.useful-skill {
+    box-shadow: inset 3px 0 #668b85;
+  }
+
   .skill-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
   .skill-recommendation-toggle { margin-right: auto; }
-  .skill-recommendation-legend { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
-  .skill-recommendation-legend[hidden] { display: none; }
-  .skill-recommendation-legend i { width: 13px; height: 13px; border-radius: 3px; }
-  .skill-recommendation-legend .primary { background: #f2d99f; border: 1px solid #b8872f; }
-  .skill-recommendation-legend .secondary { background: #d6d8dc; border: 1px solid #8b929b; }
+  .skill-mark-legend { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #59606a; }
+  .skill-mark-legend[hidden] { display: none; }
+  .skill-mark-legend i,
+  .skill-marks i { width: 9px; height: 9px; border: 1px solid; border-radius: 50%; }
+  .skill-mark-legend.secondary i,
+  .skill-marks i.secondary { border-color: #7f8790; background: #cfd2d6; }
+  .skill-mark-legend.useful i,
+  .skill-marks i.useful { border-color: #4f7771; background: #86aaa4; }
+  .skill-mark-legend.recommended i,
+  .skill-marks i.recommended { border-color: #9b6d1e; background: #d5a94d; }
 
   .skill-name {
     display: flex;
     align-items: center;
     gap: 5px;
+    width: 100%;
+    height: 100%;
     min-width: 0;
     max-width: 100%;
     overflow-wrap: normal;
@@ -577,16 +598,22 @@
     hyphens: auto;
   }
 
-  .skill-recommended-mark {
+  .skill-marks {
     position: absolute;
     top: 3px;
     right: 4px;
-    color: #7a160f;
-    font-size: 12px;
-    line-height: 1;
+    display: inline-flex;
+    gap: 3px;
   }
 
-  .skill-recommended-mark.secondary { color: #4e5660; }
+  #secondarySkillPointsProgress {
+    display: block;
+    margin-top: 2px;
+    color: #8b2e27;
+    font-size: 11px;
+  }
+
+  #secondarySkillPointsProgress.complete { color: #43603e; }
 
   .skill-item .mini-counter {
     gap: 3px;
@@ -604,7 +631,8 @@
   .skill-info summary {
     display: flex;
     align-items: center;
-    gap: 4px;
+    width: 100%;
+    height: 100%;
     cursor: help;
     list-style: none;
   }
@@ -612,20 +640,13 @@
   .skill-info summary::-webkit-details-marker { display: none; }
 
   .skill-info summary::after {
-    content: '?';
-    flex: 0 0 auto;
-    display: inline-grid;
-    place-items: center;
-    width: 16px;
-    height: 16px;
-    margin-left: 2px;
-    border: 1px solid currentColor;
-    border-radius: 50%;
-    font: inherit;
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 1;
-    opacity: 0.55;
+    content: none;
+  }
+
+  .skill-info summary:hover .skill-name-text,
+  .skill-info summary:focus-visible .skill-name-text {
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
   }
 
   .skill-info p {

@@ -169,9 +169,37 @@ async function buildCalculator() {
 
   await mkdir(calculatorDir, { recursive: true });
   await writeFile(path.join(calculatorDir, "index.html"), html, "utf8");
+  const equipmentSource = await readSource("EquipmentData.html");
+  const equipmentMatch = equipmentSource.match(
+    /const equipmentData\s*=\s*(\[[\s\S]*?\]);\s*const classRecommendedEquipment/,
+  );
+  if (!equipmentMatch) {
+    throw new Error("Не удалось извлечь каталог снаряжения для калькулятора.");
+  }
+  const equipmentCatalog = JSON.parse(equipmentMatch[1]).map((item) => ({
+    id: item.id,
+    name: item.name,
+    category: item.category,
+    armor: item.armor,
+    pool: item.pool,
+    damage: item.damage,
+    exploitation: item.exploitation,
+    penetration: item.penetration,
+    tags: item.tags,
+  }));
+  await writeFile(
+    path.join(calculatorDir, "character-equipment.json"),
+    JSON.stringify(equipmentCatalog),
+    "utf8",
+  );
   await cp(
     path.join(root, "src", "client", "google-script-run.js"),
     path.join(calculatorDir, "google-script-run.js"),
+  );
+  await cp(
+    path.join(root, "src", "client", "calculator-v8"),
+    calculatorDir,
+    { recursive: true },
   );
 }
 

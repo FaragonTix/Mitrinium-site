@@ -47,7 +47,7 @@ function normalizeAttacks(value, typeKey) {
     const poolMatch = String(raw.pool ?? "").match(/(\d+)\s*d6/i);
     const pool = clampNumber(
       poolMatch ? poolMatch[1] : raw.pool,
-      1,
+      2,
       8,
       index === 0 ? 4 : 3,
     );
@@ -61,6 +61,7 @@ function normalizeAttacks(value, typeKey) {
         (index === 0 ? "Основная атака" : `Атака ${index + 1}`),
       category: cleanText(raw.category || raw.type, 160) || "Обычная",
       pool,
+      expl: clampNumber(raw.expl, 0, 12, 3),
       damage: normalizeDamage(raw.damage, index === 0 ? "d6" : "d4"),
       range:
         cleanText(raw.range, 120) ||
@@ -127,7 +128,7 @@ export function normalizeEnemyTemplate(enemy) {
     hp: clampNumber(enemy.hp, 1, 999, 10),
     nerve: clampNumber(enemy.nerve, 0, 999, 0),
     armor: clampNumber(enemy.armor, 0, 8, 0),
-    pz: clampNumber(enemy.pz, 3, 10, 4),
+    pz: clampNumber(enemy.pz, 2, 20, 4),
     physicalDefensePool: clampNumber(
       enemy.physicalDefensePool,
       1,

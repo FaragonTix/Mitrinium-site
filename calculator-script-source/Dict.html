@@ -1,13 +1,26 @@
 <script>
 'use strict';
 
-const LOCAL_KEY = 'mitriniumEncounterV9';
+const LOCAL_KEY = 'mitriniumEncounterV10';
 
 const DIFFICULTIES = {
   easy:{label:'Легко',permille:600},
   medium:{label:'Средне',permille:1000},
   hard:{label:'Сложно',permille:1300},
   deadly:{label:'Смертельно',permille:1600}
+};
+
+/* Только цели подборщика интерфейса. Production-прогноз v8 не использует старые permille. */
+const V8_SELECTION_TARGETS = {
+  easy:{win:.88,ko:.25},
+  medium:{win:.72,ko:.48},
+  hard:{win:.52,ko:.70},
+  deadly:{win:.25,ko:.90}
+};
+
+const V8_ARCHETYPE_LABELS = {
+  minion:'Миньон',standard:'Стандартный',striker:'Ударный',tank:'Танк',
+  shooter:'Стрелок',brute:'Громила',elite:'Элита',boss:'Босс'
 };
 
 /* Эталон одиночного противника на 1000‰ для трёх игроков. */

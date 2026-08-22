@@ -48,11 +48,11 @@ test("модель калькулятора использует три Куба
   assert.ok(model.eventChance(3, "breakthrough") > 0);
 });
 
-test("ПЗ рассчитывается из ЭФ, а сильный защитный пул снижает шанс попадания", async () => {
+test("ПЗ рассчитывается из Сноровки и Смекалки, а высокое ПЗ снижает шанс попадания", async () => {
   const model = await loadCalculatorModel();
 
-  assert.equal(model.protectionThreshold(0), 4);
-  assert.equal(model.protectionThreshold(4), 6);
+  assert.equal(model.protectionThreshold(0, 0), 2);
+  assert.equal(model.protectionThreshold(3, 2), 5);
   assert.ok(
     model.chanceAgainstPlayerDefense(4, 2) >
       model.chanceAgainstPlayerDefense(4, 6),

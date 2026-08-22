@@ -402,14 +402,16 @@
               <h2>Навыки</h2>
 
               <p class="helper-note">
-                Все Навыки начинаются с 0. Распределите 21 очко;
-                сумма шести Навыков одного Атрибута не может превышать 6.
+                Все Навыки начинаются с 0. Распределите 20 очков: минимум
+                4 — во Второстепенные. В четыре Основных навыка одного
+                Атрибута можно вложить не больше 5 очков.
               </p>
             </div>
 
             <div class="points-badge">
               Осталось:
-              <strong id="skillPointsLeft">21</strong>
+              <strong id="skillPointsLeft">20</strong>
+              <small id="secondarySkillPointsProgress">Второстепенные: 0 / 4</small>
             </div>
           </div>
 
@@ -418,7 +420,9 @@
               <input type="checkbox" id="showRecommendedSkills" checked onchange="renderSkills()">
               <span>Показывать рекомендованные</span>
             </label>
-            <span id="skillRecommendationLegend" class="skill-recommendation-legend"><i class="primary"></i> основные <i class="secondary"></i> спасы</span>
+            <span class="skill-mark-legend secondary"><i></i> вторичные</span>
+            <span id="skillUsefulLegend" class="skill-mark-legend useful"><i></i> полезные</span>
+            <span id="skillRecommendationLegend" class="skill-mark-legend recommended"><i></i> рекомендованные классу</span>
             <button type="button" class="secondary-button" onclick="resetAllSkills()">Сбросить навыки</button>
           </div>
 

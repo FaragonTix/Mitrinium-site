@@ -267,13 +267,13 @@ test("каталоги снаряжения имеют независимые б
   const byName = Object.fromEntries(equipmentData.map(item => [item.name, item]));
 
   assert.equal((editor.match(/>Сбросить фильтры<\/button>/g) || []).length, 2);
-  assert.match(editor, /<i class="secondary"><\/i> спасы/);
+  assert.match(editor, /рекомендованные классу/);
   assert.match(styles, /\.equipment-quick-filters button \{[\s\S]*?background: #dce5e8/);
   assert.match(styles, /\.equipment-filter-reset \{[\s\S]*?background: #eadbd6/);
   assert.match(styles, /\.skill-name-text \{[\s\S]*?hyphens: auto/);
   assert.match(styles, /\.skill-column \{[\s\S]*?grid-template-rows: auto repeat\(6, 62px\)/);
   assert.match(styles, /\.skill-item \{[\s\S]*?height: 62px/);
-  assert.match(styles, /\.skill-recommendation-legend\[hidden\] \{ display: none; \}/);
+  assert.match(styles, /\.skill-mark-legend\[hidden\] \{ display: none; \}/);
   for (const filter of ['armor', 'melee', 'thrown', 'ranged', 'kit', 'consumable', 'other']) {
     assert.equal((editor.match(new RegExp(`data-equipment-filter="${filter}"`, 'g')) || []).length, 2);
   }
@@ -288,7 +288,7 @@ test("каталоги снаряжения имеют независимые б
   assert.equal(helpers.matchesEquipmentFilter(byName['Пистоль'], 'melee'), false);
 });
 
-test("основные и вторичные рекомендованные навыки настроены для каждого класса", async () => {
+test("рекомендации классов и второстепенные навыки редакции 0.5.2 настроены отдельно", async () => {
   const [coreSource, editorSource, characterSource] = await Promise.all([
     readFile(new URL("../apps-script-source/ScriptsCore.html", import.meta.url), "utf8"),
     readFile(new URL("../apps-script-source/Index.html", import.meta.url), "utf8"),
@@ -308,11 +308,26 @@ test("основные и вторичные рекомендованные на
 
   assert.match(editorSource, /id="showRecommendedSkills"/);
   assert.match(editorSource, /id="skillRecommendationLegend"/);
+  assert.match(editorSource, /skill-mark-legend secondary/);
+  assert.match(editorSource, /skill-mark-legend useful/);
+  assert.match(editorSource, /skill-mark-legend recommended/);
+  assert.doesNotMatch(editorSource, />II<\/b>/);
+  assert.doesNotMatch(characterSource, />II<\/b>/);
+  assert.doesNotMatch(characterSource, />П<\/b>/);
+  assert.doesNotMatch(characterSource, />★<\/span>/);
+  assert.match(characterSource, /skillMarks = \[[\s\S]*?class="secondary"[\s\S]*?class="useful"[\s\S]*?class="recommended"/);
   assert.match(characterSource, /recommendationLegend\.hidden = !recommendationToggle\?\.checked/);
   assert.match(characterSource, /'Внимательность': 'Вни&shy;ма&shy;тель&shy;ность'/);
   assert.match(characterSource, /'Командование': 'Ко&shy;ман&shy;до&shy;ва&shy;ние'/);
   assert.match(coreSource, /'Рекрут': \{[\s\S]*?primary:[\s\S]*?'nyuh:strelba'/);
-  assert.match(coreSource, /const classSecondarySkills = \[[\s\S]*?'snorovka:uklonenie'[\s\S]*?'napor:stoikost'[\s\S]*?'gospodstvo:disciplina'[\s\S]*?'smetka:erudiciya'[\s\S]*?'nyuh:vnimatelnost'/);
+  assert.match(coreSource, /const secondarySkillPaths = \[[\s\S]*?'napor:sila'[\s\S]*?'snorovka:koordinatsiya'[\s\S]*?'nyuh:znanieUlits'[\s\S]*?'smetka:erudiciya'[\s\S]*?'gospodstvo:publika'/);
+  assert.match(coreSource, /const usefulSkillPaths = \[[\s\S]*?'nyuh:vnimatelnost'[\s\S]*?'smetka:erudiciya'[\s\S]*?'gospodstvo:disciplina'[\s\S]*?'napor:stoikost'[\s\S]*?'snorovka:uklonenie'/);
+  assert.match(characterSource, /isUseful = showRecommended && usefulSkillPaths\.includes\(path\)/);
+  assert.match(characterSource, /usefulLegend\.hidden = !recommendationToggle\?\.checked/);
+  assert.match(coreSource, /vzlom: \{ name: 'Взлом'/);
+  assert.match(coreSource, /publika: \{ name: 'Публика'/);
+  assert.match(characterSource, /getSpentSecondarySkillPoints/);
+  assert.match(characterSource, /getPrimarySkillGroupTotal/);
   assert.match(editorSource, /resetAllSkills/);
 });
 
@@ -457,7 +472,7 @@ test("выбор куба для переброса остаётся компа�
   assert.doesNotMatch(styles, /translateY\(-3px\) scale\(1\.06\)/);
 });
 
-test("редактор использует Атрибуты, Навыки и ограничения версии 0.5.1", async () => {
+test("редактор использует Атрибуты, Навыки и ограничения версии 0.5.2", async () => {
   const core = await readFile(
     new URL("../apps-script-source/ScriptsCore.html", import.meta.url),
     "utf8",
@@ -467,8 +482,9 @@ test("редактор использует Атрибуты, Навыки и о
     "utf8",
   );
 
-  assert.match(core, /const totalExtraSkillPoints = 21/);
-  assert.match(core, /const maxStartingSkillGroupTotal = 6/);
+  assert.match(core, /const totalExtraSkillPoints = 20/);
+  assert.match(core, /const requiredSecondarySkillPoints = 4/);
+  assert.match(core, /const maxStartingPrimarySkillGroupTotal = 5/);
   assert.match(core, /skill\.value = 0/);
   assert.match(core, /const startingControlPoints = 3/);
   assert.match(core, /changeCharacterControlBonus/);
@@ -478,7 +494,7 @@ test("редактор использует Атрибуты, Навыки и о
     new URL("../apps-script-source/ScriptsCharacter.html", import.meta.url),
     "utf8",
   );
-  assert.match(characterScripts, /skillRulesVersion: 6/);
+  assert.match(characterScripts, /skillRulesVersion: 7/);
   assert.match(characterScripts, /attributeRulesVersion: 2/);
   assert.match(characterScripts, /attributes\.napor[\s\S]*attributes\.snorovka/);
   assert.match(characterScripts, /attributes\.gospodstvo[\s\S]*attributes\.nyuh/);

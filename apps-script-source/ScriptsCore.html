@@ -48,12 +48,12 @@
     snorovka: {
       attributeName: 'Сноровка',
       items: {
-        koordinatsiya: { name: 'Координация', description: 'Бег, лазание, прыжки, плавание, физический маневр и движение под нагрузкой.', value: 0 },
-        vozhdenie: { name: 'Вождение', description: 'Управление наземным транспортом, экипажами и самоходными машинами; манёвры, погони и движение в сложных условиях.', value: 0 },
         uklonenie: { name: 'Уклонение', description: 'Уход от удара, выстрела, взрыва, зоны поражения или опасного механизма.', value: 0 },
         skrytnost: { name: 'Скрытность', description: 'Тихое движение, укрытие, уход из поля зрения, проникновение без шума.', value: 0 },
-        lovkostRuk: { name: 'Ловкость рук', description: 'Карманные кражи, подмена, шулерство, вскрытие замков и сейфов, мелкая ручная точность и быстрые манипуляции.', value: 0 },
-        obman: { name: 'Обман', description: 'Ложь, легенды, подмена намерений, фальшивая история и ввод в заблуждение.', value: 0 }
+        lovkostRuk: { name: 'Ловкость рук', description: 'Карманные кражи, подмена, шулерство, мелкая ручная точность и быстрые манипуляции.', value: 0 },
+        vzlom: { name: 'Взлом', description: 'Вскрытие замков, сейфов и запоров, работа с отмычками и механизмами замков.', value: 0 },
+        koordinatsiya: { name: 'Координация', description: 'Бег, лазание, прыжки, плавание, физический маневр и движение под нагрузкой.', value: 0 },
+        vozhdenie: { name: 'Вождение', description: 'Управление наземным транспортом, экипажами и самоходными машинами; манёвры, погони и движение в сложных условиях.', value: 0 }
       }
     },
     nyuh: {
@@ -62,8 +62,8 @@
         vnimatelnost: { name: 'Внимательность', description: 'Заметить угрозу, улику, движение, ложь в деталях сцены или скрытую опасность.', value: 0 },
         strelba: { name: 'Стрельба', description: 'Дальние атаки, прицеливание, выбор линии, момента выстрела и позиции.', value: 0 },
         priroda: { name: 'Природа', description: 'Звери, растения, погода, следы вне города и понимание природных опасностей.', value: 0 },
-        znanieUlits: { name: 'Знание улиц', description: 'Районы, слухи, банды, рынки, маршруты, местные порядки и неофициальные связи.', value: 0 },
         psihologiya: { name: 'Психология', description: 'Чтение эмоций и мотивов, психические состояния, терапия, работа с Нервом и ментальными последствиями.', value: 0 },
+        znanieUlits: { name: 'Знание улиц', description: 'Районы, слухи, банды, рынки, маршруты, местные порядки и неофициальные связи.', value: 0 },
         vospriyatie: { name: 'Восприятие', description: 'Точный слух, распознавание запахов, вкусов и тактильных ощущений; различение слабых или необычных сенсорных сигналов.', value: 0 }
       }
     },
@@ -84,9 +84,9 @@
         ugrozy: { name: 'Угрозы', description: 'Запугивание, давление, грубые переговоры, принуждение и демонстрация силы.', value: 0 },
         ubezhdenie: { name: 'Убеждение', description: 'Аргументы, переговоры, просьбы, дипломатия и честное склонение к решению.', value: 0 },
         komandovanie: { name: 'Командование', description: 'Приказы, координация, удержание порядка и управление группой людей в опасности.', value: 0 },
+        obman: { name: 'Обман', description: 'Ложь, легенды, подмена намерений, фальшивая история и ввод в заблуждение.', value: 0 },
+        publika: { name: 'Публика', description: 'Выступления, роли, работа с публикой, создание образа, управление впечатлением, светские нормы, официальный протокол и поведение в разных социальных кругах.', value: 0 },
         disciplina: { name: 'Дисциплина', description: 'Самоконтроль, страх, боль, ментальное давление, выдержка и внутренняя собранность.', value: 0 },
-        scena: { name: 'Сцена', description: 'Выступление, роль, публика, образ, отвлечение внимания и управление впечатлением.', value: 0 },
-        etiket: { name: 'Этикет', description: 'Светские нормы, официальный протокол, правильное поведение и ориентация в правилах разных социальных кругов.', value: 0 }
       }
     }
   };
@@ -102,8 +102,9 @@
   const totalExtraAttributePoints = 4;
 
   const maxSkillValue = 2;
-  const totalExtraSkillPoints = 21;
-  const maxStartingSkillGroupTotal = 6;
+  const totalExtraSkillPoints = 20;
+  const requiredSecondarySkillPoints = 4;
+  const maxStartingPrimarySkillGroupTotal = 5;
 
   const startingMoney = 1000;
   const maxStartingAbilities = 3;
@@ -113,31 +114,39 @@
 
   const classRecommendedSkills = {
     'Психопат': {
-      primary: ['smetka:himiya', 'smetka:mehanizmy', 'snorovka:obman', 'snorovka:skrytnost', 'nyuh:strelba']
+      primary: ['smetka:himiya', 'napor:metanie', 'nyuh:strelba', 'snorovka:skrytnost', 'gospodstvo:obman']
     },
     'Кустарь': {
-      primary: ['smetka:mehanizmy', 'nyuh:vnimatelnost', 'snorovka:lovkostRuk', 'smetka:erudiciya', 'gospodstvo:disciplina']
+      primary: ['smetka:mehanizmy', 'snorovka:lovkostRuk', 'nyuh:vnimatelnost', 'nyuh:strelba', 'napor:draka']
     },
     'Воротила': {
-      primary: ['snorovka:obman', 'snorovka:skrytnost', 'nyuh:znanieUlits', 'smetka:zakon', 'snorovka:lovkostRuk']
+      primary: ['gospodstvo:obman', 'snorovka:lovkostRuk', 'nyuh:znanieUlits', 'snorovka:skrytnost', 'gospodstvo:komandovanie']
     },
     'Рекрут': {
-      primary: ['nyuh:strelba', 'snorovka:skrytnost', 'napor:stoikost', 'napor:fehtovanie', 'snorovka:koordinatsiya']
+      primary: ['nyuh:strelba', 'nyuh:vnimatelnost', 'snorovka:skrytnost', 'napor:fehtovanie', 'snorovka:koordinatsiya']
     },
     'Менталист': {
-      primary: ['nyuh:psihologiya', 'gospodstvo:komandovanie', 'gospodstvo:ubezhdenie', 'nyuh:vnimatelnost', 'nyuh:strelba']
+      primary: ['nyuh:psihologiya', 'gospodstvo:komandovanie', 'gospodstvo:ubezhdenie', 'nyuh:vnimatelnost', 'gospodstvo:disciplina']
     },
     'Натуралист': {
       primary: ['smetka:medicina', 'nyuh:priroda', 'smetka:himiya', 'napor:vyzhivanie', 'snorovka:skrytnost']
     }
   };
 
-  const classSecondarySkills = [
-    'snorovka:uklonenie',
-    'napor:stoikost',
-    'gospodstvo:disciplina',
+  const secondarySkillPaths = [
+    'napor:sila', 'napor:vyzhivanie',
+    'snorovka:koordinatsiya', 'snorovka:vozhdenie',
+    'nyuh:znanieUlits', 'nyuh:vospriyatie',
+    'smetka:erudiciya', 'smetka:ekonomika',
+    'gospodstvo:publika', 'gospodstvo:disciplina'
+  ];
+
+  const usefulSkillPaths = [
+    'nyuh:vnimatelnost',
     'smetka:erudiciya',
-    'nyuh:vnimatelnost'
+    'gospodstvo:disciplina',
+    'napor:stoikost',
+    'snorovka:uklonenie'
   ];
 
   const classIcons = {

@@ -137,7 +137,7 @@ test("старые Навыки однократно переводятся со
   assert.equal(migrated.skills.napor.stoikost, 0);
   assert.equal(migrated.skills.napor.draka, 1);
   assert.equal(migrated.skills.gospodstvo.ugrozy, 2);
-  assert.equal(migrated.skillRulesVersion, 6);
+  assert.equal(migrated.skillRulesVersion, 7);
   assert.deepEqual(
     normalizeCharacterSkills(migrated).skills,
     migrated.skills,
@@ -153,7 +153,7 @@ test("персонаж новой редакции без маркера рас�
 
   assert.equal(normalized.skills.napor.stoikost, 0);
   assert.equal(normalized.skills.napor.draka, 2);
-  assert.equal(normalized.skillRulesVersion, 6);
+  assert.equal(normalized.skillRulesVersion, 7);
 });
 
 test("ошибочно помеченный формат v2 также восстанавливается", () => {
@@ -169,7 +169,7 @@ test("ошибочно помеченный формат v2 также восс�
     },
   });
 
-  assert.equal(normalized.skillRulesVersion, 6);
+  assert.equal(normalized.skillRulesVersion, 7);
 });
 
 test("старая компоновка Атрибутов мигрирует в редакцию 0.4.9", () => {
@@ -229,14 +229,14 @@ test("старые Навыки переносятся в новые групп�
   });
   const oldTotal = Object.values(legacySkills).flatMap(Object.values).reduce((sum, value) => sum + value, 0);
   const total = Object.values(normalized.skills).flatMap(Object.values).reduce((sum, value) => sum + value, 0);
-  assert.equal(total, oldTotal - legacySkills.losk.etiket);
+  assert.equal(total, oldTotal);
   assert.equal(normalized.skills.napor.fehtovanie, 1);
   assert.equal(normalized.skills.gospodstvo.ugrozy, 2);
   assert.equal(normalized.skills.nyuh.psihologiya, 1);
   assert.equal(normalized.skills.napor.vyzhivanie, 1);
 });
 
-test("навыки редакции 4 переходят в новую компоновку редакции 6", () => {
+test("навыки редакции 4 переходят в новую компоновку редакции 7", () => {
   const normalized = normalizeCharacterSkills({
     skillRulesVersion: 4,
     skills: {
@@ -247,15 +247,71 @@ test("навыки редакции 4 переходят в новую комп�
       gospodstvo: { ugrozy: 1, obman: 2, komandovanie: 1, ubezhdenie: 1, scena: 1 },
     },
   });
-  assert.equal(normalized.skillRulesVersion, 6);
+  assert.equal(normalized.skillRulesVersion, 7);
   assert.equal(normalized.skills.napor.fehtovanie, 2);
   assert.equal(normalized.skills.napor.draka, 2);
-  assert.equal(normalized.skills.snorovka.obman, 2);
+  assert.equal(normalized.skills.gospodstvo.obman, 2);
   assert.equal(normalized.skills.nyuh.strelba, 2);
   assert.equal(normalized.skills.gospodstvo.disciplina, 2);
   assert.equal(normalized.skills.smetka.erudiciya, 2);
   assert.equal(normalized.skills.napor.sila, 0);
   assert.equal(normalized.skills.snorovka.koordinatsiya, 1);
+});
+
+test("навыки редакции 6 переносят Обман и объединяют Сцену с Этикетом в Публику", () => {
+  const normalized = normalizeCharacterSkills({
+    skillRulesVersion: 6,
+    skills: {
+      snorovka: { obman: 2, koordinatsiya: 1 },
+      gospodstvo: { scena: 1, etiket: 1, disciplina: 2 },
+    },
+  });
+
+  assert.equal(normalized.skillRulesVersion, 7);
+  assert.equal(normalized.skills.gospodstvo.obman, 2);
+  assert.equal(normalized.skills.gospodstvo.publika, 2);
+  assert.equal(normalized.skills.gospodstvo.disciplina, 2);
+  assert.equal(normalized.skills.snorovka.vzlom, 0);
+  assert.equal(normalized.skills.snorovka.obman, undefined);
+});
+
+test("сервер проверяет 20 очков, минимум 4 Второстепенных и лимит 5 Основных", async () => {
+  const db = {
+    prepare() {
+      return {
+        bind() { return this; },
+        async first() { return null; },
+        async run() { return { meta: { changes: 1 } }; },
+      };
+    },
+  };
+  const base = {
+    name: "Тест",
+    level: 1,
+    skillRulesVersion: 7,
+    attributes: {},
+    skills: {
+      napor: { fehtovanie: 2, draka: 2, metanie: 1, sila: 2 },
+      snorovka: { uklonenie: 2, skrytnost: 2, lovkostRuk: 1, koordinatsiya: 2 },
+      nyuh: { vnimatelnost: 2, strelba: 2 },
+      smetka: { erudiciya: 2 },
+    },
+  };
+  const result = await saveCharacter(db, { email: "player@example.com", isAdmin: false }, base);
+  assert.equal(result.isComplete, true);
+
+  await assert.rejects(
+    saveCharacter(db, { email: "player@example.com", isAdmin: false }, {
+      ...base,
+      skills: {
+        napor: { fehtovanie: 2, draka: 2, metanie: 1 },
+        snorovka: { uklonenie: 2, skrytnost: 2, lovkostRuk: 1 },
+        nyuh: { vnimatelnost: 2, strelba: 2, priroda: 1 },
+        smetka: { mehanizmy: 2, himiya: 2, medicina: 1 },
+      },
+    }),
+    /Второстепенные/i,
+  );
 });
 
 test("незаконченный персонаж сохраняется как черновик", async () => {

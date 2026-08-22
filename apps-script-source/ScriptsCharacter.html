@@ -144,6 +144,25 @@
     return totalExtraSkillPoints - getSpentSkillPoints();
   }
 
+  function isSecondarySkill(groupKey, skillKey) {
+    return secondarySkillPaths.includes(`${groupKey}:${skillKey}`);
+  }
+
+  function getSpentSecondarySkillPoints() {
+    return secondarySkillPaths.reduce(function(total, path) {
+      const parts = path.split(':');
+      return total + Number(skills[parts[0]]?.items?.[parts[1]]?.value || 0);
+    }, 0);
+  }
+
+  function getPrimarySkillGroupTotal(groupKey) {
+    const group = skills[groupKey];
+    if (!group) return 0;
+    return Object.entries(group.items).reduce(function(sum, entry) {
+      return sum + (isSecondarySkill(groupKey, entry[0]) ? 0 : Number(entry[1].value || 0));
+    }, 0);
+  }
+
   function changeSkill(groupKey, skillKey, delta) {
     const group = skills[groupKey];
     const skill = group && group.items ? group.items[skillKey] : null;
@@ -155,9 +174,8 @@
     if (
       !advancedEditMode &&
       delta > 0 &&
-      Object.values(group.items).reduce(function (sum, item) {
-        return sum + Number(item.value || 0);
-      }, 0) >= maxStartingSkillGroupTotal
+      !isSecondarySkill(groupKey, skillKey) &&
+      getPrimarySkillGroupTotal(groupKey) >= maxStartingPrimarySkillGroupTotal
     ) return;
     skill.value = nextValue;
     renderSkills();
@@ -168,28 +186,38 @@
   function renderSkills() {
     const grid = document.getElementById('skillsGrid');
     const pointsLeft = document.getElementById('skillPointsLeft');
+    const secondaryProgress = document.getElementById('secondarySkillPointsProgress');
     const recommendationToggle = document.getElementById('showRecommendedSkills');
     const recommendationLegend = document.getElementById('skillRecommendationLegend');
+    const usefulLegend = document.getElementById('skillUsefulLegend');
 
     if (!grid || !pointsLeft) return;
 
     const selectedClass = document.getElementById('className')?.value || '';
     const recommendations = classRecommendedSkills[selectedClass] || {};
     const primarySkills = new Set(recommendations.primary || []);
-    const secondarySkills = new Set(
-      classSecondarySkills.filter(function(path) {
-        return !primarySkills.has(path);
-      })
-    );
     const showRecommended = Boolean(recommendationToggle?.checked && selectedClass);
 
     if (recommendationLegend) {
       recommendationLegend.hidden = !recommendationToggle?.checked;
     }
+    if (usefulLegend) {
+      usefulLegend.hidden = !recommendationToggle?.checked;
+    }
 
     pointsLeft.textContent = advancedEditMode
       ? 'режим развития'
       : getSkillPointsLeft();
+    if (secondaryProgress) {
+      const spentSecondary = getSpentSecondarySkillPoints();
+      secondaryProgress.textContent = advancedEditMode
+        ? 'Ограничения создания отключены'
+        : `Второстепенные: ${spentSecondary} / ${requiredSecondarySkillPoints}`;
+      secondaryProgress.classList.toggle(
+        'complete',
+        advancedEditMode || spentSecondary >= requiredSecondarySkillPoints
+      );
+    }
 
     grid.innerHTML = '';
 
@@ -205,16 +233,21 @@
         const skillKey = skillEntry[0];
         const skill = skillEntry[1];
         const path = `${groupKey}:${skillKey}`;
-        const isPrimary = showRecommended && primarySkills.has(path);
-        const isSecondary = showRecommended && secondarySkills.has(path);
+        const isRecommended = showRecommended && primarySkills.has(path);
+        const isSecondary = isSecondarySkill(groupKey, skillKey);
+        const isUseful = showRecommended && usefulSkillPaths.includes(path);
+        const skillMarks = [
+          isSecondary ? '<i class="secondary" aria-label="Вторичный навык" title="Вторичный навык"></i>' : '',
+          isUseful ? '<i class="useful" aria-label="Полезный навык" title="Полезный навык"></i>' : '',
+          isRecommended ? '<i class="recommended" aria-label="Рекомендованный навык класса" title="Рекомендованный навык класса"></i>' : ''
+        ].filter(Boolean).join('');
 
         html += `
-          <div class="skill-item ${isPrimary ? 'recommended-primary' : ''} ${isSecondary ? 'recommended-secondary' : ''}">
+          <div class="skill-item ${isRecommended ? 'recommended-primary' : ''} ${isSecondary ? 'secondary-skill' : ''} ${isUseful ? 'useful-skill' : ''}">
             <details class="skill-name skill-info">
               <summary>
                 <span class="skill-name-text">${hyphenateSkillName(skill.name)}</span>
-                ${isPrimary ? '<span class="skill-recommended-mark primary" aria-label="Основной навык класса" title="Основной навык класса">★</span>' : ''}
-                ${isSecondary ? '<span class="skill-recommended-mark secondary" aria-label="Спас класса" title="Спас класса">◆</span>' : ''}
+                ${skillMarks ? `<span class="skill-marks">${skillMarks}</span>` : ''}
               </summary>
               <p>${skill.description || 'Описание отсутствует.'}</p>
             </details>
@@ -268,7 +301,7 @@
       'Убеждение': 'Убеж&shy;де&shy;ние',
       'Командование': 'Ко&shy;ман&shy;до&shy;ва&shy;ние',
       'Дисциплина': 'Дис&shy;цип&shy;ли&shy;на',
-      'Этикет': 'Эти&shy;кет'
+      'Публика': 'Пуб&shy;ли&shy;ка'
     };
 
     return namesWithBreaks[name] || name;
@@ -582,7 +615,7 @@
       biography: collectBiographyForSave(),
       control: collectCharacterControl(),
       advancedEditMode: advancedEditMode,
-      skillRulesVersion: 6,
+      skillRulesVersion: 7,
       attributeRulesVersion: 2,
       attributes: collectAttributesForSave(),
       skills: collectSkillsForSave(),
@@ -653,25 +686,29 @@
 
     if (
       !advancedEditMode &&
+      getSpentSecondarySkillPoints() < requiredSecondarySkillPoints
+    ) {
+      errors.push('Вложите минимум 4 очка во Второстепенные навыки.');
+    }
+
+    if (
+      !advancedEditMode &&
       getControlPointsLeft() !== 0
     ) {
       errors.push('Распределите все 3 очка Методик.');
     }
 
     if (!advancedEditMode) {
-      Object.values(skills).forEach(function (group) {
-        const groupTotal = Object.values(group.items).reduce(
-          function (sum, skill) {
-            return sum + Number(skill.value || 0);
-          },
-          0
-        );
+      Object.entries(skills).forEach(function (groupEntry) {
+        const groupKey = groupEntry[0];
+        const group = groupEntry[1];
+        const groupTotal = getPrimarySkillGroupTotal(groupKey);
 
-        if (groupTotal > maxStartingSkillGroupTotal) {
+        if (groupTotal > maxStartingPrimarySkillGroupTotal) {
           errors.push(
-            'Сумма Навыков Атрибута «' +
+            'Сумма Основных навыков Атрибута «' +
             group.attributeName +
-            '» не может превышать 6.'
+            '» не может превышать 5.'
           );
         }
       });
@@ -765,8 +802,7 @@
           priroda: read('nyuh', 'priroda'),
           vnimatelnost: read('nyuh', 'vnimatelnost'),
           znanieUlits: read('nyuh', 'znanieUlits'),
-          psihologiya: read('losk', 'psiho'),
-          etiket: read('losk', 'etiket')
+          psihologiya: read('losk', 'psiho')
         },
         smetka: {
           mehanizmy: read('smetka', 'mehanizmy'),
@@ -780,7 +816,8 @@
           obman: read('smetka', 'obman'),
           komandovanie: read('napor', 'liderstvo'),
           ubezhdenie: read('losk', 'ubezhdenie'),
-          scena: read('losk', 'scena')
+          scena: read('losk', 'scena'),
+          etiket: read('losk', 'etiket')
         }
       };
       result.skillRulesVersion = 4;
@@ -826,7 +863,8 @@
           ubezhdenie: value('gospodstvo', 'ubezhdenie'),
           komandovanie: value('gospodstvo', 'komandovanie'),
           disciplina: value('napor', 'disciplina'),
-          scena: value('gospodstvo', 'scena')
+          scena: value('gospodstvo', 'scena'),
+          etiket: value('gospodstvo', 'etiket')
         }
       };
       result.skillRulesVersion = 5;
@@ -877,10 +915,60 @@
           komandovanie: value('gospodstvo', 'komandovanie'),
           disciplina: value('gospodstvo', 'disciplina'),
           scena: value('gospodstvo', 'scena'),
-          etiket: 0
+          etiket: value('gospodstvo', 'etiket')
         }
       };
       result.skillRulesVersion = 6;
+    }
+    if (Number(result.skillRulesVersion || 0) < 7) {
+      const previous = result.skills || {};
+      const value = function(groupKey, skillKey) {
+        const parsed = Number(previous[groupKey]?.[skillKey]);
+        return Number.isFinite(parsed) ? Math.max(0, Math.min(3, Math.round(parsed))) : 0;
+      };
+      result.skills = {
+        napor: {
+          fehtovanie: value('napor', 'fehtovanie'),
+          draka: value('napor', 'draka'),
+          metanie: value('napor', 'metanie'),
+          stoikost: value('napor', 'stoikost'),
+          sila: value('napor', 'sila'),
+          vyzhivanie: value('napor', 'vyzhivanie')
+        },
+        snorovka: {
+          uklonenie: value('snorovka', 'uklonenie'),
+          skrytnost: value('snorovka', 'skrytnost'),
+          lovkostRuk: value('snorovka', 'lovkostRuk'),
+          vzlom: 0,
+          koordinatsiya: value('snorovka', 'koordinatsiya'),
+          vozhdenie: value('snorovka', 'vozhdenie')
+        },
+        nyuh: {
+          vnimatelnost: value('nyuh', 'vnimatelnost'),
+          strelba: value('nyuh', 'strelba'),
+          priroda: value('nyuh', 'priroda'),
+          psihologiya: value('nyuh', 'psihologiya'),
+          znanieUlits: value('nyuh', 'znanieUlits'),
+          vospriyatie: value('nyuh', 'vospriyatie')
+        },
+        smetka: {
+          mehanizmy: value('smetka', 'mehanizmy'),
+          himiya: value('smetka', 'himiya'),
+          medicina: value('smetka', 'medicina'),
+          zakon: value('smetka', 'zakon'),
+          erudiciya: value('smetka', 'erudiciya'),
+          ekonomika: value('smetka', 'ekonomika')
+        },
+        gospodstvo: {
+          ugrozy: value('gospodstvo', 'ugrozy'),
+          ubezhdenie: value('gospodstvo', 'ubezhdenie'),
+          komandovanie: value('gospodstvo', 'komandovanie'),
+          obman: value('snorovka', 'obman'),
+          publika: Math.min(3, value('gospodstvo', 'scena') + value('gospodstvo', 'etiket')),
+          disciplina: value('gospodstvo', 'disciplina')
+        }
+      };
+      result.skillRulesVersion = 7;
     }
     return result;
   }

@@ -33,16 +33,24 @@ const CLASS_CONTROL_BONUSES = {
   Натуралист: { Реагенты: 1, Кристаллы: 1, Порох: 1 },
 };
 
-const SKILL_RULES_VERSION = 6;
+const SKILL_RULES_VERSION = 7;
 const ATTRIBUTE_RULES_VERSION = 2;
 
 const SKILL_SCHEMA = {
   napor: ["fehtovanie", "draka", "metanie", "stoikost", "sila", "vyzhivanie"],
-  snorovka: ["koordinatsiya", "vozhdenie", "uklonenie", "skrytnost", "lovkostRuk", "obman"],
-  nyuh: ["vnimatelnost", "strelba", "priroda", "znanieUlits", "psihologiya", "vospriyatie"],
+  snorovka: ["uklonenie", "skrytnost", "lovkostRuk", "vzlom", "koordinatsiya", "vozhdenie"],
+  nyuh: ["vnimatelnost", "strelba", "priroda", "psihologiya", "znanieUlits", "vospriyatie"],
   smetka: ["mehanizmy", "himiya", "medicina", "zakon", "erudiciya", "ekonomika"],
-  gospodstvo: ["ugrozy", "ubezhdenie", "komandovanie", "disciplina", "scena", "etiket"],
+  gospodstvo: ["ugrozy", "ubezhdenie", "komandovanie", "obman", "publika", "disciplina"],
 };
+
+const SECONDARY_SKILL_PATHS = new Set([
+  "napor:sila", "napor:vyzhivanie",
+  "snorovka:koordinatsiya", "snorovka:vozhdenie",
+  "nyuh:znanieUlits", "nyuh:vospriyatie",
+  "smetka:erudiciya", "smetka:ekonomika",
+  "gospodstvo:publika", "gospodstvo:disciplina",
+]);
 
 const LEGACY_SKILL_PATHS = {
   "napor:stoikost": "napor:stoikost",
@@ -59,7 +67,7 @@ const LEGACY_SKILL_PATHS = {
   "nyuh:vnimatelnost": "nyuh:vnimatelnost",
   "nyuh:znanieUlits": "nyuh:znanieUlits",
   "losk:psiho": "nyuh:psihologiya",
-  "losk:etiket": "nyuh:etiket",
+  "losk:etiket": "gospodstvo:etiket",
   "smetka:mehanizmy": "smetka:mehanizmy",
   "nyuh:zakon": "smetka:zakon",
   "zhila:ekonomika": "smetka:ekonomika",
@@ -97,6 +105,7 @@ const VERSION_4_SKILL_PATHS = {
   "gospodstvo:komandovanie": "gospodstvo:komandovanie",
   "gospodstvo:ubezhdenie": "gospodstvo:ubezhdenie",
   "gospodstvo:scena": "gospodstvo:scena",
+  "gospodstvo:etiket": "gospodstvo:etiket",
 };
 
 const VERSION_5_SKILL_PATHS = {
@@ -125,6 +134,13 @@ const VERSION_5_SKILL_PATHS = {
   "gospodstvo:komandovanie": "gospodstvo:komandovanie",
   "gospodstvo:disciplina": "gospodstvo:disciplina",
   "gospodstvo:scena": "gospodstvo:scena",
+  "gospodstvo:etiket": "gospodstvo:etiket",
+};
+
+const VERSION_6_SKILL_PATHS = {
+  "snorovka:obman": "gospodstvo:obman",
+  "gospodstvo:scena": "gospodstvo:publika",
+  "gospodstvo:etiket": "gospodstvo:publika",
 };
 
 export function normalizeCharacterAttributes(character = {}) {
@@ -196,8 +212,9 @@ export function normalizeCharacterSkills(character = {}) {
   for (const [path, value] of Object.entries(normalizedSource)) {
     const version4Path = savedVersion < 4 ? (LEGACY_SKILL_PATHS[path] || path) : path;
     const version5Path = savedVersion < 5 ? (VERSION_4_SKILL_PATHS[version4Path] || version4Path) : version4Path;
-    const currentPath = savedVersion < 6 ? (VERSION_5_SKILL_PATHS[version5Path] || version5Path) : version5Path;
-    migrated[currentPath] = value;
+    const version6Path = savedVersion < 6 ? (VERSION_5_SKILL_PATHS[version5Path] || version5Path) : version5Path;
+    const currentPath = savedVersion < 7 ? (VERSION_6_SKILL_PATHS[version6Path] || version6Path) : version6Path;
+    migrated[currentPath] = clamp(numberOr(migrated[currentPath], 0) + value, 0, 3);
   }
   const skills = {};
   for (const [groupKey, keys] of Object.entries(SKILL_SCHEMA)) {
@@ -264,6 +281,35 @@ function validateCharacter(character, { allowIncomplete = false } = {}) {
       if (!Number.isFinite(stat) || stat < 0 || stat > 3) {
         throw new Error("Значение Навыка должно быть от 0 до 3.");
       }
+    }
+  }
+
+  if (!allowIncomplete && !character.advancedEditMode) {
+    let total = 0;
+    let secondaryTotal = 0;
+    for (const [groupKey, skillKeys] of Object.entries(SKILL_SCHEMA)) {
+      let primaryGroupTotal = 0;
+      for (const skillKey of skillKeys) {
+        const value = numberOr(character.skills?.[groupKey]?.[skillKey], 0);
+        if (value > 2) {
+          throw new Error("При создании значение Навыка не может превышать 2.");
+        }
+        total += value;
+        if (SECONDARY_SKILL_PATHS.has(`${groupKey}:${skillKey}`)) {
+          secondaryTotal += value;
+        } else {
+          primaryGroupTotal += value;
+        }
+      }
+      if (primaryGroupTotal > 5) {
+        throw new Error("В Основные навыки одного Атрибута можно вложить не больше 5 очков.");
+      }
+    }
+    if (total !== 20) {
+      throw new Error("Распределите ровно 20 очков Навыков.");
+    }
+    if (secondaryTotal < 4) {
+      throw new Error("Вложите минимум 4 очка во Второстепенные навыки.");
     }
   }
 }

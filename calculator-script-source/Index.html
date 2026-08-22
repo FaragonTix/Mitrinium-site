@@ -27,68 +27,76 @@
         <div class="form-grid">
           <label>Игроков<input id="players" type="number" min="1" max="10" value="3"></label>
           <label>Уровень<input id="level" type="number" min="1" max="20" value="1"></label>
-          <label>Сложность
-            <select id="difficulty">
-              <option value="easy">Легко</option>
-              <option value="medium" selected>Средне</option>
-              <option value="hard">Сложно</option>
-              <option value="deadly">Смертельно</option>
+          <label>Режим генерации
+            <select id="generationMode" onchange="renderGenerationMode()">
+              <option value="quick" selected>Быстрый</option>
+              <option value="custom">Свои цели</option>
+              <option value="composition">Сначала структура</option>
+              <option value="complete">Достроить текущий бой</option>
             </select>
           </label>
-          <label>Способ подбора
-            <select id="generationMode" onchange="renderGenerationMode()">
-              <option value="auto" selected>Автоматический</option>
-              <option value="typed">По типам</option>
-              <option value="manual">Конкретные противники</option>
+          <label>Сложность
+            <select id="difficulty" onchange="applyDifficultyPreset(this.value)">
+              <option value="easy">Легко</option>
+              <option value="medium" selected>Нормально</option>
+              <option value="hard">Сложно</option>
+              <option value="deadly">Смертельно</option>
+              <option value="custom">Custom</option>
             </select>
           </label>
         </div>
 
         <section class="subpanel">
           <div class="section-title">Игроки и имена</div>
+          <label>Режим профилей партии
+            <select id="partyInputMode" onchange="setPartyInputMode(this.value)">
+              <option value="abstract" selected>Абстрактные профили v8</option>
+              <option value="real">Реальные параметры</option>
+            </select>
+          </label>
           <div id="playerSetup" class="compact-list"></div>
           <button class="small" onclick="addPlayer()">+ Добавить игрока</button>
         </section>
 
-        <section id="autoMode" class="mode-panel">
+        <details id="generatorTargets" class="subpanel generator-targets">
+          <summary>Настроить цели</summary>
+          <p class="help">P(win) и вероятность хотя бы одного KO — независимые цели. Изменение диапазона переводит сложность в Custom.</p>
           <div class="form-grid">
-            <label>Врагов<input id="enemyCount" type="number" min="1" max="12" value="3"></label>
-            <label>Тип существ
-              <select id="creatureType">
-                <option value="auto" selected>Смешанный</option>
-                <option value="humanoid">Гуманоиды</option>
-                <option value="mechanism">Механизмы</option>
-                <option value="animal">Животные</option>
-                <option value="beast">Бестии</option>
-                <option value="undead">Нежить</option>
-              </select>
-            </label>
-            <label>Класс гуманоидов<select id="humanoidClass"></select></label>
-            <label>Состав<select id="composition"></select></label>
+            <label>P(win), режим<select id="targetWinMode" onchange="markGeneratorCustom()"><option value="range">Диапазон</option><option value="exact">Точно</option><option value="ignore">Не учитывать</option></select></label>
+            <label>от, %<input id="targetWinMin" type="number" min="0" max="100" value="65" oninput="markGeneratorCustom()"></label>
+            <label>до, %<input id="targetWinMax" type="number" min="0" max="100" value="82" oninput="markGeneratorCustom()"></label>
+            <label title="Вероятность того, что хотя бы один персонаж партии будет выведен из строя за время боя. Это не вероятность поражения партии.">Вероятность хотя бы одного KO<select id="targetKoMode" onchange="markGeneratorCustom()"><option value="range">Диапазон</option><option value="exact">Точно</option><option value="ignore">Не учитывать</option></select></label>
+            <label>от, %<input id="targetKoMin" type="number" min="0" max="100" value="25" oninput="markGeneratorCustom()"></label>
+            <label>до, %<input id="targetKoMax" type="number" min="0" max="100" value="55" oninput="markGeneratorCustom()"></label>
           </div>
-        </section>
+        </details>
 
-        <section id="typedMode" class="mode-panel hidden">
-          <div class="section-title">Количество существ каждого типа</div>
-          <div class="type-count-grid">
-            <label>Гуманоиды<input id="count_humanoid" type="number" min="0" max="12" value="2"></label>
-            <label>Механизмы<input id="count_mechanism" type="number" min="0" max="12" value="0"></label>
-            <label>Животные<input id="count_animal" type="number" min="0" max="12" value="1"></label>
-            <label>Бестии<input id="count_beast" type="number" min="0" max="12" value="0"></label>
-            <label>Нежить<input id="count_undead" type="number" min="0" max="12" value="0"></label>
-          </div>
-          <div class="form-grid top-gap">
-            <label>Класс гуманоидов<select id="typedHumanoidClass"></select></label>
-            <label>Состав<select id="typedFormation"></select></label>
-          </div>
-          <p class="help">В режиме «По типам» используются только три структуры: босс с миньонами, главарь с миньонами или толпа миньонов.</p>
-        </section>
+        <section id="generatorBasic" class="mode-panel"><div class="form-grid">
+          <label>Количество врагов<select id="enemyCountMode" onchange="renderGeneratorConstraints()"><option value="any">Любое</option><option value="exact" selected>Точно</option><option value="range">Диапазон</option></select></label>
+          <label id="enemyCountExactLabel">Точное число<input id="enemyCount" type="number" min="1" max="12" value="3"></label>
+          <label id="enemyCountMinLabel" class="hidden">Минимум<input id="enemyCountMin" type="number" min="1" max="12" value="2"></label>
+          <label id="enemyCountMaxLabel" class="hidden">Максимум<input id="enemyCountMax" type="number" min="1" max="12" value="5"></label>
+          <label>Тип существ<select id="creatureType"><option value="auto" selected>Любой</option><option value="humanoid">Гуманоиды</option><option value="mechanism">Механизмы</option><option value="animal">Животные</option><option value="beast">Бестии</option><option value="undead">Нежить</option></select></label>
+          <label>Класс гуманоидов<select id="humanoidClass"></select></label>
+          <label>Состав<select id="composition"></select></label>
+          <label>Босс<select id="bossMode" onchange="renderGeneratorConstraints()"><option value="any">Любое</option><option value="forbidden">Запрещён</option><option value="required">Обязателен</option><option value="exactly1">Ровно один</option><option value="maximum">Не больше N</option></select></label>
+          <label id="bossMaxLabel" class="hidden">Максимум боссов<input id="bossMax" type="number" min="0" max="12" value="1"></label>
+        </div></section>
 
-        <section id="manualMode" class="mode-panel hidden">
-          <div class="section-title">Конкретный состав</div>
-          <div id="manualBuilder" class="manual-builder"></div>
-          <button class="small" onclick="addManualEnemy()">+ Добавить врага</button>
-        </section>
+        <section id="completeMode" class="mode-panel hidden"><div class="section-title">Заблокированная часть боя</div><div id="generatorLockedList" class="compact-list"></div><p class="help">Заблокируйте нужных противников в панели боя. Генератор сохранит их и подберёт остальных.</p></section>
+
+        <details class="subpanel generator-advanced"><summary>Расширенные настройки</summary><div class="form-grid top-gap">
+          <label>Дубликаты<select id="duplicateMode"><option value="allowed">Разрешены</option><option value="forbidden">Запрещены</option><option value="max">Не больше N одинаковых</option><option value="identical">Все одинаковые</option></select></label><label>Максимум копий<input id="duplicateMax" type="number" min="1" max="12" value="2"></label>
+          <label>Неоднородность<select id="heterogeneity"><option value="any">Любая неэкстремальная</option><option value="low">Низкая</option><option value="medium">Средняя</option><option value="high">Высокая</option><option value="extreme">Экстремальная</option></select></label><label class="checkbox-line"><input id="extremeAllowed" type="checkbox"><span>Разрешить extreme</span></label>
+          <label>BS NPC от<input id="enemyBsMin" type="number" min="0" value="0"></label><label>до<input id="enemyBsMax" type="number" min="0" value="5000"></label>
+          <label>Самый сильный от<input id="strongestBsMin" type="number" min="0" value="0"></label><label>до<input id="strongestBsMax" type="number" min="0" value="5000"></label>
+          <label>Самый слабый от<input id="weakestBsMin" type="number" min="0" value="0"></label><label>до<input id="weakestBsMax" type="number" min="0" value="5000"></label>
+          <label>Разрешённые теги<input id="allowedTags" placeholder="melee, ranged"></label><label>Запрещённые теги<input id="forbiddenTags" placeholder="boss, tank"></label>
+          <label>Seed<input id="generatorSeed" type="number" value="1"></label><button type="button" onclick="changeGeneratorSeed()">Другие варианты</button>
+          <label>Приоритет P(win)<input id="winWeight" type="range" min="0" max="3" step=".25" value="1"></label><label>Приоритет KO<input id="koWeight" type="range" min="0" max="3" step=".25" value="1"></label>
+          <label>Раунды<select id="roundsMode" onchange="markGeneratorCustom()"><option value="ignore">Не учитывать</option><option value="range">Диапазон</option><option value="exact">Точно</option></select></label><label>от<input id="roundsMin" type="number" min="0" max="50" step=".1" value="3"></label><label>до<input id="roundsMax" type="number" min="0" max="50" step=".1" value="7"></label><label>Приоритет<input id="roundsWeight" type="range" min="0" max="3" step=".25" value="0"></label>
+          <label>Потеря Тела<select id="bodyMode" onchange="markGeneratorCustom()"><option value="ignore">Не учитывать</option><option value="range">Диапазон</option><option value="exact">Точно</option></select></label><label>от, %<input id="bodyMin" type="number" min="0" max="100" value="20"></label><label>до, %<input id="bodyMax" type="number" min="0" max="100" value="60"></label><label>Приоритет<input id="bodyWeight" type="range" min="0" max="3" step=".25" value="0"></label>
+        </div><div class="generator-preset-row"><select id="generatorPresetSelect" onchange="loadGeneratorPreset(this.value)"><option value="">Сохранённые пресеты…</option></select><input id="generatorPresetName" placeholder="Название пресета"><button type="button" onclick="saveGeneratorPreset()">Сохранить параметры</button></div></details>
 
         <div class="buttons">
           <button class="primary large" onclick="generateEncounter()">Сформировать бой</button>
@@ -98,9 +106,17 @@
 
       <div class="content-stack">
         <section class="panel">
-          <h2>Расчёт Боеспособности</h2>
+          <h2>Прогноз столкновения v8</h2>
           <div id="budgetSummary" class="summary"></div>
-          <div class="callout"><b>Модель редакции 0.5.1</b><p>К каждому пулу добавляются три Куба сцены; для БС используется обычная сцена d4+d6+d8. ПЗ противников задаётся статичным числом, а ПЗ игроков рассчитывается как 4 + половина ЭФ защитного броска с округлением вниз. Прорыв дают три чётных Куба сцены, Осложнение — три нечётных.</p></div>
+          <div id="v8Prediction" class="v8-prediction"><div class="empty">Сформируйте бой, чтобы получить прогноз.</div></div>
+          <div id="v8CalibrationWarning" class="callout v8-warning hidden"></div>
+          <div class="callout"><b>Production-модель Mitrinium v8</b><p>Весь состав рассчитывается одновременно по профилям Тела, Брони, ПЗ, пула, Expl, урона и Пробития. Старые ‰ и множители количества в прогноз не входят. Категории сложности задаются отдельной настраиваемой UI-шкалой.</p></div>
+        </section>
+        <section id="generatorAlternativesPanel" class="panel hidden">
+          <h2>Варианты генератора</h2>
+          <p class="help">Все варианты оценены полным production v8; порядок NPC не создаёт отдельный вариант.</p>
+          <div id="generatorDiagnostics"></div>
+          <div id="generatorAlternatives" class="generator-alternatives"></div>
         </section>
         <section class="panel">
           <div class="toolbar">
@@ -126,7 +142,7 @@
           <div class="round-box">Раунд <span id="roundNumber">1</span></div>
           <div id="encounterMeta" class="help"></div>
           <label class="top-gap">ПЗ выбранной цели
-            <input id="combatTargetPz" type="number" min="3" max="10" value="4" oninput="setCombatTargetPz(this.value)">
+            <input id="combatTargetPz" type="number" min="2" max="20" value="4" oninput="setCombatTargetPz(this.value)">
           </label>
           <p class="help">Перед атакой врага укажите текущий ПЗ атакуемого персонажа.</p>
           <div class="buttons vertical">
@@ -158,7 +174,8 @@
               <label>Тип<select id="combatAddType"></select></label>
               <label>Тег<select id="combatAddTag"></select></label>
               <label>Класс<select id="combatAddClass"></select></label>
-              <label>БС, ‰<input id="combatAddBp" type="number" min="20" max="5000" step="10" value="250"></label>
+              <label>Архетип v8<select id="combatAddV8Archetype"><option value="auto">По тегу и классу</option><option value="minion">Миньон</option><option value="standard">Стандартный</option><option value="striker">Ударный</option><option value="tank">Танк</option><option value="shooter">Стрелок</option><option value="brute">Громила</option><option value="elite">Элита</option><option value="boss">Босс</option></select></label>
+              <label>Сила профиля<select id="combatAddV8Strength"><option value="weak">Слабый</option><option value="normal" selected>Обычный</option><option value="strong">Сильный</option></select></label>
             </div>
           </div>
           <div id="combatAddLibrary" class="stack top-gap hidden"><label>Статблок<select id="combatAddTemplate"></select></label></div>
@@ -206,17 +223,17 @@
           <label>Тег<select id="beTag" onchange="onBestiaryArchetypeChange()"></select></label>
           <label>Класс<select id="beClass" onchange="onBestiaryArchetypeChange()"></select></label>
           <label>Уровень игроков<input id="beLevel" type="number" min="1" max="20" value="1" oninput="renderModelBreakdown()"></label>
-          <label>Сложность<select id="beDifficulty" onchange="syncBestiaryBpFromDifficulty()"><option value="easy">Легко</option><option value="medium" selected>Средне</option><option value="hard">Сложно</option><option value="deadly">Смертельно</option></select></label>
-          <label>Боеспособность, ‰<input id="beBp" type="number" min="20" max="5000" step="10" value="1000"></label>
+          <label>Legacy-категория<select id="beDifficulty" onchange="syncBestiaryBpFromDifficulty()"><option value="easy">Легко</option><option value="medium" selected>Средне</option><option value="hard">Сложно</option><option value="deadly">Смертельно</option></select></label>
+          <label>Legacy БС, ‰<input id="beBp" type="number" min="20" max="5000" step="10" value="1000"></label>
         </div>
-        <div class="buttons"><button class="primary" onclick="generateBestiaryStats()">Сгенерировать статы</button><button onclick="estimateBestiaryBp()">Оценить БС по статам</button></div>
+        <div class="buttons"><button class="primary" onclick="generateBestiaryStats()">Сгенерировать статы</button><button onclick="estimateBestiaryBp()">Legacy-оценка по статам</button></div>
 
         <h3>Показатели</h3>
         <div class="stats-editor">
           <label>Тело<input id="beHp" type="number" min="1" value="22" oninput="renderModelBreakdown()"></label>
           <label>Нерв<input id="beNerve" type="number" min="0" value="8" oninput="renderModelBreakdown()"></label>
           <label>Броня<input id="beArmor" type="number" min="0" max="8" value="1" oninput="renderModelBreakdown()"></label>
-          <label>ПЗ<input id="bePz" type="number" min="3" max="10" value="4" oninput="renderModelBreakdown()"></label>
+          <label>ПЗ<input id="bePz" type="number" min="2" max="20" value="4" oninput="renderModelBreakdown()"></label>
           <label>Физическая защита<input id="bePhysicalDefensePool" type="number" min="1" max="8" value="4" oninput="renderModelBreakdown()"></label>
           <label>Ментальная защита<input id="beMentalDefensePool" type="number" min="1" max="8" value="4" oninput="renderModelBreakdown()"></label>
           <label>Скорость<input id="beSpeed" type="number" min="0" max="8" value="3" oninput="renderModelBreakdown()"></label>
@@ -290,6 +307,13 @@
 </dialog>
 
 <div id="toast" class="toast"></div>
+<script type="module">
+  import * as MitriniumV8 from "./mitrinium-v8-core.js";
+  import * as MitriniumEncounterGenerator from "./encounter-generator.js";
+  window.MitriniumV8 = MitriniumV8;
+  window.MitriniumEncounterGenerator = MitriniumEncounterGenerator;
+  window.mitriniumV8Ready = MitriniumV8.loadMitriniumV8();
+</script>
 <?!= include('Dict'); ?>
 <?!= include('Script'); ?>
 </body>

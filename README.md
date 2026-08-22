@@ -12,6 +12,7 @@ Production: <https://mitrinium.ttrpg.workers.dev>
 - `src/worker.js` — маршруты серверного API;
 - `src/characters.js` — персонажи и их состояние;
 - `src/calculator.js` — сохранения боёв и библиотека противников;
+- `src/client/calculator-v8/` — exact deterministic core, неизменённый predictor и production bundle модели сложности Mitrinium v8;
 - `src/auth.js` — вход через Google и пользовательские сессии;
 - `src/admins.js` — управление администраторами;
 - `src/client/admin/` — административный Dashboard;
@@ -101,3 +102,15 @@ Google OAuth Client ID и основной email администратора у
 GitHub Actions проверяет тесты и сборку при каждом push и pull request, но
 не публикует сайт автоматически.
 
+## Production-модель столкновений v8
+
+Оба режима ввода калькулятора формируют одинаковые combat profiles и проходят
+один pipeline: exact core → девять признаков в порядке bundle → predictor v8.
+Runtime JSON загружается и кэшируется один раз; Monte-Carlo в браузере не
+запускается. Порог PЗ 7+ переводит расчёт в изолированный extreme-reference
+режим с видимым предупреждением.
+
+Старая БС в ‰ сохранена только для обратной совместимости библиотеки
+статблоков. Она и множители количества не входят в production prediction.
+Отображаемые категории сложности находятся в отдельной конфигурации
+`V8_DIFFICULTY_THRESHOLDS` в `mitrinium-v8-core.js`.
