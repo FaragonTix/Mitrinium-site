@@ -3,13 +3,17 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  ARCHETYPE_TUNING_CONFIG,
   DIFFICULTY_PRESETS,
+  archetypeVariants,
   generateEncounterOptions,
   individualBs,
   marginalNpcImpact,
+  matchesDifficultyPreset,
   normalizeGeneratorSettings,
   objectiveScore,
   presetTargets,
+  replaceGeneratedSlot,
 } from "../src/client/calculator-v8/encounter-generator.js";
 import { predictEncounter } from "../src/client/calculator-v8/mitrinium-v8-core.js";
 
@@ -42,6 +46,15 @@ for (const key of ["easy", "medium", "hard", "deadly"]) {
   });
 }
 
+test("новые target regions и строгая смертельная область заданы в конфиге", () => {
+  assert.deepEqual(DIFFICULTY_PRESETS.easy, { label: "Легко", winRange: [.95, .98], koRange: [.05, .15] });
+  assert.deepEqual(DIFFICULTY_PRESETS.medium, { label: "Нормально", winRange: [.75, .87], koRange: [.15, .25] });
+  assert.deepEqual(DIFFICULTY_PRESETS.hard, { label: "Сложно", winRange: [.60, .75], koRange: [.25, .40] });
+  assert.equal(matchesDifficultyPreset("deadly", { party_win_probability: .49, p_any_pc_ko: .61 }), true);
+  assert.equal(matchesDifficultyPreset("deadly", { party_win_probability: .50, p_any_pc_ko: .61 }), false);
+  assert.equal(matchesDifficultyPreset("deadly", { party_win_probability: .49, p_any_pc_ko: .60 }), false);
+});
+
 test("ручные цели дают Custom-структуру и независимые оси", () => {
   const settings = normalizeGeneratorSettings({ targets: { win: { mode: "range", min: .6, max: .7 }, ko: { mode: "ignore" } } });
   assert.deepEqual(settings.targets.win, [.6, .7]);
@@ -69,12 +82,13 @@ test("дубликаты: запрет, максимум и все одинак�
 });
 
 test("BS-фильтры ограничивают NPC, strongest и weakest", () => {
-  const result = run({ bs: { min: 500, max: 1000, strongestMin: 800, strongestMax: 900, weakestMin: 500, weakestMax: 700 } });
+  const strengths = library.map((entry) => individualBs(entry.profile)).sort((a, b) => a - b);
+  const result = run({ bs: { min: strengths[0], max: strengths.at(-1), strongestMin: strengths.at(-2), strongestMax: strengths.at(-1), weakestMin: strengths[0], weakestMax: strengths[1] } });
   assert.ok(result.options.length);
   for (const option of result.options) {
-    assert.ok(option.entries.every(entry => entry.bs >= 500 && entry.bs <= 1000));
-    assert.ok(Math.max(...option.entries.map(entry => entry.bs)) >= 800);
-    assert.ok(Math.min(...option.entries.map(entry => entry.bs)) <= 700);
+    assert.ok(option.entries.every(entry => entry.bs >= strengths[0] && entry.bs <= strengths.at(-1)));
+    assert.ok(Math.max(...option.entries.map(entry => entry.bs)) >= strengths.at(-2));
+    assert.ok(Math.min(...option.entries.map(entry => entry.bs)) <= strengths[1]);
   }
 });
 
@@ -131,6 +145,77 @@ test("marginal impact использует два полных evaluation", () =
 test("individual BS универсален и не зависит от партии", () => {
   const npc = profile(3, "standard", 12);
   assert.equal(individualBs(npc), individualBs({ ...npc }));
+});
+
+test("exact NPC не меняется, а archetype настраивает только числовой профиль", () => {
+  const identity = {
+    name: "Медведь",
+    type: "animal",
+    attacks: [{ name: "Когти", type: "melee" }, { name: "Укус", type: "melee" }],
+    reactions: [{ name: "Ответный рык", trigger: "при ранении", effect: "пугает" }],
+  };
+  const ideal = { body: 16, nerve: 6, armor: 1, pz: 4, pool: 5, expl: 3, damage: "d8", penetration: 0, archetype: "brute" };
+  const exact = archetypeVariants({ id: "bear-exact", name: "Медведь", profile: ideal, hardIdentity: identity, usage: "exact" });
+  const variants = archetypeVariants({ id: "bear", name: "Медведь", profile: ideal, hardIdentity: identity, usage: "archetype" });
+  assert.equal(exact.length, 1);
+  assert.deepEqual(exact[0].profile, ideal);
+  assert.ok(variants.some((entry) => entry.profile.body !== ideal.body || entry.profile.pool !== ideal.pool || entry.profile.damage !== ideal.damage));
+  assert.ok(variants.every((entry) => JSON.stringify(entry.hardIdentity) === JSON.stringify(identity)));
+  assert.ok(variants.every((entry) => entry.hardIdentity.attacks.every((attack) => ["Когти", "Укус"].includes(attack.name))));
+  assert.ok(ARCHETYPE_TUNING_CONFIG.weights.pz > ARCHETYPE_TUNING_CONFIG.weights.body);
+  assert.ok(variants.every((entry) => entry.bs === individualBs(entry.profile)));
+});
+
+test("настройка архетипа меняет outcomes без смены identity", () => {
+  const source = [{ id: "adaptive", name: "Зверь", usage: "archetype", role: "brute", archetype: "brute", profile: profile(3, "brute", 16), hardIdentity: { attacks: [{ name: "Когти" }], reactions: [{ name: "Рык" }] } }];
+  const result = generateEncounterOptions({ library: source, settings: { count: { mode: "exact", exact: 1 }, targets: { win: { mode: "exact", exact: .75 }, ko: { mode: "ignore" } }, heterogeneity: { mode: "any", extremeAllowed: true } }, evaluate: profiles => ({ prediction: { party_win_probability: 1 - profiles[0].body / 40, p_any_pc_ko: profiles[0].pool / 10, mean_rounds: 3, mean_party_body_loss_fraction: .2 }, features: { enemy_survivability_cv: 0, enemy_pressure_cv: 0 } }) });
+  assert.ok(result.options.length);
+  assert.ok(result.options.some((option) => option.entries[0].tuningDiff.length > 0));
+  assert.ok(result.options.every((option) => option.entries[0].hardIdentity.attacks[0].name === "Когти" && option.entries[0].hardIdentity.reactions[0].name === "Рык"));
+});
+
+test("Replace random меняет только выбранный unlocked slot и сохраняет locked", () => {
+  const entries = library.slice(0, 3).map((entry, index) => ({ ...entry, locked: index === 0 }));
+  const result = replaceGeneratedSlot({ entries, index: 1, library, settings: { count: { mode: "exact", exact: 3 }, heterogeneity: { mode: "any", extremeAllowed: true } }, evaluate: fakeEvaluate });
+  assert.ok(result.option);
+  assert.equal(result.option.entries[0].id, entries[0].id);
+  assert.equal(result.option.entries[2].id, entries[2].id);
+  assert.notEqual(result.option.entries[1].baseId, entries[1].id);
+  const blocked = replaceGeneratedSlot({ entries, index: 0, library, settings: {}, evaluate: fakeEvaluate });
+  assert.equal(blocked.option, null);
+});
+
+test("сумма individual BS не передаётся в full encounter predictor", () => {
+  const seen = [];
+  generateEncounterOptions({ library: library.slice(0, 3), settings: { count: { mode: "exact", exact: 1 } }, evaluate: profiles => { seen.push(profiles); return fakeEvaluate(profiles); } });
+  assert.ok(seen.length);
+  assert.ok(seen.every((profiles) => profiles.every((item) => item.bs === undefined)));
+});
+
+test("abstract player profiles имеют Body 11–16 и фиксированный damage по уровням", async () => {
+  const dict = await readFile(new URL("../calculator-script-source/Dict.html", import.meta.url), "utf8");
+  const match = dict.match(/const PLAYER_LEVEL_PROFILES\s*=\s*(\[[\s\S]*?\]);\s*\n\s*const DAMAGE_PROFILES/);
+  assert.ok(match);
+  const profiles = new Function(`return ${match[1]};`)();
+  assert.equal(profiles[1].hp, 11);
+  assert.equal(profiles[18].hp, 15);
+  assert.ok(profiles.slice(1).every((item) => item.hp <= 16));
+  assert.ok(profiles.slice(1, 8).every((item) => item.damage === "d6+1"));
+  assert.ok(profiles.slice(8).every((item) => item.damage === "d8+1"));
+});
+
+test("UI поддерживает source modes, карточки архетипов и точечную замену", async () => {
+  const [index, script] = await Promise.all([
+    readFile(new URL("../calculator-script-source/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../calculator-script-source/Script.html", import.meta.url), "utf8"),
+  ]);
+  assert.match(index, /id="generatorSource"/);
+  assert.match(index, /value="library_exact"/);
+  assert.match(index, /value="library_archetypes"/);
+  assert.match(script, />Как архетип</);
+  assert.match(script, /Заменить случайным/);
+  assert.match(script, /generatorEnemyCard/);
+  assert.match(script, /individualBs/);
 });
 
 test("финальный кандидат действительно оценивается production v8 без Monte-Carlo", async () => {

@@ -18,6 +18,7 @@ const elements = Object.fromEntries(
 let characters = [];
 let admins = [];
 let folders = [];
+let editingCharacterState = {};
 const selectedCharacterIds = new Set();
 
 async function rpc(method, ...args) {
@@ -181,6 +182,7 @@ function openDialog(character = null) {
   const isNew = !character;
   const data = structuredClone(character?.data || {});
   const state = character?.state || data.state || {};
+  editingCharacterState = structuredClone(state);
   const money = state.money || {};
 
   elements.dialogEyebrow.textContent = isNew ? "Новый лист" : "Редактирование";
@@ -249,6 +251,7 @@ elements.characterForm.addEventListener("submit", async (event) => {
       hidden: elements.hidden.checked,
       data,
       state: {
+        ...editingCharacterState,
         currentBody: numberValue(elements.currentBody),
         currentMainNerve: numberValue(elements.currentMainNerve),
         currentBonusNerve: numberValue(elements.currentBonusNerve),

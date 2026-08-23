@@ -215,6 +215,22 @@ test("сервер сохраняет нулевые текущие показа
   assert.equal(state.initialized, true);
 });
 
+test("сервер сохраняет состояние Прочности и Экспл. снаряжения", () => {
+  const state = sanitizeState({
+    equipmentConditions: {
+      "trost-kristall": { currentDurability: 0 },
+      pistol: { currentExploitation: 6 },
+      broken: { currentDurability: -10, currentExploitation: 1000 },
+    },
+  }, {});
+  assert.deepEqual(state.equipmentConditions["trost-kristall"], { currentDurability: 0 });
+  assert.deepEqual(state.equipmentConditions.pistol, { currentExploitation: 6 });
+  assert.deepEqual(state.equipmentConditions.broken, {
+    currentDurability: 0,
+    currentExploitation: 99,
+  });
+});
+
 test("старые Навыки переносятся в новые группы без потери очков", () => {
   const legacySkills = {
     napor: { ugrozy: 2, draka: 1, stoikost: 1, liderstvo: 2, sila: 1 },

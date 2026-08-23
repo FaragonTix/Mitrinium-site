@@ -48,6 +48,7 @@
   function getEquipmentFilterCategory(item) {
     if (!item) return 'other';
     if (item.category === 'Броня') return 'armor';
+    if (item.category === 'Кристаллы') return 'crystal';
     if (item.category === 'Набор') return 'kit';
     if (isConsumableEquipment(item) || item.category === 'Расходник') return 'consumable';
     if (item.category === 'Метательное оружие') return 'thrown';
@@ -133,23 +134,47 @@
     refreshViewerIfOpen();
   }
 
-  function getEquipmentDetails(item) {
+  function getEquipmentDetails(item, omitQuickStats = false) {
     const details = [];
     if (item.armor) details.push(`Броня: ${item.armor}`);
     if (item.pool) details.push(`Пул: ${item.pool}`);
     if (item.range) details.push(`Дистанция: ${item.range}`);
-    if (item.damage) details.push(`Урон: ${item.damage}`);
-    if (item.exploitation !== undefined && item.exploitation !== '') details.push(`Экспл.: ${item.exploitation}`);
+    if (!omitQuickStats && hasVisibleEquipmentDamage(item)) details.push(`Урон: ${item.damage}`);
+    if (!omitQuickStats && item.exploitation !== undefined && item.exploitation !== '') details.push(`Экспл.: ${item.exploitation}`);
+    if (!omitQuickStats && item.durability !== undefined && item.durability !== '') details.push(`Прочность: ${item.durability}`);
     if (getEquipmentMaintenanceText(item)) details.push(getEquipmentMaintenanceText(item));
     if (item.purpose) details.push(item.purpose);
     if (item.tags && item.tags.length) details.push(`Теги: ${item.tags.join(', ')}`);
     return details.join(' · ');
   }
 
+  function hasVisibleEquipmentDamage(item) {
+    return Boolean(item?.damage)
+      && String(item.damage).trim().toLowerCase() !== 'зависит от способности';
+  }
+
+  function renderEquipmentQuickStats(item) {
+    const stats = [];
+    if (hasVisibleEquipmentDamage(item)) stats.push(['Урон', item.damage]);
+    if (item.exploitation !== undefined && item.exploitation !== '') {
+      stats.push(['Экспл.', item.exploitation]);
+    }
+    if (item.durability !== undefined && item.durability !== '') {
+      stats.push(['Прочность', item.durability]);
+    }
+    if (!stats.length) return '';
+
+    return `<div class="equipment-quick-stats">${stats.map(stat => `
+      <span class="equipment-quick-stat">
+        <small>${escapeViewerHtml(stat[0])}</small>
+        <strong>${escapeViewerHtml(stat[1])}</strong>
+      </span>`).join('')}</div>`;
+  }
+
   function getEquipmentSearchText(item) {
     return [
       item.name, item.category, item.price, item.priceText, item.maintenance,
-      item.pool, item.range, item.damage, item.armor, item.exploitation, item.purpose,
+      item.pool, item.range, item.damage, item.armor, item.exploitation, item.durability, item.purpose,
       item.reliability, item.tags ? item.tags.join(' ') : ''
     ].filter(Boolean).join(' ').toLowerCase();
   }
@@ -159,7 +184,8 @@
     const selected = isEquipmentSelected(item.id);
     const canHaveSeveral = isConsumableEquipment(item);
     const selectedCount = getSelectedEquipmentCount(item.id);
-    const details = getEquipmentDetails(item);
+    const details = getEquipmentDetails(item, true);
+    const quickStats = renderEquipmentQuickStats(item);
 
     return `
       <div class="equipment-card ${isRecommended ? 'recommended' : ''}">
@@ -167,6 +193,7 @@
           <div>
             <div class="equipment-name">${item.name}${selectedCount > 1 ? ` ×${selectedCount}` : ''}</div>
             <div class="equipment-meta">${item.category} · ${price}</div>
+            ${quickStats}
             <div class="equipment-details">${details}</div>
           </div>
           <button type="button" class="equipment-button" onclick="${selected && !canHaveSeveral ? `removeEquipment('${item.id}')` : `addEquipment('${item.id}')`}">

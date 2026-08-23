@@ -59,8 +59,12 @@ test("новое состояние просмотра начинается с �
   const api = new Function(
     "getSelectedArmorTotal",
     "startingMoney",
+    "getEquipmentById",
     `${viewerSource}; return { normalizeViewerState };`,
-  )(() => 4, 1000);
+  )(() => 4, 1000, (id) => ({
+    crystal: { id: "crystal", durability: 2 },
+    pistol: { id: "pistol", exploitation: 3 },
+  })[id]);
   const resources = { body: 12, mainNerve: 5, bonusNerve: 3 };
 
   const initial = api.normalizeViewerState({
@@ -90,6 +94,22 @@ test("новое состояние просмотра начинается с �
   assert.equal(saved.currentBody, 0);
   assert.equal(saved.currentMainNerve, 0);
   assert.equal(saved.money.farthings, 0);
+
+  const equipmentState = api.normalizeViewerState({
+    resources,
+    equipment: ["crystal", "pistol"],
+    state: {
+      initialized: true,
+      equipmentConditions: {
+        crystal: { currentDurability: -1 },
+        pistol: { currentExploitation: 99 },
+      },
+    },
+  });
+  assert.deepEqual(equipmentState.equipmentConditions, {
+    crystal: { currentDurability: 0 },
+    pistol: { currentExploitation: 6 },
+  });
 });
 
 test("просмотр начинает с имени и состояния, показывает атрибуты в навыках, а концепт оставляет внизу", async () => {
@@ -185,9 +205,25 @@ test("у каждой способности есть пререквизит, а
   );
   assert.equal(byName["Жучок"].prerequisite, "предмет с тегом КК.");
   assert.equal(byName["Резкая ингаляция"].pool, "Нюх + Стрельба");
-  assert.equal(byName["Кислотный плевок"].pool, "Напор + Метание");
+  assert.equal(byName["Кислотный плевок"].pool, "Напор+Драка или Нюх+Стрельба");
   assert.equal(byName["Кислотные ампулы"].pool, "Смекалка + Химия");
-  assert.equal(byName["Токсичный распылитель"].pool, "Смекалка + Стрельба");
+  assert.equal(byName["Токсичный распылитель"].pool, "Смекалка + Стрельба против Напор + Стойкость");
+  assert.equal(byName["Готовое дело"].prerequisite, "Предмет с тегом Канцелярия или КК");
+  assert.equal(byName["Бумага уже есть"].pool, "Господство + Обман или Смекалка + Закон");
+  assert.equal(byName["Встречный захват"].pool, "Воротила — Господство + Обман; цель — Нюх + Внимательность");
+  assert.equal(byName["Мастерство преображения"].pool, "Господство + Публика");
+});
+
+test("биографические факты соответствуют редакции 0.5.3", async () => {
+  const biographySource = await readClassicScript("../apps-script-source/BiographyData.html");
+  const biographyData = new Function(`${biographySource}; return biographyData;`)();
+  const family = biographyData.sections.find((section) => section.id === "family");
+  const names = Object.fromEntries(family.cards.map((card) => [card.id, card.name]));
+
+  assert.equal(family.title, "Условия взросления");
+  assert.equal(names["working-income"], "Скромный быт");
+  assert.equal(names.prosperity, "Благополучие");
+  assert.equal(names.privilege, "Возможности");
 });
 
 test("снаряжение использует актуальный каталог, расходники и рекомендации", async () => {
@@ -199,8 +235,12 @@ test("снаряжение использует актуальный катал�
     `${equipmentSource}; return { equipmentData, classRecommendedEquipment };`,
   )();
   const helpers = new Function(
-    `${equipmentUiSource}; return { isConsumableEquipment, isHiddenEquipmentItem };`,
+    `${equipmentUiSource}; return { isConsumableEquipment, isHiddenEquipmentItem, hasVisibleEquipmentDamage };`,
   )();
+  const renderEquipmentQuickStats = new Function(
+    "escapeViewerHtml",
+    `${equipmentUiSource}; return renderEquipmentQuickStats;`,
+  )((value) => String(value));
   const watch = equipmentData.find((item) => item.name === "Простые карманные часы");
 
   assert.equal(equipmentData.length, 87);
@@ -212,7 +252,11 @@ test("снаряжение использует актуальный катал�
   assert.ok(equipmentData.every((item) => !["Хвитлэк", "Фарналит"].includes(item.name)));
   assert.equal(
     equipmentData.find((item) => item.name === "Химический распылитель")?.pool,
-    "Нюх + Стрельба",
+    "Нюх + Стрельба или Напор + Драка",
+  );
+  assert.equal(
+    equipmentData.find((item) => item.name === "Химический распылитель")?.purpose,
+    "Поражает два соседних гекса разом.",
   );
   assert.equal(
     equipmentData.find((item) => item.name === "Химический распылитель")?.exploitation,
@@ -222,6 +266,42 @@ test("снаряжение использует актуальный катал�
     equipmentData.filter((item) => item.category === "Метательное оружие").length,
     6,
   );
+  const crystalItems = equipmentData.filter((item) => item.category === "Кристаллы");
+  assert.equal(crystalItems.length, 5);
+  assert.ok(crystalItems.every((item) => item.durability === 2 && item.exploitation === undefined));
+  assert.ok(crystalItems.every((item) => (item.tags || []).some((tag) => ["КК", "СК"].includes(tag))));
+  assert.equal(helpers.hasVisibleEquipmentDamage(crystalItems.find((item) => item.name === "Перчатка синего поля")), false);
+  assert.equal(helpers.hasVisibleEquipmentDamage(equipmentData.find((item) => item.name === "Пистоль")), true);
+  assert.doesNotMatch(renderEquipmentQuickStats(crystalItems.find((item) => item.name === "Перчатка синего поля")), /Урон/);
+  assert.match(renderEquipmentQuickStats(crystalItems.find((item) => item.name === "Перчатка синего поля")), /Прочность/);
+  assert.equal(equipmentData.find((item) => item.name === "Сабля / шпага")?.exploitation, 4);
+  assert.deepEqual(
+    ["Тяжёлый меч", "Булава", "Боевой молот"].map((name) => {
+      const item = equipmentData.find((candidate) => candidate.name === name);
+      return [item?.damage, item?.exploitation];
+    }),
+    [["d10", 5], ["d10", 5], ["d10", 5]],
+  );
+  assert.deepEqual(
+    ["Камень / бутылка / подручный предмет", "Метательный дротик"].map((name) => {
+      const item = equipmentData.find((candidate) => candidate.name === name);
+      return [item?.damage, item?.exploitation];
+    }),
+    [["d4", 2], ["d4", 2]],
+  );
+  assert.deepEqual(
+    ["Дуэльный пистоль", "Короткий револьвер ранней конструкции", "Мушкет", "Карабин", "Охотничье ружьё", "Механический арбалет"]
+      .map((name) => equipmentData.find((candidate) => candidate.name === name)?.exploitation),
+    [3, 4, 5, 4, 5, 5],
+  );
+  assert.deepEqual(
+    ["Дротиковая трубка", "Пружинный гвоздомёт"].map((name) => {
+      const item = equipmentData.find((candidate) => candidate.name === name);
+      return [item?.damage, item?.exploitation];
+    }),
+    [["d4+1", 3], ["d4+1", 2]],
+  );
+  assert.equal(equipmentData.find((item) => item.name === "Трость с кристаллическим навершием")?.damage, "d4");
   assert.ok(equipmentData.some((item) => item.name === "Фурма"));
   assert.equal(
     equipmentData.find((item) => item.name === "Полевая аптечка")?.purpose,
@@ -274,7 +354,7 @@ test("каталоги снаряжения имеют независимые б
   assert.match(styles, /\.skill-column \{[\s\S]*?grid-template-rows: auto repeat\(6, 62px\)/);
   assert.match(styles, /\.skill-item \{[\s\S]*?height: 62px/);
   assert.match(styles, /\.skill-mark-legend\[hidden\] \{ display: none; \}/);
-  for (const filter of ['armor', 'melee', 'thrown', 'ranged', 'kit', 'consumable', 'other']) {
+  for (const filter of ['armor', 'melee', 'thrown', 'ranged', 'crystal', 'kit', 'consumable', 'other']) {
     assert.equal((editor.match(new RegExp(`data-equipment-filter="${filter}"`, 'g')) || []).length, 2);
   }
   assert.equal(helpers.getEquipmentFilterCategory(byName['Кираса']), 'armor');
@@ -283,9 +363,12 @@ test("каталоги снаряжения имеют независимые б
   assert.equal(helpers.getEquipmentFilterCategory(byName['Метательный нож']), 'thrown');
   assert.equal(helpers.getEquipmentFilterCategory(byName['Полевой исследовательский набор']), 'kit');
   assert.equal(helpers.getEquipmentFilterCategory(byName['Пистоль']), 'ranged');
+  assert.equal(helpers.getEquipmentFilterCategory(byName['Красный резонансный кулон']), 'crystal');
   assert.equal(helpers.getEquipmentFilterCategory(byName['Слабый яд']), 'consumable');
   assert.equal(helpers.getEquipmentFilterCategory(byName['Компас']), 'other');
   assert.equal(helpers.matchesEquipmentFilter(byName['Пистоль'], 'melee'), false);
+  assert.match(equipmentUiSource, /class="equipment-quick-stats"/);
+  assert.match(styles, /\.equipment-quick-stat\s*\{/);
 });
 
 test("рекомендации классов и второстепенные навыки редакции 0.5.2 настроены отдельно", async () => {

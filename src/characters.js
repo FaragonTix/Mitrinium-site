@@ -314,6 +314,35 @@ function validateCharacter(character, { allowIncomplete = false } = {}) {
   }
 }
 
+function sanitizeEquipmentConditions(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const result = {};
+
+  for (const [rawId, rawCondition] of Object.entries(value).slice(0, 100)) {
+    const id = String(rawId || "").slice(0, 120);
+    if (!id || !rawCondition || typeof rawCondition !== "object") continue;
+    const condition = {};
+
+    if (Number.isFinite(Number(rawCondition.currentDurability))) {
+      condition.currentDurability = clamp(
+        Math.round(Number(rawCondition.currentDurability)),
+        0,
+        99,
+      );
+    }
+    if (Number.isFinite(Number(rawCondition.currentExploitation))) {
+      condition.currentExploitation = clamp(
+        Math.round(Number(rawCondition.currentExploitation)),
+        0,
+        99,
+      );
+    }
+    if (Object.keys(condition).length) result[id] = condition;
+  }
+
+  return result;
+}
+
 export function sanitizeState(state, resources) {
   const safeState = state || {};
   const safeResources = resources || {};
@@ -346,6 +375,9 @@ export function sanitizeState(state, resources) {
       farthings: Math.max(0, numberOr(money.farthings, 0)),
       pekkels: Math.max(0, numberOr(money.pekkels, 0)),
     },
+    equipmentConditions: sanitizeEquipmentConditions(
+      safeState.equipmentConditions,
+    ),
     notes: String(safeState.notes || "").slice(0, 10000),
     initialized: true,
   };

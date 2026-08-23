@@ -51,6 +51,71 @@
     return character;
   }
 
+  function getViewerEquipmentConditionDefinition(item) {
+    if (!item) return null;
+
+    const durability = Number(item.durability);
+    if (Number.isFinite(durability) && durability > 0) {
+      return {
+        key: 'currentDurability',
+        label: 'Прочность',
+        minimum: 0,
+        maximum: durability,
+        initial: durability
+      };
+    }
+
+    const exploitation = Number(item.exploitation);
+    if (Number.isFinite(exploitation) && exploitation >= 0) {
+      return {
+        key: 'currentExploitation',
+        label: 'Экспл.',
+        minimum: exploitation,
+        maximum: exploitation * 2,
+        initial: exploitation
+      };
+    }
+
+    return null;
+  }
+
+  function normalizeViewerEquipmentConditions(equipmentIds, savedConditions) {
+    const result = {};
+    const source = savedConditions && typeof savedConditions === 'object'
+      ? savedConditions
+      : {};
+
+    [...new Set(equipmentIds || [])].forEach(function(equipmentId) {
+      const item = getEquipmentById(equipmentId);
+      const definition = getViewerEquipmentConditionDefinition(item);
+      if (!definition) return;
+
+      const saved = source[equipmentId] && typeof source[equipmentId] === 'object'
+        ? source[equipmentId]
+        : {};
+      const savedValue = Object.prototype.hasOwnProperty.call(saved, definition.key)
+        ? saved[definition.key]
+        : definition.initial;
+      result[equipmentId] = {
+        [definition.key]: clampViewerNumber(
+          savedValue,
+          definition.minimum,
+          definition.maximum
+        )
+      };
+    });
+
+    return result;
+  }
+
+  function syncViewerEquipmentConditions(equipmentIds) {
+    if (!viewerState) return;
+    viewerState.equipmentConditions = normalizeViewerEquipmentConditions(
+      equipmentIds,
+      viewerState.equipmentConditions
+    );
+  }
+
   /* =========================
      Состояние персонажа
   ========================= */
@@ -146,6 +211,11 @@
         )
       },
 
+      equipmentConditions: normalizeViewerEquipmentConditions(
+        character.equipment || [],
+        savedState.equipmentConditions
+      ),
+
       notes: String(savedState.notes || ''),
       initialized: true
     };
@@ -209,6 +279,7 @@
       viewerStateDirty = false;
     } else {
       syncViewerResourceMaximums(character || {});
+      syncViewerEquipmentConditions(character?.equipment || []);
     }
 
     return viewerState;
@@ -1060,6 +1131,8 @@
       `;
     }
 
+    syncViewerEquipmentConditions(equipmentIds);
+
     return equipmentIds
       .map(equipmentId =>
         getEquipmentById(equipmentId)
@@ -1078,9 +1151,77 @@
               ''
             )}
           </span>
+
+          ${renderViewerEquipmentCondition(item)}
         </div>
       `)
       .join('');
+  }
+
+  function renderViewerEquipmentCondition(item) {
+    const definition = getViewerEquipmentConditionDefinition(item);
+    if (!definition) return '';
+
+    const condition = viewerState?.equipmentConditions?.[item.id] || {};
+    const conditionValue = Object.prototype.hasOwnProperty.call(condition, definition.key)
+      ? condition[definition.key]
+      : definition.initial;
+    const current = clampViewerNumber(
+      conditionValue,
+      definition.minimum,
+      definition.maximum
+    );
+    const limitText = definition.key === 'currentExploitation'
+      ? `база ${definition.minimum}, максимум ${definition.maximum}`
+      : `максимум ${definition.maximum}`;
+
+    return `
+      <div class="viewer-equipment-condition">
+        <strong>${escapeViewerHtml(definition.label)}</strong>
+        <button type="button" onclick="changeViewerEquipmentCondition('${item.id}', -1)">−</button>
+        <input
+          id="viewer-equipment-condition-${item.id}"
+          type="number"
+          min="${definition.minimum}"
+          max="${definition.maximum}"
+          value="${current}"
+          onchange="setViewerEquipmentCondition('${item.id}', this.value)"
+        >
+        <button type="button" onclick="changeViewerEquipmentCondition('${item.id}', 1)">+</button>
+        <span class="viewer-equipment-limit">${escapeViewerHtml(limitText)}</span>
+      </div>
+    `;
+  }
+
+  function setViewerEquipmentCondition(equipmentId, value) {
+    if (!viewerState) return;
+    const item = getEquipmentById(equipmentId);
+    const definition = getViewerEquipmentConditionDefinition(item);
+    if (!definition) return;
+
+    viewerState.equipmentConditions = viewerState.equipmentConditions || {};
+    viewerState.equipmentConditions[equipmentId] = {
+      [definition.key]: clampViewerNumber(
+        value,
+        definition.minimum,
+        definition.maximum
+      )
+    };
+
+    const input = document.getElementById(`viewer-equipment-condition-${equipmentId}`);
+    if (input) input.value = viewerState.equipmentConditions[equipmentId][definition.key];
+    markViewerStateUnsaved();
+  }
+
+  function changeViewerEquipmentCondition(equipmentId, delta) {
+    const item = getEquipmentById(equipmentId);
+    const definition = getViewerEquipmentConditionDefinition(item);
+    if (!viewerState || !definition) return;
+    const current = viewerState.equipmentConditions?.[equipmentId]?.[definition.key];
+    setViewerEquipmentCondition(
+      equipmentId,
+      NumberOrDefault(current, definition.initial) + NumberOrDefault(delta, 0)
+    );
   }
 
   /* =========================

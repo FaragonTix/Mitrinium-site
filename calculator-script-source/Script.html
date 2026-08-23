@@ -10,6 +10,7 @@ let v8Bundle=null;
 let generatorSearchResult=null;
 let tacticalPregenBank=null;
 let tacticalPregenBankError=null;
+let generatorArchetypeIds=[];
 let savedCharacterSheets=[];
 let characterEquipmentCatalog=[];
 function newId(prefix) {
@@ -602,7 +603,7 @@ function initializeControls() {
   renderGeneratorPresetOptions();
 }
 function defaultV8PlayerProfile() {
-  return {body:12,armor:2,pz:4,pool:4,expl:3,damage:'d8',penetration:0,agility:2,wits:2};
+  return {body:11,armor:2,pz:4,pool:4,expl:3,damage:'d6+1',penetration:0,agility:2,wits:2};
 }
 async function loadCharacterProfileSources(showFeedback=false) {
   try {
@@ -668,8 +669,8 @@ async function selectPlayerWeapon(playerId,weaponId) {
 function v8ArchetypeProfile(archetype='standard',strength='normal',level=1) {
   const candidates=(v8Bundle?.unit_library||[]).filter(unit=>unit.archetype===archetype).sort((a,b)=>a.body-b.body||a.armor-b.armor);
   if(!candidates.length)return defaultV8PlayerProfile();
-  const levelIndex=Math.round((clamp(Number(level)||1,1,20)-1)/19*(candidates.length-1)),offset=strength==='weak'?-1:strength==='strong'?1:0,index=clamp(levelIndex+offset,0,candidates.length-1);
-  return {...candidates[index]};
+  const safeLevel=clamp(Number(level)||1,1,20),levelIndex=Math.round((safeLevel-1)/19*(candidates.length-1)),offset=strength==='weak'?-1:strength==='strong'?1:0,index=clamp(levelIndex+offset,0,candidates.length-1),reference=PLAYER_LEVEL_PROFILES[safeLevel];
+  return {...candidates[index],body:Math.min(16,reference.hp),damage:safeLevel<=7?'d6+1':'d8+1',pz:clamp(Number(candidates[index].pz)||4,3,5)};
 }
 function setPartyInputMode(value) {
   state.partyInputMode=value==='real'?'real':'abstract';
@@ -810,7 +811,7 @@ function generatorSettingsFromUi() {
   const countMode=document.getElementById('enemyCountMode').value;
   const difficulty=document.getElementById('difficulty').value;
   return {
-    mode:getMode(),difficulty:difficulty==='custom'?'medium':difficulty,
+    mode:getMode(),difficulty:difficulty==='custom'?'medium':difficulty,source:document.getElementById('generatorSource')?.value||'mixed',
     targets:{win:targetFromUi('targetWin'),ko:targetFromUi('targetKo'),rounds:targetFromUi('rounds',false),body:targetFromUi('body')},
     count:{mode:countMode,exact:numberValue('enemyCount',3),min:countMode==='any'?1:numberValue('enemyCountMin',2),max:countMode==='any'?6:numberValue('enemyCountMax',5)},
     composition:document.getElementById('composition').value,
@@ -842,7 +843,7 @@ function loadGeneratorPreset(name) {const settings=savedGeneratorPresets()[name]
 function applyGeneratorSettingsToUi(settings) {
   if(!settings)return;
   const set=(id,value)=>{const element=document.getElementById(id);if(element&&value!==undefined)element.value=value;};
-  set('generationMode',settings.mode);set('difficulty',settings.difficulty);set('enemyCountMode',settings.count?.mode);set('enemyCount',settings.count?.exact);set('enemyCountMin',settings.count?.min);set('enemyCountMax',settings.count?.max);set('composition',settings.composition);set('bossMode',settings.boss?.mode);set('bossMax',settings.boss?.max);set('duplicateMode',settings.duplicates?.mode);set('duplicateMax',settings.duplicates?.max);set('heterogeneity',settings.heterogeneity?.mode);set('generatorSeed',settings.seed);
+  set('generationMode',settings.mode);set('difficulty',settings.difficulty);set('generatorSource',settings.source);set('enemyCountMode',settings.count?.mode);set('enemyCount',settings.count?.exact);set('enemyCountMin',settings.count?.min);set('enemyCountMax',settings.count?.max);set('composition',settings.composition);set('bossMode',settings.boss?.mode);set('bossMax',settings.boss?.max);set('duplicateMode',settings.duplicates?.mode);set('duplicateMax',settings.duplicates?.max);set('heterogeneity',settings.heterogeneity?.mode);set('generatorSeed',settings.seed);
   if(document.getElementById('extremeAllowed'))document.getElementById('extremeAllowed').checked=Boolean(settings.heterogeneity?.extremeAllowed);
   [['targetWin',settings.targets?.win],['targetKo',settings.targets?.ko],['rounds',settings.targets?.rounds],['body',settings.targets?.body]].forEach(([prefix,target])=>{if(!target)return;set(`${prefix}Mode`,target.mode);const percent=prefix!=='rounds',factor=percent?100:1;set(`${prefix}Min`,(target.min??target.exact??0)*factor);set(`${prefix}Max`,(target.max??target.exact??0)*factor);});
   renderGenerationMode();
@@ -949,7 +950,7 @@ function partyV8Profiles() {
 }
 function enemyV8Profile(enemy) {
   const attacks=ensureTwoAttacks(enemy.attacks,enemy.typeKey),attack=attacks.find(item=>item.id===enemy.primaryAttackId)||attacks[0];
-  return MitriniumV8.normalizeCombatProfile({name:enemy.name,body:enemy.maxHp??enemy.hp,armor:enemy.maxArmor??enemy.armor,pz:enemy.pz,pool:attack.pool,expl:attack.expl,damage:attack.damage,penetration:attack.penetrating?1:0,archetype:enemy.v8Archetype||enemy.tagKey});
+  return {...MitriniumV8.normalizeCombatProfile({name:enemy.name,body:enemy.maxHp??enemy.hp,armor:enemy.maxArmor??enemy.armor,pz:enemy.pz,pool:attack.pool,expl:attack.expl,damage:attack.damage,penetration:attack.penetrating?1:0,archetype:enemy.v8Archetype||enemy.tagKey}),nerve:Number(enemy.maxNerve??enemy.nerve)||0};
 }
 const TACTICAL_ROLE_LABELS={brute:'Громила',shooter:'Стрелок',skirmisher:'Застрельщик',tank:'Танк',controller:'Контроллер',striker:'Ударник',support:'Поддержка',artillery:'Артиллерия'};
 function tacticalScaleForArchetype(archetype) {return archetype==='minion'?'minion':archetype==='boss'?'boss':'chief';}
@@ -995,51 +996,82 @@ function applyTacticalPregenWithFallback(enemy,kit,desiredScale) {
 function generatorLibrary(settings) {
   const selected=[];
   const generated=(v8Bundle?.unit_library||[]).map((profile,index)=> {
-    const base={id:`v8:${profile.archetype}:${index}`,name:`${V8_ARCHETYPE_LABELS[profile.archetype]||profile.archetype} ${index+1}`,profile,archetype:profile.archetype,role:profile.archetype,tags:[profile.archetype],typeKey:'humanoid',classKey:'none',source:'v8'};
-    const choice=tacticalSelectionFor(base,index,selected),entry={...base,name:choice.kit.name,tacticalRole:choice.kit.role,tacticalKit:choice.kit,tacticalScaleFallback:choice.scaleFallback,typeKey:typeForTacticalChassis(choice.kit.chassis),tags:[profile.archetype,choice.kit.role,choice.kit.chassis,...(choice.kit.diversity_tags||[])]};
+    const base={id:`v8:${profile.archetype}:${index}`,name:`${V8_ARCHETYPE_LABELS[profile.archetype]||profile.archetype} ${index+1}`,profile,idealProfile:profile,usage:'archetype',archetype:profile.archetype,role:profile.archetype,tags:[profile.archetype],typeKey:'humanoid',classKey:'none',source:'v8'};
+    const choice=tacticalSelectionFor(base,index,selected),kit=choice.kit,entry={...base,name:kit.name,tacticalRole:kit.role,tacticalKit:kit,tacticalScaleFallback:choice.scaleFallback,typeKey:typeForTacticalChassis(kit.chassis),description:kit.tactical_identity,hardIdentity:{name:kit.name,type:kit.chassis,attacks:[deepClone(kit.primary),deepClone(kit.secondary),deepClone(kit.special)],reactions:[deepClone(kit.reaction)],tactics:deepClone(kit.tactics)},tags:[profile.archetype,kit.role,kit.chassis,...(kit.diversity_tags||[])]};
     selected.push({tacticalPregenId:choice.kit.id,chassis:choice.kit.chassis,diversityTags:choice.kit.diversity_tags});
     return entry;
   });
-  const saved=customEnemies.map((template,index)=> {
+  const savedExact=customEnemies.map((template,index)=> {
     const enemy=instantiateTemplate(template,index);
-    return {id:`library:${template.id}`,name:template.name,profile:enemyV8Profile(enemy),archetype:enemy.v8Archetype||enemy.tagKey,role:enemy.tagKey,tags:[enemy.tagKey,enemy.v8Archetype,enemy.typeKey].filter(Boolean),typeKey:enemy.typeKey,classKey:enemy.classKey,source:'library',template,bs:Number(template.bp)||undefined};
+    return {id:`library:${template.id}`,baseId:`library:${template.id}`,name:template.name,profile:enemyV8Profile(enemy),usage:'exact',archetype:enemy.v8Archetype||enemy.tagKey,role:enemy.tagKey,tags:[enemy.tagKey,enemy.v8Archetype,enemy.typeKey].filter(Boolean),typeKey:enemy.typeKey,classKey:enemy.classKey,source:'library',template,hardIdentity:{name:template.name,type:enemy.typeKey,attacks:deepClone(enemy.attacks),reactions:deepClone(enemy.reactions),properties:deepClone(enemy.properties)}};
   });
+  const savedArchetypes=savedExact.filter(entry=>!generatorArchetypeIds.length||generatorArchetypeIds.includes(entry.template.id)).map(entry=>({...entry,id:`library-archetype:${entry.template.id}`,baseId:`library-archetype:${entry.template.id}`,source:'library-archetype',usage:'archetype',idealProfile:deepClone(entry.profile)}));
   const requestedType=settings.creatureType;
   const requestedClass=settings.humanoidClass;
-  return [...saved,...generated].filter(entry=>(requestedType==='auto'||entry.typeKey===requestedType)&&(requestedClass==='auto'||requestedClass==='none'||entry.classKey===requestedClass));
+  const bySource=settings.source==='library_exact'?savedExact:settings.source==='library_archetypes'?savedArchetypes:settings.source==='archetypes'?generated:[...savedExact,...savedArchetypes,...generated];
+  return bySource.filter(entry=>(requestedType==='auto'||entry.typeKey===requestedType)&&(requestedClass==='auto'||requestedClass==='none'||entry.classKey===requestedClass));
 }
 function lockedGeneratorEntries() {
-  return state.enemies.filter(enemy=>enemy.generatorLocked).map(enemy=>({id:`locked:${enemy.id}`,name:enemy.name,profile:enemyV8Profile(enemy),archetype:enemy.v8Archetype||enemy.tagKey,role:enemy.tagKey,tags:[enemy.tagKey,enemy.v8Archetype,enemy.typeKey].filter(Boolean),typeKey:enemy.typeKey,classKey:enemy.classKey,source:'locked',enemy:deepClone(enemy),bs:Number(enemy.bp)||undefined}));
+  return state.enemies.filter(enemy=>enemy.generatorLocked).map(enemy=>({id:`locked:${enemy.id}`,baseId:`locked:${enemy.id}`,name:enemy.name,profile:enemyV8Profile(enemy),usage:'exact',archetype:enemy.v8Archetype||enemy.tagKey,role:enemy.tagKey,tags:[enemy.tagKey,enemy.v8Archetype,enemy.typeKey].filter(Boolean),typeKey:enemy.typeKey,classKey:enemy.classKey,source:'locked',enemy:deepClone(enemy)}));
 }
+function generatorEntryMeta(entry) {return {id:entry.id,baseId:entry.baseId||entry.id,name:entry.name,source:entry.source,usage:entry.usage,profile:deepClone(entry.profile),idealProfile:deepClone(entry.idealProfile||entry.profile),archetype:entry.archetype,role:entry.role,tags:deepClone(entry.tags||[]),hardIdentity:deepClone(entry.hardIdentity||{}),deviation:Number(entry.deviation)||0,tuningDiff:deepClone(entry.tuningDiff||[]),variantKey:entry.variantKey||'',tacticalKit:entry.tacticalKit?deepClone(entry.tacticalKit):null,typeKey:entry.typeKey,classKey:entry.classKey};}
+function attachGeneratorMeta(enemy,entry) {return {...enemy,generatorEntryMeta:generatorEntryMeta(entry),individualBs:window.MitriniumEncounterGenerator.individualBs(entry.profile)};}
 function instantiateGeneratorEntry(entry,index) {
-  if(entry.source==='locked'&&entry.enemy)return {...deepClone(entry.enemy),generatorLocked:true,slot:index+1};
-  if(entry.source==='library'&&entry.template)return {...instantiateTemplate(entry.template,index),generatorLibraryId:entry.id};
+  if(entry.source==='locked'&&entry.enemy)return attachGeneratorMeta({...deepClone(entry.enemy),generatorLocked:true,slot:index+1},entry);
+  if(entry.source==='library'&&entry.template)return attachGeneratorMeta({...instantiateTemplate(entry.template,index),generatorLibraryId:entry.id},entry);
+  if(entry.source==='library-archetype'&&entry.template)return attachGeneratorMeta({...applyV8Profile(instantiateTemplate(entry.template,index),entry.profile),generatorLibraryId:entry.id},entry);
   const archetype=entry.archetype||entry.profile?.archetype||'standard';
   const tagKey=archetype==='boss'?'boss':archetype==='minion'?'minion':'chief';
   const enemy=buildEnemy(clamp(Number(document.getElementById('level')?.value)||1,1,20),1000,entry.typeKey||'humanoid',tagKey,entry.classKey||'none',index,entry.name,Boolean(entry.tacticalKit));
   const scaled={...applyV8Profile(enemy,entry.profile),generatorLibraryId:entry.id};
-  return entry.tacticalKit?applyTacticalPregenWithFallback(scaled,entry.tacticalKit,tacticalScaleForArchetype(archetype)):scaled;
+  return attachGeneratorMeta(entry.tacticalKit?applyTacticalPregenWithFallback(scaled,entry.tacticalKit,tacticalScaleForArchetype(archetype)):scaled,entry);
 }
 function generatorEvaluation(profiles) {return MitriniumV8.predictEncounter(v8Bundle,partyV8Profiles(),profiles);}
 function formatTargetRange(range,percent=true) {if(!range)return'не учитывать';const factor=percent?100:1,digits=percent?0:1;return range[0]===range[1]?`${(range[0]*factor).toFixed(digits)}`:`${(range[0]*factor).toFixed(digits)}–${(range[1]*factor).toFixed(digits)}`;}
 function generatorDelta(status,percent=true) {if(status.ignored)return'';if(status.ok)return'<span class="target-ok">✓</span>';const factor=percent?100:1,value=status.delta*factor;return`<span class="target-miss">${value>0?'+':''}${value.toFixed(percent?0:1)}${percent?'%':''}</span>`;}
+function generatorEntryDescription(entry) {
+  const identity=entry.hardIdentity||{},attacks=(identity.attacks||[]).map(item=>item?.name).filter(Boolean),reaction=(identity.reactions||[]).map(item=>item?.name).filter(Boolean)[0];
+  const role=TACTICAL_ROLE_LABELS[entry.tacticalRole]||V8_ARCHETYPE_LABELS[entry.archetype]||entry.role||'Архетип';
+  const description=entry.description||entry.tacticalKit?.tactical_identity||`${role}. ${attacks.length?`Ключевые действия: ${attacks.slice(0,3).join(', ')}.`:''}${reaction?` Реакция: ${reaction}.`:''}`;
+  return {role,description,attacks,reaction};
+}
+function generatorEnemyCard(entry,optionIndex,slotIndex) {
+  const info=generatorEntryDescription(entry),p=entry.profile,diff=(entry.tuningDiff||[]).slice(0,3).map(item=>`${item.key}: ${item.from} → ${item.to}`).join(' · ');
+  return `<div class="generator-enemy-card"><h4>${escapeHtml(entry.name)} · БС ${entry.bs}</h4><div class="badge">${escapeHtml(info.role)}</div><p>${escapeHtml(info.description)}</p>${info.attacks.length?`<p><b>Атаки:</b> ${escapeHtml(info.attacks.join(', '))}</p>`:''}${info.reaction?`<p><b>Реакция:</b> ${escapeHtml(info.reaction)}</p>`:''}<p><b>Профиль:</b> Тело ${p.body}, Броня ${p.armor}, ПЗ ${p.pz}, пул ${p.pool}, ${escapeHtml(p.damage)}, Pen ${p.penetration||0}</p>${diff?`<div class="generator-diff">От идеала: ${escapeHtml(diff)}</div>`:''}<div class="generator-enemy-actions"><button class="small" ${entry.locked?'disabled':''} onclick="replaceGeneratorOptionSlot(${optionIndex},${slotIndex})">Заменить случайным</button><button class="small ${entry.locked?'primary':''}" onclick="toggleGeneratorOptionLock(${optionIndex},${slotIndex})">${entry.locked?'Зафиксирован':'Зафиксировать'}</button></div></div>`;
+}
 function renderGeneratorAlternatives(result) {
   const panel=document.getElementById('generatorAlternativesPanel'),root=document.getElementById('generatorAlternatives'),diagnostics=document.getElementById('generatorDiagnostics');
   if(!panel||!root||!diagnostics)return;
   panel.classList.remove('hidden');
   diagnostics.innerHTML=result.diagnostics.map(message=>`<div class="callout generator-diagnostic">${escapeHtml(message)}</div>`).join('');
   root.innerHTML=result.options.length?result.options.map((option,index)=> {
-    const p=option.evaluation.prediction,names=option.entries.map(entry=>escapeHtml(entry.name)).join(', ');
-    return `<article class="generator-option"><div class="generator-option-head"><h3>Вариант ${String.fromCharCode(65+index)}</h3><button class="primary" onclick="applyGeneratorOption(${index})">Выбрать</button></div><div class="v8-prediction compact"><div class="v8-metric"><b>${Math.round(p.party_win_probability*100)}%</b><span>P(win) ${generatorDelta(option.status.win)}</span></div><div class="v8-metric"><b>${Math.round(p.p_any_pc_ko*100)}%</b><span>хотя бы один KO ${generatorDelta(option.status.ko)}</span></div><div class="v8-metric"><b>${p.mean_rounds.toFixed(1)}</b><span>раунды ${generatorDelta(option.status.rounds,false)}</span></div><div class="v8-metric"><b>${Math.round(p.mean_party_body_loss_fraction*100)}%</b><span>потеря Тела ${generatorDelta(option.status.body)}</span></div></div><p><b>${option.entries.length} врагов:</b> ${names}</p><p class="help">Цель: P(win) ${result.settings.targets.win?`${formatTargetRange(result.settings.targets.win)}%`:'не учитывать'}; KO ${result.settings.targets.ko?`${formatTargetRange(result.settings.targets.ko)}%`:'не учитывать'}. Objective ${option.score.toFixed(3)}.</p></article>`;
+    const p=option.evaluation.prediction;
+    return `<article class="generator-option"><div class="generator-option-head"><h3>Вариант ${String.fromCharCode(65+index)}</h3><button class="primary" onclick="applyGeneratorOption(${index})">Выбрать</button></div><div class="v8-prediction compact"><div class="v8-metric"><b>${Math.round(p.party_win_probability*100)}%</b><span>P(win) ${generatorDelta(option.status.win)}</span></div><div class="v8-metric"><b>${Math.round(p.p_any_pc_ko*100)}%</b><span>хотя бы один KO ${generatorDelta(option.status.ko)}</span></div><div class="v8-metric"><b>${p.mean_rounds.toFixed(1)}</b><span>раунды ${generatorDelta(option.status.rounds,false)}</span></div><div class="v8-metric"><b>${Math.round(p.mean_party_body_loss_fraction*100)}%</b><span>потеря Тела ${generatorDelta(option.status.body)}</span></div></div><div class="generator-enemy-cards">${option.entries.map((entry,slotIndex)=>generatorEnemyCard(entry,index,slotIndex)).join('')}</div><p class="help">Цель: P(win) ${result.settings.targets.win?`${formatTargetRange(result.settings.targets.win)}%`:'не учитывать'}; KO ${result.settings.targets.ko?`${formatTargetRange(result.settings.targets.ko)}%`:'не учитывать'}. Ошибка цели ${Number(option.targetError??option.score).toFixed(3)}; отклонение от идеала ${Number(option.pregenDeviation||0).toFixed(2)}.</p></article>`;
   }).join(''):'<div class="empty">Вариантов нет. Измените ограничения; генератор не ослабляет их автоматически.</div>';
+}
+function toggleGeneratorOptionLock(optionIndex,slotIndex) {const entry=generatorSearchResult?.options?.[optionIndex]?.entries?.[slotIndex];if(!entry)return;entry.locked=!entry.locked;renderGeneratorAlternatives(generatorSearchResult);}
+function replaceGeneratorOptionSlot(optionIndex,slotIndex) {
+  const option=generatorSearchResult?.options?.[optionIndex];if(!option)return;
+  const result=window.MitriniumEncounterGenerator.replaceGeneratedSlot({entries:option.entries,index:slotIndex,library:generatorLibrary(getSettings()),settings:generatorSearchResult.settings,evaluate:generatorEvaluation});
+  if(!result.option){showToast(result.diagnostics?.[0]||'Замена не найдена.',true);return;}
+  generatorSearchResult.options[optionIndex]=result.option;renderGeneratorAlternatives(generatorSearchResult);showToast('Заменён только выбранный противник; бой пересчитан через v8.');
 }
 async function applyGeneratorOption(index) {
   const option=generatorSearchResult?.options?.[index];if(!option)return;
-  const enemies=option.entries.map(instantiateGeneratorEntry);
+  const enemies=option.entries.map((entry,entryIndex)=>({...instantiateGeneratorEntry(entry,entryIndex),generatorLocked:Boolean(entry.locked)}));
   state.settings={...getSettings(),generatorTargets:generatorSearchResult.settings.targets,enemyCount:enemies.length};state.enemies=enemies;state.selectedEnemyId=enemies[0]?.id||null;state.round=1;state.initiative={activeId:null,order:[...state.players.map(player=>player.id),...enemies.map(enemy=>enemy.id)]};state.generatedAt=new Date().toISOString();state.version=11;
   await refreshV8Prediction();persistLocal();render();showScreen('combat');showToast('Выбранный вариант загружен в бой.');
 }
 function toggleGeneratorLock(id) {const enemy=findEnemy(id);if(!enemy)return;enemy.generatorLocked=!enemy.generatorLocked;persistLocal();renderEnemyGrid();renderGeneratorLockedList();}
+async function replaceCombatEnemyRandom(id) {
+  const index=state.enemies.findIndex(enemy=>enemy.id===id),current=state.enemies[index];
+  if(index<0||!current||current.generatorLocked){showToast('Сначала разблокируйте противника.',true);return;}
+  const settings=getSettings(),entries=state.enemies.map(enemy=>enemy.generatorEntryMeta?{...deepClone(enemy.generatorEntryMeta),locked:Boolean(enemy.generatorLocked),source:enemy.generatorLocked?'locked':enemy.generatorEntryMeta.source}:{id:`current:${enemy.id}`,baseId:`current:${enemy.id}`,name:enemy.name,profile:enemyV8Profile(enemy),usage:'exact',source:'locked',locked:true,archetype:enemy.v8Archetype||enemy.tagKey,role:enemy.tagKey,hardIdentity:{name:enemy.name,type:enemy.typeKey,attacks:deepClone(enemy.attacks),reactions:deepClone(enemy.reactions)}});
+  const result=window.MitriniumEncounterGenerator.replaceGeneratedSlot({entries,index,library:generatorLibrary(settings),settings,evaluate:generatorEvaluation});
+  const replacement=result.option?.entries?.[index];if(!replacement){showToast(result.diagnostics?.[0]||'Другой допустимый архетип не найден.',true);return;}
+  const enemy=instantiateGeneratorEntry(replacement,index);enemy.initiative=current.initiative;enemy.slot=current.slot;state.enemies[index]=enemy;state.selectedEnemyId=enemy.id;
+  await refreshV8Prediction();persistLocal();render();showToast('Заменён выбранный противник; остальные участники не изменены.');
+}
 function showMarginalImpact(id) {
   const index=state.enemies.findIndex(enemy=>enemy.id===id),root=document.getElementById(`marginalImpact_${id}`);if(index<0||!root)return;
   if(state.enemies.length<2){root.textContent='Для одиночного противника сравнение без него не рассчитывается.';return;}
@@ -1064,7 +1096,7 @@ function v8CandidatesForEntry(entry) {
 function applyV8Profile(enemy,profile) {
   const attacks=ensureTwoAttacks(enemy.attacks,enemy.typeKey);
   attacks[0]={...attacks[0],pool:profile.pool,expl:profile.expl,damage:profile.damage,penetrating:profile.penetration>0};
-  return {...enemy,maxHp:profile.body,hp:profile.body,maxArmor:profile.armor,armor:profile.armor,pz:profile.pz,attacks,v8Archetype:profile.archetype};
+  return {...enemy,maxHp:profile.body,hp:profile.body,...(profile.nerve!==undefined?{maxNerve:profile.nerve,nerve:profile.nerve}:{}),maxArmor:profile.armor,armor:profile.armor,pz:profile.pz,attacks,v8Archetype:profile.archetype};
 }
 function predictionSelectionScore(prediction,target) {
   return (prediction.party_win_probability-target.win)**2+(prediction.p_any_pc_ko-target.ko)**2*.55;
@@ -1219,7 +1251,7 @@ function renderEnemyCard(enemy, {
     const immune=(enemy.immunities||[]).includes(c),active=(enemy.conditions||[]).includes(c); return`<button class="condition ${immune?'immune':''} ${active?'active':''}" ${immune?'disabled':''} onclick="toggleCondition('${enemy.id}','${c}')">${escapeHtml(c)}</button>`;
   }).join(''):'';
   const properties=(enemy.properties||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join('');
-  return`<article class="enemy-card ${enemy.hp<=0?'defeated':''}"><div class="enemy-head"><div class="enemy-title-row"><div><input class="enemy-name-input" value="${escapeHtml(enemy.name)}" aria-label="Имя противника" onchange="renameCombatEnemy('${enemy.id}',this.value)"><div class="badges"><span class="badge">${escapeHtml(type.label)}</span><span class="badge">${escapeHtml(TAGS[enemy.tagKey]?.label||'Главарь')}</span>${enemy.classLabel?`<span class="badge">${escapeHtml(enemy.classLabel)}</span>`:''}${enemy.v8Archetype?`<span class="badge">v8: ${escapeHtml(V8_ARCHETYPE_LABELS[enemy.v8Archetype]||enemy.v8Archetype)}</span>`:''}</div></div>${interactive?`<button class="small danger" onclick="removeEnemy('${enemy.id}')">Убрать</button>`:''}</div>${interactive?`<div class="enemy-card-actions"><button class="small ${enemy.generatorLocked?'primary':''}" onclick="toggleGeneratorLock('${enemy.id}')">${enemy.generatorLocked?'Заблокирован':'Заблокировать'}</button><button class="small" onclick="showMarginalImpact('${enemy.id}')">Влияние на бой</button><button class="small" onclick="saveCombatEnemyPreset('${enemy.id}')">Сохранить как пресет</button><button class="small" onclick="sendCombatEnemyToEditor('${enemy.id}')">В редактор</button></div><div id="marginalImpact_${enemy.id}" class="help"></div>`:''}</div><div class="enemy-body"><div class="statline"><div class="statbox"><b>${enemy.maxHp}</b><span>Тело</span></div><div class="statbox"><b>${enemy.maxArmor}</b><span>Броня</span></div><div class="statbox"><b>${enemy.pz}</b><span>ПЗ</span></div><div class="statbox"><b>${enemy.physicalDefensePool}</b><span>Физ. защ.</span></div><div class="statbox"><b>${enemy.mentalDefensePool}</b><span>Мент. защ.</span></div><div class="statbox"><b>${enemy.speed}</b><span>Скорость</span></div></div><div class="badges"><span class="badge">Реакций ${enemy.reactionLimit}/раунд</span><span class="badge">Атак ${attacks.length}</span>${enemy.maxNerve>0?`<span class="badge">Нерв ${enemy.maxNerve}</span>`:''}</div>${interactive?`<div class="tracker">${resourceRow(enemy,'hp','Тело','')}${resourceRow(enemy,'nerve','Нерв','nerve')}${resourceRow(enemy,'armor','Броня','armor')}</div><label class="scene-control"><span>Кубы сцены</span><select onchange="setScenePreset('${enemy.id}',this.value)">${sceneOptions(enemy.scenePreset||'normal')}</select></label><div class="defense-rolls"><button class="small" onclick="rollEnemyDefense('${enemy.id}','physical')">Физическая защита ${enemy.physicalDefensePool}d6</button><button class="small" onclick="rollEnemyDefense('${enemy.id}','mental')">Ментальная защита ${enemy.mentalDefensePool}d6</button>${defenseRollHtml(enemy,'physical')}${defenseRollHtml(enemy,'mental')}</div>`:''}${tacticalEnemyHtml(enemy,interactive)}${properties?`<div class="section"><b>Свойства</b><ul class="rules">${properties}</ul></div>`:''}<div class="section"><b>Атаки</b><div class="attack-list">${attacks.map((a,i)=>attackHtml(enemy,a,i,interactive)).join('')}</div></div>${reactions?`<div class="section"><b>Реакции</b><div class="reactions">${reactions}</div></div>`:''}${conditions?`<div class="section"><b>Состояния</b><div class="conditions">${conditions}</div></div>`:''}</div></article>`;
+  return`<article class="enemy-card ${enemy.hp<=0?'defeated':''}"><div class="enemy-head"><div class="enemy-title-row"><div><input class="enemy-name-input" value="${escapeHtml(enemy.name)}" aria-label="Имя противника" onchange="renameCombatEnemy('${enemy.id}',this.value)"><div class="badges"><span class="badge">${escapeHtml(type.label)}</span><span class="badge">${escapeHtml(TAGS[enemy.tagKey]?.label||'Главарь')}</span>${enemy.classLabel?`<span class="badge">${escapeHtml(enemy.classLabel)}</span>`:''}${enemy.v8Archetype?`<span class="badge">v8: ${escapeHtml(V8_ARCHETYPE_LABELS[enemy.v8Archetype]||enemy.v8Archetype)}</span>`:''}<span class="badge bp">БС ${enemy.individualBs||window.MitriniumEncounterGenerator.individualBs(enemyV8Profile(enemy))}</span></div></div>${interactive?`<button class="small danger" onclick="removeEnemy('${enemy.id}')">Убрать</button>`:''}</div>${interactive?`<div class="enemy-card-actions"><button class="small ${enemy.generatorLocked?'primary':''}" onclick="toggleGeneratorLock('${enemy.id}')">${enemy.generatorLocked?'Заблокирован':'Заблокировать'}</button>${enemy.generatorEntryMeta?`<button class="small" ${enemy.generatorLocked?'disabled':''} onclick="replaceCombatEnemyRandom('${enemy.id}')">Заменить случайным</button>`:''}<button class="small" onclick="showMarginalImpact('${enemy.id}')">Влияние на бой</button><button class="small" onclick="saveCombatEnemyPreset('${enemy.id}')">Сохранить как пресет</button><button class="small" onclick="sendCombatEnemyToEditor('${enemy.id}')">В редактор</button></div><div id="marginalImpact_${enemy.id}" class="help"></div>`:''}</div><div class="enemy-body"><div class="statline"><div class="statbox"><b>${enemy.maxHp}</b><span>Тело</span></div><div class="statbox"><b>${enemy.maxArmor}</b><span>Броня</span></div><div class="statbox"><b>${enemy.pz}</b><span>ПЗ</span></div><div class="statbox"><b>${enemy.physicalDefensePool}</b><span>Физ. защ.</span></div><div class="statbox"><b>${enemy.mentalDefensePool}</b><span>Мент. защ.</span></div><div class="statbox"><b>${enemy.speed}</b><span>Скорость</span></div></div><div class="badges"><span class="badge">Реакций ${enemy.reactionLimit}/раунд</span><span class="badge">Атак ${attacks.length}</span>${enemy.maxNerve>0?`<span class="badge">Нерв ${enemy.maxNerve}</span>`:''}</div>${interactive?`<div class="tracker">${resourceRow(enemy,'hp','Тело','')}${resourceRow(enemy,'nerve','Нерв','nerve')}${resourceRow(enemy,'armor','Броня','armor')}</div><label class="scene-control"><span>Кубы сцены</span><select onchange="setScenePreset('${enemy.id}',this.value)">${sceneOptions(enemy.scenePreset||'normal')}</select></label><div class="defense-rolls"><button class="small" onclick="rollEnemyDefense('${enemy.id}','physical')">Физическая защита ${enemy.physicalDefensePool}d6</button><button class="small" onclick="rollEnemyDefense('${enemy.id}','mental')">Ментальная защита ${enemy.mentalDefensePool}d6</button>${defenseRollHtml(enemy,'physical')}${defenseRollHtml(enemy,'mental')}</div>`:''}${tacticalEnemyHtml(enemy,interactive)}${properties?`<div class="section"><b>Свойства</b><ul class="rules">${properties}</ul></div>`:''}<div class="section"><b>Атаки</b><div class="attack-list">${attacks.map((a,i)=>attackHtml(enemy,a,i,interactive)).join('')}</div></div>${reactions?`<div class="section"><b>Реакции</b><div class="reactions">${reactions}</div></div>`:''}${conditions?`<div class="section"><b>Состояния</b><div class="conditions">${conditions}</div></div>`:''}</div></article>`;
 }
 function renderEnemyGrid() {
   const root=document.getElementById('enemyGrid'),detail=document.getElementById('enemyDetail');
@@ -1613,7 +1645,7 @@ function filterLibrary(prefix) {
   });
 }
 function libraryCard(enemy,context) {
-  const type=TYPE_DATA[enemy.typeKey]||TYPE_DATA.humanoid,tag=TAGS[normalizeTagKey(enemy.tagKey||enemy.roleKey)]||TAGS.chief,attacks=ensureTwoAttacks(enemy.attacks,enemy.typeKey),primary=attacks[0],reactions=normalizeReactions(enemy.reactions),actions=context==='bestiary'?`<button class="small" onclick="editLibraryEnemy('${enemy.id}')">Редактировать</button><button class="small" onclick="addLibraryEnemyToCombat('${enemy.id}')">В бой</button><button class="small danger" onclick="deleteLibraryEnemy('${enemy.id}')">Удалить</button>`:`<button class="small" onclick="useLibraryEnemyInManual('${enemy.id}')">В состав</button><button class="small" onclick="editLibraryEnemy('${enemy.id}')">Редактировать</button>`;
+  const type=TYPE_DATA[enemy.typeKey]||TYPE_DATA.humanoid,tag=TAGS[normalizeTagKey(enemy.tagKey||enemy.roleKey)]||TAGS.chief,attacks=ensureTwoAttacks(enemy.attacks,enemy.typeKey),primary=attacks[0],reactions=normalizeReactions(enemy.reactions),actions=context==='bestiary'?`<button class="small" onclick="editLibraryEnemy('${enemy.id}')">Редактировать</button><button class="small" onclick="addLibraryEnemyToCombat('${enemy.id}')">В бой</button><button class="small" onclick="useLibraryEnemyAsArchetype('${enemy.id}')">Как архетип</button><button class="small danger" onclick="deleteLibraryEnemy('${enemy.id}')">Удалить</button>`:`<button class="small" onclick="useLibraryEnemyInManual('${enemy.id}')">Точный статблок</button><button class="small" onclick="useLibraryEnemyAsArchetype('${enemy.id}')">Как архетип</button><button class="small" onclick="editLibraryEnemy('${enemy.id}')">Редактировать</button>`;
   const libraryBs=window.MitriniumEncounterGenerator?.individualBs({body:enemy.hp,armor:enemy.armor,pz:enemy.pz,pool:primary.pool,expl:primary.expl??3,damage:primary.damage,penetration:primary.penetrating?1:0})||enemy.bp;
   return`<div class="library-card"><h3>${escapeHtml(enemy.name)}</h3><div class="library-meta"><span class="badge">${type.label}</span><span class="badge">${tag.label}</span><span class="badge bp">БС ${libraryBs}</span><span class="badge">ур. ${enemy.level}</span><span class="badge">${attacks.length} атак</span><span class="badge">${reactions.length} реакций</span></div><div class="help">Тело ${enemy.hp}, Броня ${enemy.armor}, ПЗ ${enemy.pz}; первая атака ${primary.pool}d6, Expl ${primary.expl??3}, ${escapeHtml(primary.damage)}.</div><div class="library-actions">${actions}</div></div>`;
 }
@@ -1628,6 +1660,12 @@ function renderLibraries(errorMessage='') {
   const prepItems=filterLibrary('prep').slice(0,20),bestItems=filterLibrary('lib');
   if(prep)prep.innerHTML=prepItems.length?prepItems.map(e=>libraryCard(e,'prep')).join(''):'<div class="empty">Ничего не найдено.</div>';
   if(best)best.innerHTML=bestItems.length?bestItems.map(e=>libraryCard(e,'bestiary')).join(''):'<div class="empty">Ничего не найдено.</div>';
+}
+function useLibraryEnemyAsArchetype(id) {
+  const template=customEnemies.find(enemy=>enemy.id===id);if(!template)return;
+  generatorArchetypeIds=[id];
+  const source=document.getElementById('generatorSource');if(source)source.value='library_archetypes';
+  showScreen('prep');renderSummary();showToast(`«${template.name}» выбран как архетип: действия сохранятся, числовой профиль можно подстроить.`);
 }
 function useLibraryEnemyInManual(id) {
   const template=customEnemies.find(e=>e.id===id);

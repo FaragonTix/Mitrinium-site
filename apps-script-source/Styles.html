@@ -892,6 +892,34 @@
     opacity: 0.8;
   }
 
+  .equipment-quick-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 8px;
+  }
+
+  .equipment-quick-stat {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    border: 1px solid #ad7c30;
+    border-radius: 999px;
+    background: #fff1cf;
+    padding: 3px 8px;
+    line-height: 1.1;
+  }
+
+  .equipment-quick-stat small {
+    color: #785b2e;
+    font-size: 11px;
+  }
+
+  .equipment-quick-stat strong {
+    color: #39250f;
+    font-size: 14px;
+  }
+
   .equipment-details,
   .selected-equipment-details {
     font-size: 13px;
@@ -1212,6 +1240,44 @@
     font-size: 13px;
     line-height: 1.35;
     opacity: 0.85;
+  }
+
+  .viewer-equipment-condition {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    border-top: 1px solid var(--border-soft);
+    padding-top: 8px;
+  }
+
+  .viewer-equipment-condition > strong {
+    min-width: 82px;
+    font-size: 13px;
+  }
+
+  .viewer-equipment-condition button {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--button-bg);
+  }
+
+  .viewer-equipment-condition input {
+    width: 54px;
+    height: 30px;
+    padding: 3px 5px;
+    text-align: center;
+  }
+
+  .viewer-equipment-limit {
+    font-size: 12px;
+    opacity: 0.75;
   }
 
   .viewer-ability summary {
