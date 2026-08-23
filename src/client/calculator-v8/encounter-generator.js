@@ -6,17 +6,17 @@ export const DIFFICULTY_PRESETS = Object.freeze({
 });
 
 export const ARCHETYPE_TUNING_CONFIG = Object.freeze({
-  lambda: 0.08,
+  lambda: 0.015,
   damageSteps: ["d4", "d4+1", "d6", "d6+1", "d8", "d8+1", "d10", "d10+1", "d12"],
   weights: { body: 1, nerve: 1, pool: 2, damage: 2, armor: 4, penetration: 5, pz: 8 },
   defaults: {
-    body: { preferred: 2, hard: 6, min: 1, max: 60 },
-    nerve: { preferred: 2, hard: 4, min: 0, max: 40 },
-    pool: { preferred: 1, hard: 2, min: 1, max: 8 },
-    damage: { preferred: 1, hard: 2 },
-    armor: { preferred: 0, hard: 1, min: 0, max: 8 },
+    body: { preferred: 3, hard: 10, min: 1, max: 60 },
+    nerve: { preferred: 3, hard: 8, min: 0, max: 40 },
+    pool: { preferred: 1, hard: 3, min: 1, max: 8 },
+    damage: { preferred: 1, hard: 3 },
+    armor: { preferred: 1, hard: 2, min: 0, max: 8 },
     penetration: { preferred: 0, hard: 1, min: 0, max: 3 },
-    pz: { preferred: 0, hard: 1, min: 2, max: 6 },
+    pz: { preferred: 1, hard: 2, min: 2, max: 6 },
   },
 });
 
@@ -134,20 +134,28 @@ function resolvedArchetypeVariant(entry, changes, phase) {
 export function archetypeVariants(rawEntry) {
   const entry = makeLibraryEntry(rawEntry);
   if (entry.usage !== "archetype") return [{ ...entry, variantKey: `${entry.baseId}@exact` }];
-  const preferred = {
-    weak: { body: -2, nerve: -2, pool: -1 }, strong: { body: 2, nerve: 2, pool: 1 },
-  };
-  const variants = [
-    resolvedArchetypeVariant(entry, {}, "ideal"),
-    resolvedArchetypeVariant(entry, preferred.weak, "preferred"),
-    resolvedArchetypeVariant(entry, preferred.strong, "preferred"),
-    resolvedArchetypeVariant(entry, { body: -2 }, "preferred"),
-    resolvedArchetypeVariant(entry, { body: 2 }, "preferred"),
-    resolvedArchetypeVariant(entry, { pool: -1, damage: -1 }, "preferred"),
-    resolvedArchetypeVariant(entry, { pool: 1, damage: 1 }, "preferred"),
-    resolvedArchetypeVariant(entry, { body: -6, nerve: -4, pool: -2, damage: -2, armor: -1, penetration: -1, pz: -1 }, "hard"),
-    resolvedArchetypeVariant(entry, { body: 6, nerve: 4, pool: 2, damage: 2, armor: 1, penetration: 1, pz: 1 }, "hard"),
+  // Defense and offense are intentionally independent. This lets the search
+  // lower KO pressure while retaining encounter durability (and vice versa),
+  // instead of moving both outcome axes in lockstep.
+  const defenses = [
+    { changes: {}, phase: "ideal" },
+    { changes: { body: -3, nerve: -3, armor: -1, pz: -1 }, phase: "preferred" },
+    { changes: { body: 3, nerve: 3, armor: 1, pz: 1 }, phase: "preferred" },
+    { changes: { body: -10, nerve: -8, armor: -2, pz: -2 }, phase: "hard" },
+    { changes: { body: 10, nerve: 8, armor: 2, pz: 2 }, phase: "hard" },
   ];
+  const offenses = [
+    { changes: {}, phase: "ideal" },
+    { changes: { pool: -1, damage: -1 }, phase: "preferred" },
+    { changes: { pool: 1, damage: 1 }, phase: "preferred" },
+    { changes: { pool: -3, damage: -3 }, phase: "hard" },
+    { changes: { pool: 3, damage: 3 }, phase: "hard" },
+  ];
+  const variants = defenses.flatMap((defense) => offenses.map((offense) => resolvedArchetypeVariant(
+    entry,
+    { ...defense.changes, ...offense.changes },
+    defense.phase === "hard" || offense.phase === "hard" ? "hard" : defense.phase === "ideal" && offense.phase === "ideal" ? "ideal" : "preferred",
+  )));
   return [...new Map(variants.map((variant) => [variant.variantKey, variant])).values()];
 }
 
@@ -245,7 +253,9 @@ export function objectiveScore(prediction, settings) {
 }
 
 function scoredObjective(prediction, settings, entries) {
-  return objectiveScore(prediction, settings)
+  // Requested outcomes are primary. Pregen deviation only breaks close ties;
+  // it must never make a visibly wrong difficulty preferable to a tuned fit.
+  return objectiveScore(prediction, settings) * 10
     + (Number(settings.weights.deviation) || 0) * pregenDeviation(entries);
 }
 
@@ -364,9 +374,20 @@ function prepareLibrary(library, settings, random) {
     if (!buckets.has(key)) buckets.set(key, []);
     buckets.get(key).push({ entry, order: random() });
   });
-  const groups = [...buckets.values()].map((items) => items.sort((a, b) => a.order - b.order || a.entry.bs - b.entry.bs));
+  const strengthSpread = (items) => {
+    const sorted = [...items].sort((a, b) => a.entry.bs - b.entry.bs || a.order - b.order);
+    if (sorted.length < 3) return sorted;
+    const indices = [Math.floor((sorted.length - 1) / 2), 0, sorted.length - 1];
+    for (let denominator = 4; indices.length < sorted.length; denominator *= 2) {
+      for (let numerator = 1; numerator < denominator && indices.length < sorted.length; numerator += 2) {
+        indices.push(Math.round((sorted.length - 1) * numerator / denominator));
+      }
+    }
+    return [...new Set(indices)].map((index) => sorted[index]);
+  };
+  const groups = [...buckets.values()].map(strengthSpread);
   const selected = [];
-  const baseLimit = Math.max(2, Math.ceil(settings.candidateLimit / 3));
+  const baseLimit = Math.min(eligible.length, Math.max(groups.length, Math.ceil(settings.candidateLimit / 2)));
   for (let depth = 0; selected.length < baseLimit && groups.some((group) => group[depth]); depth += 1) {
     for (const group of groups) {
       if (group[depth]) selected.push(group[depth].entry);
@@ -439,7 +460,7 @@ export function generateEncounterOptions({ library, locked = [], settings: rawSe
     if (options.length >= settings.topN) break;
   }
   if (!options.length) diagnostics.push("Точного структурного варианта при текущих ограничениях не найдено. Ограничения не были ослаблены.");
-  else if (options[0].score > 0) diagnostics.push("Точного совпадения с целевыми исходами при текущих ограничениях не найдено; показаны ближайшие варианты.");
+  else if (options[0].targetError > 1e-9) diagnostics.push("Точного совпадения с целевыми исходами при текущих ограничениях не найдено; показаны ближайшие варианты.");
   return { settings, options, diagnostics, evaluatedCount: evaluated.size };
 }
 

@@ -1,0 +1,6563 @@
+{
+  "version": "mitrinium-creature-pregen-bank-v2",
+  "basis": {
+    "repository": "FaragonTix/Mitrinium-site",
+    "sourcePath": "calculator-script-source/Dict.html",
+    "sourceConstants": [
+      "CREATURE_TYPES",
+      "ATTACK_LIBRARY",
+      "REACTION_LIBRARY"
+    ],
+    "interpretation": "25 содержательных прегенов на каждый из 5 актуальных типов существ = 125 концептов.",
+    "sourcePolicy": "Тип существа и ссылки на атаки/реакции берутся из текущих библиотек проекта; числовой профиль — мягкий ideal для настройки encounter-generator."
+  },
+  "designRules": [
+    "Никаких tactical roles: банк организован только по типам существ.",
+    "Допустимые типы: humanoid, mechanism, animal, beast, undead.",
+    "Название, тип существа, набор и типы атак, набор реакций — hard identity и не должны произвольно заменяться генератором.",
+    "Body, Armor, PZ, Nerve, attack pool и damage — soft ideal profile: генератор может подстраивать их в допустимых пределах ради целевых P(win)/KO.",
+    "Преген — содержательный концепт, а не готовый неизменяемый статблок.",
+    "Library NPC может использовать этот же контракт в режиме «как архетип»: его hard identity фиксируется, а числовой профиль становится ideal.",
+    "Individual BS считается после настройки resolved profile; сумма BS не используется как оценка боя."
+  ],
+  "catalogContract": {
+    "attackLibrary": "ATTACK_LIBRARY",
+    "reactionLibrary": "REACTION_LIBRARY",
+    "referenceKey": "ref",
+    "note": "ref должен разрешаться только внутри того же creatureType; cached name дан для читаемости и проверки дрейфа каталога."
+  },
+  "creatureTypes": [
+    {
+      "type": "humanoid",
+      "label": "Гуманоид",
+      "count": 25,
+      "pregens": [
+        {
+          "id": "humanoid_street_brawler",
+          "name": "Уличный драчун",
+          "creatureType": "humanoid",
+          "description": "Лезет в рукопашную, бьёт руками и головой, полагаясь на выносливость, а не на снаряжение.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_1",
+                "name": "Удар голыми руками"
+              },
+              {
+                "ref": "humanoid_2",
+                "name": "Удар головой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_6",
+                "name": "Стиснуть зубы"
+              },
+              {
+                "ref": "humanoid_13",
+                "name": "Навалиться всем весом"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 11,
+            "armor": 0,
+            "pz": 4,
+            "nerve": 9,
+            "pool": 4,
+            "damage": "d4+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_duelist",
+          "name": "Дуэлянт",
+          "creatureType": "humanoid",
+          "description": "Вооружённый ближний боец, который отвечает на давление репостом и старается решать бой точным оружейным ударом.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_6",
+                "name": "Рубящий удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_9",
+                "name": "Репост"
+              },
+              {
+                "ref": "humanoid_4",
+                "name": "Резкий уклон"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 11,
+            "armor": 1,
+            "pz": 5,
+            "nerve": 10,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_bodyguard",
+          "name": "Телохранитель",
+          "creatureType": "humanoid",
+          "description": "Держится рядом с союзниками, прикрывает их и встречает сближение холодным оружием.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_6",
+                "name": "Рубящий удар"
+              },
+              {
+                "ref": "humanoid_1",
+                "name": "Удар голыми руками"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_12",
+                "name": "Команда пригнуться"
+              },
+              {
+                "ref": "humanoid_6",
+                "name": "Стиснуть зубы"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 2,
+            "pz": 4,
+            "nerve": 12,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_pistolero",
+          "name": "Пистолетчик",
+          "creatureType": "humanoid",
+          "description": "Работает на средней дистанции, но сохраняет простой вариант ближней атаки на случай сближения.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_11",
+                "name": "Выстрел на средней дистанции"
+              },
+              {
+                "ref": "humanoid_1",
+                "name": "Удар голыми руками"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_1",
+                "name": "Ответный выстрел"
+              },
+              {
+                "ref": "humanoid_4",
+                "name": "Резкий уклон"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 9,
+            "pool": 5,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_long_shooter",
+          "name": "Дальний стрелок",
+          "creatureType": "humanoid",
+          "description": "Держит дистанцию и опирается на дальнобойное оружие; вблизи переходит на холодное.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_12",
+                "name": "Выстрел на дальней дистанции"
+              },
+              {
+                "ref": "humanoid_6",
+                "name": "Рубящий удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_3",
+                "name": "Сбить прицел"
+              },
+              {
+                "ref": "humanoid_11",
+                "name": "Неожиданная перезарядка"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 9,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_suppressor",
+          "name": "Стрелок подавления",
+          "creatureType": "humanoid",
+          "description": "Стреляет на средней дистанции и срывает перемещения противника подавляющим огнём.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_11",
+                "name": "Выстрел на средней дистанции"
+              },
+              {
+                "ref": "humanoid_20",
+                "name": "Дымовая шашка"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_2",
+                "name": "Подавляющий огонь"
+              },
+              {
+                "ref": "humanoid_12",
+                "name": "Команда пригнуться"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 11,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 10,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_smoke_fighter",
+          "name": "Дымовик",
+          "creatureType": "humanoid",
+          "description": "Создаёт дымовые зоны, ломает линию видимости и стреляет из них или через них.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_11",
+                "name": "Выстрел на средней дистанции"
+              },
+              {
+                "ref": "humanoid_20",
+                "name": "Дымовая шашка"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_3",
+                "name": "Сбить прицел"
+              },
+              {
+                "ref": "humanoid_5",
+                "name": "Подставить укрытие"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 10,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_flash_raider",
+          "name": "Штурмовик с ослепляющей шашкой",
+          "creatureType": "humanoid",
+          "description": "Сближается под прикрытием ослепляющей шашки и добивает цель короткой стрельбой.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_11",
+                "name": "Выстрел на средней дистанции"
+              },
+              {
+                "ref": "humanoid_21",
+                "name": "Ослепляющая шашка"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_4",
+                "name": "Резкий уклон"
+              },
+              {
+                "ref": "humanoid_14",
+                "name": "На последних силах"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 2,
+            "pz": 4,
+            "nerve": 11,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_firestarter",
+          "name": "Поджигатель",
+          "creatureType": "humanoid",
+          "description": "Навязывает опасные зоны зажигательной смесью и использует пистоль против тех, кто выходит из огня.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_22",
+                "name": "Зажигательная смесь"
+              },
+              {
+                "ref": "humanoid_11",
+                "name": "Выстрел на средней дистанции"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_10",
+                "name": "Туз в рукаве"
+              },
+              {
+                "ref": "humanoid_6",
+                "name": "Стиснуть зубы"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 11,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 10,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_acid_thrower",
+          "name": "Кислотчик",
+          "creatureType": "humanoid",
+          "description": "Разбрасывает кислотные колбы и поддерживает давление обычной стрельбой.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_23",
+                "name": "Кислотная колба"
+              },
+              {
+                "ref": "humanoid_11",
+                "name": "Выстрел на средней дистанции"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_10",
+                "name": "Туз в рукаве"
+              },
+              {
+                "ref": "humanoid_4",
+                "name": "Резкий уклон"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 9,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_poison_blade",
+          "name": "Отравитель",
+          "creatureType": "humanoid",
+          "description": "Ищет возможность нанести ранение отравленным клинком и пережить ответный удар за счёт осторожности.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_24",
+                "name": "Отравленный клинок: продолжающийся урон"
+              },
+              {
+                "ref": "humanoid_6",
+                "name": "Рубящий удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_10",
+                "name": "Туз в рукаве"
+              },
+              {
+                "ref": "humanoid_9",
+                "name": "Репост"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 1,
+            "pz": 5,
+            "nerve": 10,
+            "pool": 5,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_night_blade",
+          "name": "Ночной клинок",
+          "creatureType": "humanoid",
+          "description": "Скрывает поле дымом и использует отравленное оружие в ближнем бою.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_24",
+                "name": "Отравленный клинок: продолжающийся урон"
+              },
+              {
+                "ref": "humanoid_20",
+                "name": "Дымовая шашка"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_4",
+                "name": "Резкий уклон"
+              },
+              {
+                "ref": "humanoid_9",
+                "name": "Репост"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 1,
+            "pz": 5,
+            "nerve": 10,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_watch_pistol",
+          "name": "Караульный с пистолем",
+          "creatureType": "humanoid",
+          "description": "Обычный вооружённый караульный: стреляет на средней дистанции и поддерживает соседних союзников.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_11",
+                "name": "Выстрел на средней дистанции"
+              },
+              {
+                "ref": "humanoid_6",
+                "name": "Рубящий удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_12",
+                "name": "Команда пригнуться"
+              },
+              {
+                "ref": "humanoid_14",
+                "name": "На последних силах"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 2,
+            "pz": 4,
+            "nerve": 11,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_watch_longarm",
+          "name": "Караульный с дальнобойным оружием",
+          "creatureType": "humanoid",
+          "description": "Держит дальнюю линию и переживает ответный огонь за счёт дисциплины и укрытий.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_12",
+                "name": "Выстрел на дальней дистанции"
+              },
+              {
+                "ref": "humanoid_6",
+                "name": "Рубящий удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_5",
+                "name": "Подставить укрытие"
+              },
+              {
+                "ref": "humanoid_6",
+                "name": "Стиснуть зубы"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 2,
+            "pz": 4,
+            "nerve": 11,
+            "pool": 4,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_line_breaker",
+          "name": "Боец заслона",
+          "creatureType": "humanoid",
+          "description": "Преграждает путь оружием ближнего боя и ослепляющей шашкой, стараясь сломать строй противника.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_6",
+                "name": "Рубящий удар"
+              },
+              {
+                "ref": "humanoid_21",
+                "name": "Ослепляющая шашка"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_13",
+                "name": "Навалиться всем весом"
+              },
+              {
+                "ref": "humanoid_6",
+                "name": "Стиснуть зубы"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 2,
+            "pz": 4,
+            "nerve": 11,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_assault_fighter",
+          "name": "Штурмовой боец",
+          "creatureType": "humanoid",
+          "description": "Уверенно меняет пистоль на холодное оружие и становится опаснее, когда получает серьёзные ранения.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_11",
+                "name": "Выстрел на средней дистанции"
+              },
+              {
+                "ref": "humanoid_6",
+                "name": "Рубящий удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_14",
+                "name": "На последних силах"
+              },
+              {
+                "ref": "humanoid_1",
+                "name": "Ответный выстрел"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 2,
+            "pz": 4,
+            "nerve": 12,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_cleaver_bandit",
+          "name": "Бандит с тесаком",
+          "creatureType": "humanoid",
+          "description": "Простой агрессивный противник: рубит, бодается и пытается свалить цель массой.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_6",
+                "name": "Рубящий удар"
+              },
+              {
+                "ref": "humanoid_2",
+                "name": "Удар головой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_13",
+                "name": "Навалиться всем весом"
+              },
+              {
+                "ref": "humanoid_6",
+                "name": "Стиснуть зубы"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 9,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_gun_duelist",
+          "name": "Пистолетчик-дуэлянт",
+          "creatureType": "humanoid",
+          "description": "Сочетает пистоль и клинок, отвечая огнём на дистанции и репостом в рукопашной.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_11",
+                "name": "Выстрел на средней дистанции"
+              },
+              {
+                "ref": "humanoid_6",
+                "name": "Рубящий удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_1",
+                "name": "Ответный выстрел"
+              },
+              {
+                "ref": "humanoid_9",
+                "name": "Репост"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 11,
+            "armor": 1,
+            "pz": 5,
+            "nerve": 11,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_ambush_shooter",
+          "name": "Засадный стрелок",
+          "creatureType": "humanoid",
+          "description": "Открывает бой издалека, использует дым для смены позиции и мешает противнику нормально прицелиться.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_12",
+                "name": "Выстрел на дальней дистанции"
+              },
+              {
+                "ref": "humanoid_20",
+                "name": "Дымовая шашка"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_3",
+                "name": "Сбить прицел"
+              },
+              {
+                "ref": "humanoid_4",
+                "name": "Резкий уклон"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 9,
+            "armor": 1,
+            "pz": 5,
+            "nerve": 9,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_grenadier",
+          "name": "Гренадер",
+          "creatureType": "humanoid",
+          "description": "Специалист по коротким расходникам: ослепляет и поджигает небольшие участки поля боя.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_21",
+                "name": "Ослепляющая шашка"
+              },
+              {
+                "ref": "humanoid_22",
+                "name": "Зажигательная смесь"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_5",
+                "name": "Подставить укрытие"
+              },
+              {
+                "ref": "humanoid_6",
+                "name": "Стиснуть зубы"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 11,
+            "armor": 2,
+            "pz": 4,
+            "nerve": 10,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_field_alchemist",
+          "name": "Полевой алхимик",
+          "creatureType": "humanoid",
+          "description": "Использует кислоту и огонь как основное средство давления, а не как случайный бонус.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_23",
+                "name": "Кислотная колба"
+              },
+              {
+                "ref": "humanoid_22",
+                "name": "Зажигательная смесь"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_10",
+                "name": "Туз в рукаве"
+              },
+              {
+                "ref": "humanoid_5",
+                "name": "Подставить укрытие"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 11,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_saboteur",
+          "name": "Саботажник",
+          "creatureType": "humanoid",
+          "description": "Перекрывает обзор дымом и вынуждает противников покидать позиции из-за кислотных зон.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_20",
+                "name": "Дымовая шашка"
+              },
+              {
+                "ref": "humanoid_23",
+                "name": "Кислотная колба"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_4",
+                "name": "Резкий уклон"
+              },
+              {
+                "ref": "humanoid_11",
+                "name": "Неожиданная перезарядка"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 1,
+            "pz": 5,
+            "nerve": 10,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_wounded_hunter",
+          "name": "Охотник за ранеными",
+          "creatureType": "humanoid",
+          "description": "Начинает с дальней стрельбы и применяет отравленный клинок, когда цель уже втянута в ближний бой.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_12",
+                "name": "Выстрел на дальней дистанции"
+              },
+              {
+                "ref": "humanoid_24",
+                "name": "Отравленный клинок: продолжающийся урон"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_10",
+                "name": "Туз в рукаве"
+              },
+              {
+                "ref": "humanoid_14",
+                "name": "На последних силах"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 11,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 10,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_heavy_enforcer",
+          "name": "Тяжёлый силовик",
+          "creatureType": "humanoid",
+          "description": "Крепкий рукопашный противник, который давит массой, бьёт оружием и продолжает драться после серьёзных ран.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_6",
+                "name": "Рубящий удар"
+              },
+              {
+                "ref": "humanoid_1",
+                "name": "Удар голыми руками"
+              },
+              {
+                "ref": "humanoid_2",
+                "name": "Удар головой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_13",
+                "name": "Навалиться всем весом"
+              },
+              {
+                "ref": "humanoid_14",
+                "name": "На последних силах"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 3,
+            "pz": 3,
+            "nerve": 13,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "humanoid_squad_leader",
+          "name": "Командир отделения",
+          "creatureType": "humanoid",
+          "description": "Вооружённый боец, который остаётся полноценной угрозой сам и одновременно прикрывает союзников командами.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "humanoid_11",
+                "name": "Выстрел на средней дистанции"
+              },
+              {
+                "ref": "humanoid_6",
+                "name": "Рубящий удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "humanoid_12",
+                "name": "Команда пригнуться"
+              },
+              {
+                "ref": "humanoid_14",
+                "name": "На последних силах"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 2,
+            "pz": 4,
+            "nerve": 14,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "mechanism",
+      "label": "Механизм",
+      "count": 25,
+      "pregens": [
+        {
+          "id": "mechanism_work_automaton",
+          "name": "Рабочий автомат",
+          "creatureType": "mechanism",
+          "description": "Простой промышленный механизм с тяжёлым манипулятором и защитным энергетическим буфером.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_1",
+                "name": "Удар манипулятором"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_6",
+                "name": "Энергетический буфер"
+              },
+              {
+                "ref": "mechanism_11",
+                "name": "Гироскопическая стабилизация"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 2,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_piston_guard",
+          "name": "Поршневой страж",
+          "creatureType": "mechanism",
+          "description": "Отталкивает нарушителей поршнем и сбрасывает давление, если те подходят слишком близко.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_2",
+                "name": "Толчок поршнем"
+              },
+              {
+                "ref": "mechanism_1",
+                "name": "Удар манипулятором"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_14",
+                "name": "Сброс давления"
+              },
+              {
+                "ref": "mechanism_5",
+                "name": "Сдвиг бронепластин"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 3,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_saw_automaton",
+          "name": "Пильный автомат",
+          "creatureType": "mechanism",
+          "description": "Ближний механизм с вращающимися лезвиями; становится особенно опасным после фиксации цели.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_4",
+                "name": "Вращающиеся лезвия"
+              },
+              {
+                "ref": "mechanism_1",
+                "name": "Удар манипулятором"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_10",
+                "name": "Дуговой разряд"
+              },
+              {
+                "ref": "mechanism_6",
+                "name": "Энергетический буфер"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 2,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_grappler",
+          "name": "Захватный механизм",
+          "creatureType": "mechanism",
+          "description": "Хватает цель клешнёй и затем сдавливает её, не полагаясь на дальнее оружие.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_6",
+                "name": "Захват клешнёй"
+              },
+              {
+                "ref": "mechanism_7",
+                "name": "Сдавливание"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_11",
+                "name": "Гироскопическая стабилизация"
+              },
+              {
+                "ref": "mechanism_6",
+                "name": "Энергетический буфер"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 16,
+            "armor": 3,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_industrial_press",
+          "name": "Промышленный пресс",
+          "creatureType": "mechanism",
+          "description": "Медленный тяжёлый механизм, который удерживает и сдавливает противника, защищаясь бронепластинами.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_6",
+                "name": "Захват клешнёй"
+              },
+              {
+                "ref": "mechanism_7",
+                "name": "Сдавливание"
+              },
+              {
+                "ref": "mechanism_2",
+                "name": "Толчок поршнем"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_5",
+                "name": "Сдвиг бронепластин"
+              },
+              {
+                "ref": "mechanism_8",
+                "name": "Запасная бронепластина"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 20,
+            "armor": 4,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d10"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_short_turret",
+          "name": "Короткая турель",
+          "creatureType": "mechanism",
+          "description": "Стационарная или малоподвижная платформа для огня на средней дистанции.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_8",
+                "name": "Встроенное орудие средней дистанции"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_3",
+                "name": "Баллистический расчёт"
+              },
+              {
+                "ref": "mechanism_13",
+                "name": "Наведение на источник"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 3,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_long_turret",
+          "name": "Дальняя турель",
+          "creatureType": "mechanism",
+          "description": "Дальнобойная огневая платформа, которая предпочитает точный расчёт и не любит смену позиции.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_9",
+                "name": "Дальнобойная турель"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_3",
+                "name": "Баллистический расчёт"
+              },
+              {
+                "ref": "mechanism_13",
+                "name": "Наведение на источник"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 3,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 6,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_shock_sentry",
+          "name": "Шоковый сторож",
+          "creatureType": "mechanism",
+          "description": "Лишает противника реакций электрическим разрядом и не позволяет безопасно бороться с собой в упор.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_12",
+                "name": "Электрический разряд: потеря реакции"
+              },
+              {
+                "ref": "mechanism_1",
+                "name": "Удар манипулятором"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_10",
+                "name": "Дуговой разряд"
+              },
+              {
+                "ref": "mechanism_6",
+                "name": "Энергетический буфер"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 2,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_flame_unit",
+          "name": "Огнемётный автомат",
+          "creatureType": "mechanism",
+          "description": "Перекрывает линию огнём и сбрасывает давление, когда противник пытается прорваться вплотную.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_15",
+                "name": "Огнемётная линия"
+              },
+              {
+                "ref": "mechanism_1",
+                "name": "Удар манипулятором"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_14",
+                "name": "Сброс давления"
+              },
+              {
+                "ref": "mechanism_6",
+                "name": "Энергетический буфер"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 3,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_gas_dispenser",
+          "name": "Газовый распылитель",
+          "creatureType": "mechanism",
+          "description": "Создаёт ядовитые зоны и рассчитан на удержание пространства, а не на прямой высокий урон.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_17",
+                "name": "Ядовитый газ"
+              },
+              {
+                "ref": "mechanism_1",
+                "name": "Удар манипулятором"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_4",
+                "name": "Дымовой выброс"
+              },
+              {
+                "ref": "mechanism_5",
+                "name": "Сдвиг бронепластин"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 2,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_steam_blinder",
+          "name": "Паровой ослепитель",
+          "creatureType": "mechanism",
+          "description": "Закрывает ближнюю зону ослепляющим паром и уходит от угрозы на форсаже приводов.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_18",
+                "name": "Ослепляющий пар"
+              },
+              {
+                "ref": "mechanism_2",
+                "name": "Толчок поршнем"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_2",
+                "name": "Форсаж приводов"
+              },
+              {
+                "ref": "mechanism_4",
+                "name": "Дымовой выброс"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 2,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_harpoon_wincher",
+          "name": "Гарпунная лебёдка",
+          "creatureType": "mechanism",
+          "description": "Притягивает противника гарпуном, после чего хватает и удерживает его манипуляторами.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_22",
+                "name": "Гарпун: притяжение"
+              },
+              {
+                "ref": "mechanism_6",
+                "name": "Захват клешнёй"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_14",
+                "name": "Сброс давления"
+              },
+              {
+                "ref": "mechanism_11",
+                "name": "Гироскопическая стабилизация"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 3,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_mobile_gun",
+          "name": "Мобильная оружейная платформа",
+          "creatureType": "mechanism",
+          "description": "Перемещается на форсаже и ведёт огонь на средней дистанции, сохраняя аварийный ответный выстрел.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_8",
+                "name": "Встроенное орудие средней дистанции"
+              },
+              {
+                "ref": "mechanism_1",
+                "name": "Удар манипулятором"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_2",
+                "name": "Форсаж приводов"
+              },
+              {
+                "ref": "mechanism_1",
+                "name": "Аварийный выстрел"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 2,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_armored_sentry",
+          "name": "Бронированный сторож",
+          "creatureType": "mechanism",
+          "description": "Крепкий охранный механизм, который последовательно усиливает броню и переживает пробивные попадания.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_1",
+                "name": "Удар манипулятором"
+              },
+              {
+                "ref": "mechanism_8",
+                "name": "Встроенное орудие средней дистанции"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_5",
+                "name": "Сдвиг бронепластин"
+              },
+              {
+                "ref": "mechanism_8",
+                "name": "Запасная бронепластина"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 18,
+            "armor": 4,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_repair_unit",
+          "name": "Саморемонтирующийся автомат",
+          "creatureType": "mechanism",
+          "description": "Относительно слаб по атаке, но способен один раз восстановить существенную часть корпуса.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_1",
+                "name": "Удар манипулятором"
+              },
+              {
+                "ref": "mechanism_8",
+                "name": "Встроенное орудие средней дистанции"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_7",
+                "name": "Саморемонт"
+              },
+              {
+                "ref": "mechanism_6",
+                "name": "Энергетический буфер"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 16,
+            "armor": 3,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_overload_cannon",
+          "name": "Перегруженная пушка",
+          "creatureType": "mechanism",
+          "description": "Орудийная платформа, которая рискует модулем ради сильного всплеска урона.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_9",
+                "name": "Дальнобойная турель"
+              },
+              {
+                "ref": "mechanism_8",
+                "name": "Встроенное орудие средней дистанции"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_9",
+                "name": "Перегрузка орудия"
+              },
+              {
+                "ref": "mechanism_12",
+                "name": "Резервный контур"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 3,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 6,
+            "damage": "d10"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_arc_guard",
+          "name": "Дуговой страж",
+          "creatureType": "mechanism",
+          "description": "Наказывает попытки схватить или атаковать его вплотную и бьёт манипулятором по застрявшим рядом целям.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_1",
+                "name": "Удар манипулятором"
+              },
+              {
+                "ref": "mechanism_12",
+                "name": "Электрический разряд: потеря реакции"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_10",
+                "name": "Дуговой разряд"
+              },
+              {
+                "ref": "mechanism_5",
+                "name": "Сдвиг бронепластин"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 3,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_stabilized_platform",
+          "name": "Стабилизированная платформа",
+          "creatureType": "mechanism",
+          "description": "Тяжёлая платформа, плохо поддающаяся принудительному перемещению и ведущая дальний огонь.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_9",
+                "name": "Дальнобойная турель"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_11",
+                "name": "Гироскопическая стабилизация"
+              },
+              {
+                "ref": "mechanism_3",
+                "name": "Баллистический расчёт"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 17,
+            "armor": 4,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_reserve_circuit",
+          "name": "Механизм резервного контура",
+          "creatureType": "mechanism",
+          "description": "Не теряет ключевой модуль сразу после поломки и продолжает вести огонь даже в аварийном состоянии.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_8",
+                "name": "Встроенное орудие средней дистанции"
+              },
+              {
+                "ref": "mechanism_1",
+                "name": "Удар манипулятором"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_12",
+                "name": "Резервный контур"
+              },
+              {
+                "ref": "mechanism_1",
+                "name": "Аварийный выстрел"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 3,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_pressure_guard",
+          "name": "Страж давления",
+          "creatureType": "mechanism",
+          "description": "Контролирует ближнюю дистанцию поршнем, паром и сбросом давления.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_2",
+                "name": "Толчок поршнем"
+              },
+              {
+                "ref": "mechanism_18",
+                "name": "Ослепляющий пар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_14",
+                "name": "Сброс давления"
+              },
+              {
+                "ref": "mechanism_6",
+                "name": "Энергетический буфер"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 16,
+            "armor": 3,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_last_protocol",
+          "name": "Машина последнего протокола",
+          "creatureType": "mechanism",
+          "description": "Прямолинейный бронированный автомат, который остаётся опасным даже при уничтожении корпуса.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_1",
+                "name": "Удар манипулятором"
+              },
+              {
+                "ref": "mechanism_8",
+                "name": "Встроенное орудие средней дистанции"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_15",
+                "name": "Последний протокол"
+              },
+              {
+                "ref": "mechanism_5",
+                "name": "Сдвиг бронепластин"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 17,
+            "armor": 3,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_gun_platform",
+          "name": "Орудийная платформа",
+          "creatureType": "mechanism",
+          "description": "Сочетает среднюю и дальнюю турели и использует баллистический расчёт для ключевых выстрелов.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_8",
+                "name": "Встроенное орудие средней дистанции"
+              },
+              {
+                "ref": "mechanism_9",
+                "name": "Дальнобойная турель"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_3",
+                "name": "Баллистический расчёт"
+              },
+              {
+                "ref": "mechanism_13",
+                "name": "Наведение на источник"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 3,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 6,
+            "damage": "d10"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_cutter_harpoon",
+          "name": "Резак с гарпуном",
+          "creatureType": "mechanism",
+          "description": "Притягивает добычу к себе гарпуном и встречает её вращающимися лезвиями.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_22",
+                "name": "Гарпун: притяжение"
+              },
+              {
+                "ref": "mechanism_4",
+                "name": "Вращающиеся лезвия"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_14",
+                "name": "Сброс давления"
+              },
+              {
+                "ref": "mechanism_10",
+                "name": "Дуговой разряд"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 3,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_quarantine_machine",
+          "name": "Карантинный механизм",
+          "creatureType": "mechanism",
+          "description": "Располагает газом и ослепляющим паром, удерживая опасный участок без необходимости быстро убивать цели.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_17",
+                "name": "Ядовитый газ"
+              },
+              {
+                "ref": "mechanism_18",
+                "name": "Ослепляющий пар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_4",
+                "name": "Дымовой выброс"
+              },
+              {
+                "ref": "mechanism_6",
+                "name": "Энергетический буфер"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 3,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "mechanism_breach_engine",
+          "name": "Проломный механизм",
+          "creatureType": "mechanism",
+          "description": "Тяжёлая машина для прорыва: толкает, режет и ускоряет приводы, чтобы добраться до линии противника.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "mechanism_2",
+                "name": "Толчок поршнем"
+              },
+              {
+                "ref": "mechanism_4",
+                "name": "Вращающиеся лезвия"
+              },
+              {
+                "ref": "mechanism_1",
+                "name": "Удар манипулятором"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "mechanism_2",
+                "name": "Форсаж приводов"
+              },
+              {
+                "ref": "mechanism_5",
+                "name": "Сдвиг бронепластин"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 21,
+            "armor": 4,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 6,
+            "damage": "d10"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "animal",
+      "label": "Животное",
+      "count": 25,
+      "pregens": [
+        {
+          "id": "animal_wolf",
+          "name": "Волк",
+          "creatureType": "animal",
+          "description": "Быстрый хищник, который кусает, прыгает к открывшейся цели и хорошо работает рядом с другими волками.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_1",
+                "name": "Укус"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_2",
+                "name": "Прыжок хищника"
+              },
+              {
+                "ref": "animal_4",
+                "name": "Рывок стаи"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 9,
+            "armor": 0,
+            "pz": 4,
+            "nerve": 7,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_old_wolf",
+          "name": "Матёрый волк",
+          "creatureType": "animal",
+          "description": "Крупный и опытный волк: удерживает добычу укусом и не даёт ей безопасно отступить.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_1",
+                "name": "Укус"
+              },
+              {
+                "ref": "animal_12",
+                "name": "Вцепиться"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_8",
+                "name": "Яростная хватка"
+              },
+              {
+                "ref": "animal_10",
+                "name": "Почувствовать слабость"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 11,
+            "armor": 0,
+            "pz": 4,
+            "nerve": 8,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_hound",
+          "name": "Охотничий пёс",
+          "creatureType": "animal",
+          "description": "Преследует ослабленную цель и использует укус как простую, постоянно доступную атаку.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_1",
+                "name": "Укус"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_10",
+                "name": "Почувствовать слабость"
+              },
+              {
+                "ref": "animal_2",
+                "name": "Прыжок хищника"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 8,
+            "armor": 0,
+            "pz": 4,
+            "nerve": 7,
+            "pool": 4,
+            "damage": "d4+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_mastiff",
+          "name": "Боевой мастиф",
+          "creatureType": "animal",
+          "description": "Тяжёлый пёс, который вцепляется в цель и пытается удержать её на месте.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_1",
+                "name": "Укус"
+              },
+              {
+                "ref": "animal_12",
+                "name": "Вцепиться"
+              },
+              {
+                "ref": "animal_13",
+                "name": "Встряхнуть добычу: усиленный урон"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_8",
+                "name": "Яростная хватка"
+              },
+              {
+                "ref": "animal_7",
+                "name": "Толстая шкура"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 11,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 8,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_great_cat",
+          "name": "Большая кошка",
+          "creatureType": "animal",
+          "description": "Рывком входит в контакт, атакует когтями и использует подвижность, чтобы избегать ответных атак.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_2",
+                "name": "Когти"
+              },
+              {
+                "ref": "animal_9",
+                "name": "Двойной удар лапами"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_2",
+                "name": "Прыжок хищника"
+              },
+              {
+                "ref": "animal_6",
+                "name": "Резкий скачок"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 0,
+            "pz": 5,
+            "nerve": 8,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_tiger",
+          "name": "Тигр",
+          "creatureType": "animal",
+          "description": "Мощный одиночный хищник, который валит цель лапой и затем разрывает её когтями.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_2",
+                "name": "Когти"
+              },
+              {
+                "ref": "animal_4",
+                "name": "Удар лапой: падение"
+              },
+              {
+                "ref": "animal_9",
+                "name": "Двойной удар лапами"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_3",
+                "name": "Сбить с ног"
+              },
+              {
+                "ref": "animal_10",
+                "name": "Почувствовать слабость"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 0,
+            "pz": 4,
+            "nerve": 9,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_bear",
+          "name": "Медведь",
+          "creatureType": "animal",
+          "description": "Крупное животное с когтями и тяжёлыми ударами лапой; выдерживает физический урон лучше большинства животных.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_2",
+                "name": "Когти"
+              },
+              {
+                "ref": "animal_3",
+                "name": "Удар лапой: отталкивание"
+              },
+              {
+                "ref": "animal_4",
+                "name": "Удар лапой: падение"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_7",
+                "name": "Толстая шкура"
+              },
+              {
+                "ref": "animal_12",
+                "name": "Предсмертный бросок"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 16,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 10,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_mother_bear",
+          "name": "Медведица с детёнышем",
+          "creatureType": "animal",
+          "description": "Защищает соседнее животное собой и отвечает тяжёлыми ударами тем, кто подходит слишком близко.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_2",
+                "name": "Когти"
+              },
+              {
+                "ref": "animal_3",
+                "name": "Удар лапой: отталкивание"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_9",
+                "name": "Защитить детёныша"
+              },
+              {
+                "ref": "animal_7",
+                "name": "Толстая шкура"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 11,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_boar",
+          "name": "Кабан",
+          "creatureType": "animal",
+          "description": "Разгоняется для удара и продолжает нападение даже после тяжёлой раны.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_5",
+                "name": "Удар рогами"
+              },
+              {
+                "ref": "animal_1",
+                "name": "Укус"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_12",
+                "name": "Предсмертный бросок"
+              },
+              {
+                "ref": "animal_7",
+                "name": "Толстая шкура"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 8,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_old_boar",
+          "name": "Старый кабан",
+          "creatureType": "animal",
+          "description": "Очень крепкий рогатый/клыкастый зверь, который переживает урон и сбивает противника напором.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_5",
+                "name": "Удар рогами"
+              },
+              {
+                "ref": "animal_3",
+                "name": "Удар лапой: отталкивание"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_7",
+                "name": "Толстая шкура"
+              },
+              {
+                "ref": "animal_3",
+                "name": "Сбить с ног"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 9,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_bull",
+          "name": "Бык",
+          "creatureType": "animal",
+          "description": "Прямолинейно атакует рогами после разгона и плохо подходит для сложной манёвренной охоты.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_5",
+                "name": "Удар рогами"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_7",
+                "name": "Толстая шкура"
+              },
+              {
+                "ref": "animal_12",
+                "name": "Предсмертный бросок"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 8,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_ram",
+          "name": "Баран",
+          "creatureType": "animal",
+          "description": "Меньший рогатый противник, построенный вокруг короткого разгона и удара рогами.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_5",
+                "name": "Удар рогами"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_5",
+                "name": "Зигзагообразный бег"
+              },
+              {
+                "ref": "animal_7",
+                "name": "Толстая шкура"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 0,
+            "pz": 4,
+            "nerve": 7,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_stag",
+          "name": "Олень-самец",
+          "creatureType": "animal",
+          "description": "Подвижное рогатое животное, которое старается не принимать дальние атаки и бьёт после разгона.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_5",
+                "name": "Удар рогами"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_5",
+                "name": "Зигзагообразный бег"
+              },
+              {
+                "ref": "animal_6",
+                "name": "Резкий скачок"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 0,
+            "pz": 5,
+            "nerve": 7,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_ape",
+          "name": "Крупная обезьяна",
+          "creatureType": "animal",
+          "description": "Атакует двумя лапами, отбрасывает противника и может резко сорваться с места.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_3",
+                "name": "Удар лапой: отталкивание"
+              },
+              {
+                "ref": "animal_9",
+                "name": "Двойной удар лапами"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_6",
+                "name": "Резкий скачок"
+              },
+              {
+                "ref": "animal_3",
+                "name": "Сбить с ног"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 0,
+            "pz": 4,
+            "nerve": 8,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_crocodile",
+          "name": "Крокодил",
+          "creatureType": "animal",
+          "description": "Вцепляется в добычу мощным укусом и затем встряхивает удерживаемую цель.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_1",
+                "name": "Укус"
+              },
+              {
+                "ref": "animal_12",
+                "name": "Вцепиться"
+              },
+              {
+                "ref": "animal_13",
+                "name": "Встряхнуть добычу: усиленный урон"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_11",
+                "name": "Встряхнуть добычу"
+              },
+              {
+                "ref": "animal_7",
+                "name": "Толстая шкура"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 8,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_giant_lizard",
+          "name": "Крупная ящерица",
+          "creatureType": "animal",
+          "description": "Кусает, использует хвост для размашистой атаки и выдерживает часть прямого физического урона.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_1",
+                "name": "Укус"
+              },
+              {
+                "ref": "animal_24",
+                "name": "Размашистый удар хвостом"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_7",
+                "name": "Толстая шкура"
+              },
+              {
+                "ref": "animal_13",
+                "name": "Инстинктивное уклонение"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 7,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_pack_hunter",
+          "name": "Стайный хищник",
+          "creatureType": "animal",
+          "description": "Не обязательно очень силён один, но резко ускоряется рядом со стаей и старается добивать уже раненую цель.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_1",
+                "name": "Укус"
+              },
+              {
+                "ref": "animal_2",
+                "name": "Когти"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_4",
+                "name": "Рывок стаи"
+              },
+              {
+                "ref": "animal_10",
+                "name": "Почувствовать слабость"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 9,
+            "armor": 0,
+            "pz": 4,
+            "nerve": 7,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_cornered_predator",
+          "name": "Загнанный хищник",
+          "creatureType": "animal",
+          "description": "Опаснее всего в ближнем бою: отвечает укусом, цепляется за отходящую цель и плохо отпускает добычу.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_1",
+                "name": "Укус"
+              },
+              {
+                "ref": "animal_12",
+                "name": "Вцепиться"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_1",
+                "name": "Ответный укус"
+              },
+              {
+                "ref": "animal_8",
+                "name": "Яростная хватка"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 0,
+            "pz": 4,
+            "nerve": 8,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_wolverine",
+          "name": "Росомаха",
+          "creatureType": "animal",
+          "description": "Небольшой, но очень упорный хищник с когтями, который продолжает драться даже при смертельной ране.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_2",
+                "name": "Когти"
+              },
+              {
+                "ref": "animal_1",
+                "name": "Укус"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_7",
+                "name": "Толстая шкура"
+              },
+              {
+                "ref": "animal_12",
+                "name": "Предсмертный бросок"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 0,
+            "pz": 4,
+            "nerve": 10,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_badger",
+          "name": "Барсук",
+          "creatureType": "animal",
+          "description": "Компактное и стойкое животное, которое полагается на укус и толстую шкуру.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_1",
+                "name": "Укус"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_7",
+                "name": "Толстая шкура"
+              },
+              {
+                "ref": "animal_1",
+                "name": "Ответный укус"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 9,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 9,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_tail_beast",
+          "name": "Хвостатая ящерица",
+          "creatureType": "animal",
+          "description": "Держит соседей под угрозой размашистого хвоста и кусает тех, кто подходит вплотную.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_24",
+                "name": "Размашистый удар хвостом"
+              },
+              {
+                "ref": "animal_1",
+                "name": "Укус"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_13",
+                "name": "Инстинктивное уклонение"
+              },
+              {
+                "ref": "animal_6",
+                "name": "Резкий скачок"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 7,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_pouncing_cat",
+          "name": "Прыгающая кошка",
+          "creatureType": "animal",
+          "description": "Прыжком сокращает дистанцию, после чего использует двойной удар лапами.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_9",
+                "name": "Двойной удар лапами"
+              },
+              {
+                "ref": "animal_2",
+                "name": "Когти"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_2",
+                "name": "Прыжок хищника"
+              },
+              {
+                "ref": "animal_10",
+                "name": "Почувствовать слабость"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 0,
+            "pz": 5,
+            "nerve": 8,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_grappling_predator",
+          "name": "Хищник-хвататель",
+          "creatureType": "animal",
+          "description": "Специализируется на том, чтобы вцепиться в цель и наносить усиленный урон уже удерживаемой добыче.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_12",
+                "name": "Вцепиться"
+              },
+              {
+                "ref": "animal_13",
+                "name": "Встряхнуть добычу: усиленный урон"
+              },
+              {
+                "ref": "animal_1",
+                "name": "Укус"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_11",
+                "name": "Встряхнуть добычу"
+              },
+              {
+                "ref": "animal_8",
+                "name": "Яростная хватка"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 0,
+            "pz": 4,
+            "nerve": 8,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_broad_paw_beast",
+          "name": "Широколапый зверь",
+          "creatureType": "animal",
+          "description": "Сбивает и отталкивает целые позиции тяжёлыми ударами лап, не полагаясь на укус.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_3",
+                "name": "Удар лапой: отталкивание"
+              },
+              {
+                "ref": "animal_4",
+                "name": "Удар лапой: падение"
+              },
+              {
+                "ref": "animal_10",
+                "name": "Размашистый удар двумя лапами"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_3",
+                "name": "Сбить с ног"
+              },
+              {
+                "ref": "animal_7",
+                "name": "Толстая шкура"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 9,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "animal_horned_charger",
+          "name": "Рогатый тяжеловес",
+          "creatureType": "animal",
+          "description": "Большое животное, которое решает бой разгонами и крайне плохо останавливается после начала атаки.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "animal_5",
+                "name": "Удар рогами"
+              },
+              {
+                "ref": "animal_3",
+                "name": "Удар лапой: отталкивание"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "animal_7",
+                "name": "Толстая шкура"
+              },
+              {
+                "ref": "animal_12",
+                "name": "Предсмертный бросок"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 17,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 9,
+            "pool": 5,
+            "damage": "d10"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "beast",
+      "label": "Бестия",
+      "count": 25,
+      "pregens": [
+        {
+          "id": "beast_warped_lurker",
+          "name": "Искажённый ползун",
+          "creatureType": "beast",
+          "description": "Бестия ближнего боя с чужой анатомией, которая отвечает на давление внезапными пространственными смещениями.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              },
+              {
+                "ref": "beast_2",
+                "name": "Когти чужой формы"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_1",
+                "name": "Разрыв пространства"
+              },
+              {
+                "ref": "beast_2",
+                "name": "Хаотический скачок"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 9,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_alien_clawer",
+          "name": "Чужекоготь",
+          "creatureType": "beast",
+          "description": "Режет когтями с естественным пробитием и становится опаснее при прямом обмене ударами.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_2",
+                "name": "Когти чужой формы"
+              },
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_8",
+                "name": "Отражённая агрессия"
+              },
+              {
+                "ref": "beast_7",
+                "name": "Чужая броня"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 9,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_many_limb",
+          "name": "Многоотростковая бестия",
+          "creatureType": "beast",
+          "description": "Задевает сразу несколько соседних целей и может продолжить успешный удар дополнительной конечностью.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_6",
+                "name": "Размашистый удар отростками"
+              },
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_10",
+                "name": "Дополнительная конечность"
+              },
+              {
+                "ref": "beast_12",
+                "name": "Нестабильная кровь"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 10,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_nerve_leech",
+          "name": "Пожиратель Нерва",
+          "creatureType": "beast",
+          "description": "Давит на Нерв с дистанции и подпитывается успешными атаками.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_8",
+                "name": "Негативный импульс: потеря Нерва"
+              },
+              {
+                "ref": "beast_18",
+                "name": "Поглощающий укус"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_3",
+                "name": "Вампиризм"
+              },
+              {
+                "ref": "beast_9",
+                "name": "Эхо боли"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 12,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_mind_scrambler",
+          "name": "Дезориентатор",
+          "creatureType": "beast",
+          "description": "Не стремится к чистому урону: ломает действия противников негативным импульсом и затрудняет ответные атаки.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_9",
+                "name": "Негативный импульс: дезориентация"
+              },
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_5",
+                "name": "Неправильный угол"
+              },
+              {
+                "ref": "beast_6",
+                "name": "Складка пространства"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 1,
+            "pz": 5,
+            "nerve": 11,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_armor_rotter",
+          "name": "Разлагатель брони",
+          "creatureType": "beast",
+          "description": "Работает издалека лучом разложения, постепенно делая защищённые цели уязвимее.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_11",
+                "name": "Луч разложения: снижение Брони"
+              },
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_1",
+                "name": "Разрыв пространства"
+              },
+              {
+                "ref": "beast_5",
+                "name": "Неправильный угол"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 10,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_decay_burner",
+          "name": "Тлеющий разлагатель",
+          "creatureType": "beast",
+          "description": "Наносит продолжающийся урон лучом разложения и переживает ответные попадания за счёт странной геометрии тела.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_13",
+                "name": "Луч разложения: продолжающийся урон"
+              },
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_6",
+                "name": "Складка пространства"
+              },
+              {
+                "ref": "beast_7",
+                "name": "Чужая броня"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 10,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_space_cutter",
+          "name": "Пространственный резак",
+          "creatureType": "beast",
+          "description": "Режет линию пространства на средней дистанции и телепортируется, когда по нему пытаются ответить.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_15",
+                "name": "Пространственный разрез"
+              },
+              {
+                "ref": "beast_2",
+                "name": "Когти чужой формы"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_1",
+                "name": "Разрыв пространства"
+              },
+              {
+                "ref": "beast_2",
+                "name": "Хаотический скачок"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 1,
+            "pz": 5,
+            "nerve": 10,
+            "pool": 6,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_repulsor",
+          "name": "Отталкивающая бестия",
+          "creatureType": "beast",
+          "description": "Врывается в скопление врагов и взрывом чужой энергии разбрасывает их вокруг себя.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_16",
+                "name": "Взрыв чужой энергии: отталкивание"
+              },
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_8",
+                "name": "Отражённая агрессия"
+              },
+              {
+                "ref": "beast_6",
+                "name": "Складка пространства"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 16,
+            "armor": 2,
+            "pz": 3,
+            "nerve": 10,
+            "pool": 5,
+            "damage": "d10"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_flesh_eater",
+          "name": "Поглотитель плоти",
+          "creatureType": "beast",
+          "description": "Лечится укусом и может полностью переломить затяжной ближний бой серией удачных попаданий.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_18",
+                "name": "Поглощающий укус"
+              },
+              {
+                "ref": "beast_2",
+                "name": "Когти чужой формы"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_3",
+                "name": "Вампиризм"
+              },
+              {
+                "ref": "beast_8",
+                "name": "Отражённая агрессия"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 10,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_gravity_maw",
+          "name": "Пожиратель пространства",
+          "creatureType": "beast",
+          "description": "Стягивает несколько целей в одну область, после чего атакует их изменёнными конечностями.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_26",
+                "name": "Пожирание пространства: притяжение"
+              },
+              {
+                "ref": "beast_6",
+                "name": "Размашистый удар отростками"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_5",
+                "name": "Неправильный угол"
+              },
+              {
+                "ref": "beast_10",
+                "name": "Дополнительная конечность"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 12,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_scene_warp",
+          "name": "Искажатель сцены",
+          "creatureType": "beast",
+          "description": "Создаёт область Помехи и использует её как защиту для собственных ближних атак.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_27",
+                "name": "Пожирание пространства: искажённая сцена"
+              },
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_5",
+                "name": "Неправильный угол"
+              },
+              {
+                "ref": "beast_1",
+                "name": "Разрыв пространства"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 1,
+            "pz": 5,
+            "nerve": 12,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_blood_spray",
+          "name": "Кровоточащая аномалия",
+          "creatureType": "beast",
+          "description": "Наказывает ближние атаки нестабильной кровью и при этом сама активно дерётся когтями.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_2",
+                "name": "Когти чужой формы"
+              },
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_12",
+                "name": "Нестабильная кровь"
+              },
+              {
+                "ref": "beast_8",
+                "name": "Отражённая агрессия"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 9,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_regenerator",
+          "name": "Сшивающаяся плоть",
+          "creatureType": "beast",
+          "description": "Тяжёлая бестия, способная один раз резко восстановить Тело ценой следующего раунда атак.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              },
+              {
+                "ref": "beast_18",
+                "name": "Поглощающий укус"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_4",
+                "name": "Сшивание плоти"
+              },
+              {
+                "ref": "beast_7",
+                "name": "Чужая броня"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 18,
+            "armor": 2,
+            "pz": 3,
+            "nerve": 11,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_angle_hunter",
+          "name": "Охотник неправильных углов",
+          "creatureType": "beast",
+          "description": "Постоянно мешает нормальным ответным атакам и режет цель когтями с неестественных направлений.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_2",
+                "name": "Когти чужой формы"
+              },
+              {
+                "ref": "beast_9",
+                "name": "Негативный импульс: дезориентация"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_5",
+                "name": "Неправильный угол"
+              },
+              {
+                "ref": "beast_2",
+                "name": "Хаотический скачок"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 1,
+            "pz": 5,
+            "nerve": 10,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_folded_shell",
+          "name": "Складчатая оболочка",
+          "creatureType": "beast",
+          "description": "Медленная живучая бестия, которая уменьшает входящий урон складкой пространства и чужой бронёй.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              },
+              {
+                "ref": "beast_16",
+                "name": "Взрыв чужой энергии: отталкивание"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_6",
+                "name": "Складка пространства"
+              },
+              {
+                "ref": "beast_7",
+                "name": "Чужая броня"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 18,
+            "armor": 3,
+            "pz": 3,
+            "nerve": 10,
+            "pool": 4,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_pain_echo",
+          "name": "Эхо-бестия",
+          "creatureType": "beast",
+          "description": "Тяжёлое попадание по ней отзывается потерей Нерва у атакующего; сама она давит негативными импульсами.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_8",
+                "name": "Негативный импульс: потеря Нерва"
+              },
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_9",
+                "name": "Эхо боли"
+              },
+              {
+                "ref": "beast_6",
+                "name": "Складка пространства"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 13,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_extra_limb_predator",
+          "name": "Дополнительная конечность",
+          "creatureType": "beast",
+          "description": "Ближний хищник, который превращает одно успешное попадание в серию физических повреждений.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_2",
+                "name": "Когти чужой формы"
+              },
+              {
+                "ref": "beast_6",
+                "name": "Размашистый удар отростками"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_10",
+                "name": "Дополнительная конечность"
+              },
+              {
+                "ref": "beast_8",
+                "name": "Отражённая агрессия"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 9,
+            "pool": 6,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_molting_anomaly",
+          "name": "Линяющая аномалия",
+          "creatureType": "beast",
+          "description": "Сбрасывает негативное состояние ценой собственного Тела и отвечает пространственными атаками.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_15",
+                "name": "Пространственный разрез"
+              },
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_14",
+                "name": "Временная линька"
+              },
+              {
+                "ref": "beast_6",
+                "name": "Складка пространства"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 11,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_storm_remnant",
+          "name": "Остаток бури",
+          "creatureType": "beast",
+          "description": "После уничтожения оставляет опасную зону, а до этого разбрасывает соседние цели энергетическим взрывом.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_16",
+                "name": "Взрыв чужой энергии: отталкивание"
+              },
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_15",
+                "name": "Последствие бури"
+              },
+              {
+                "ref": "beast_12",
+                "name": "Нестабильная кровь"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 10,
+            "pool": 5,
+            "damage": "d10"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_vampiric_cutter",
+          "name": "Вампирический резак",
+          "creatureType": "beast",
+          "description": "Сочетает пространственный разрез и поглощающий укус, восстанавливаясь после удачных атак.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_15",
+                "name": "Пространственный разрез"
+              },
+              {
+                "ref": "beast_18",
+                "name": "Поглощающий укус"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_3",
+                "name": "Вампиризм"
+              },
+              {
+                "ref": "beast_1",
+                "name": "Разрыв пространства"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 11,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_gravity_ray",
+          "name": "Гравитационный разлагатель",
+          "creatureType": "beast",
+          "description": "Стягивает цели в удобную область и затем снижает их Броню точным лучом.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_26",
+                "name": "Пожирание пространства: притяжение"
+              },
+              {
+                "ref": "beast_11",
+                "name": "Луч разложения: снижение Брони"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_5",
+                "name": "Неправильный угол"
+              },
+              {
+                "ref": "beast_2",
+                "name": "Хаотический скачок"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 1,
+            "pz": 5,
+            "nerve": 12,
+            "pool": 6,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_warped_battery",
+          "name": "Искажённая батарея",
+          "creatureType": "beast",
+          "description": "С дистанции бьёт по Нерву, а вокруг себя создаёт опасный энергетический выброс.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_8",
+                "name": "Негативный импульс: потеря Нерва"
+              },
+              {
+                "ref": "beast_16",
+                "name": "Взрыв чужой энергии: отталкивание"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_6",
+                "name": "Складка пространства"
+              },
+              {
+                "ref": "beast_9",
+                "name": "Эхо боли"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 16,
+            "armor": 2,
+            "pz": 3,
+            "nerve": 13,
+            "pool": 5,
+            "damage": "d10"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_space_mauler",
+          "name": "Пространственный терзатель",
+          "creatureType": "beast",
+          "description": "Сначала притягивает добычу, затем режет её когтями и не даёт спокойно отвечать на атаки.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_26",
+                "name": "Пожирание пространства: притяжение"
+              },
+              {
+                "ref": "beast_2",
+                "name": "Когти чужой формы"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_1",
+                "name": "Разрыв пространства"
+              },
+              {
+                "ref": "beast_8",
+                "name": "Отражённая агрессия"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 16,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 10,
+            "pool": 6,
+            "damage": "d10"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "beast_grand_distortion",
+          "name": "Большое искажение",
+          "creatureType": "beast",
+          "description": "Крупная бестия, сочетающая искажение сцены, пространственный разрез и устойчивость чужой брони.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "beast_27",
+                "name": "Пожирание пространства: искажённая сцена"
+              },
+              {
+                "ref": "beast_15",
+                "name": "Пространственный разрез"
+              },
+              {
+                "ref": "beast_1",
+                "name": "Искажённый удар"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "beast_7",
+                "name": "Чужая броня"
+              },
+              {
+                "ref": "beast_6",
+                "name": "Складка пространства"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 20,
+            "armor": 3,
+            "pz": 3,
+            "nerve": 14,
+            "pool": 6,
+            "damage": "d10"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "undead",
+      "label": "Нежить",
+      "count": 25,
+      "pregens": [
+        {
+          "id": "undead_shambler",
+          "name": "Шатающийся мертвец",
+          "creatureType": "undead",
+          "description": "Простая медленная нежить, которая бьёт мёртвой рукой и плохо замечает полученные раны.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_1",
+                "name": "Не замечает раны"
+              },
+              {
+                "ref": "undead_13",
+                "name": "Пустой разум"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 0,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 3,
+            "damage": "d4+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_biter",
+          "name": "Кусачий мертвец",
+          "creatureType": "undead",
+          "description": "Ищет ближний контакт и восстанавливает Тело, когда удаётся ранить живую цель.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_2",
+                "name": "Укус мертвеца"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_12",
+                "name": "Голод мертвеца"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Не замечает раны"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 11,
+            "armor": 0,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_rust_skeleton",
+          "name": "Скелет с ржавым оружием",
+          "creatureType": "undead",
+          "description": "Вооружённая нежить, сохраняющая простую технику ближнего боя и последний удар после разрушения.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_7",
+                "name": "Удар ржавым оружием"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_3",
+                "name": "Последний взмах"
+              },
+              {
+                "ref": "undead_2",
+                "name": "Мёртвая плоть"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 11,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_plague_blade",
+          "name": "Заражённый клинок",
+          "creatureType": "undead",
+          "description": "Нежить с заражённым оружием, которая превращает даже небольшой пробивший урон в угрозу отравления.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_8",
+                "name": "Заражённое оружие"
+              },
+              {
+                "ref": "undead_7",
+                "name": "Удар ржавым оружием"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_5",
+                "name": "Мёртвая хватка"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Не замечает раны"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_bone_thrower",
+          "name": "Костяной стрелок",
+          "creatureType": "undead",
+          "description": "Держит среднюю дистанцию и метает костяные шипы, сохраняя костяной выпад против приблизившихся целей.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_9",
+                "name": "Костяной метатель"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_9",
+                "name": "Костяной выпад"
+              },
+              {
+                "ref": "undead_2",
+                "name": "Мёртвая плоть"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 0,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_grave_guard",
+          "name": "Могильный страж",
+          "creatureType": "undead",
+          "description": "Крепкая вооружённая нежить, которая не выпускает противника из ближней дистанции.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_7",
+                "name": "Удар ржавым оружием"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_5",
+                "name": "Мёртвая хватка"
+              },
+              {
+                "ref": "undead_2",
+                "name": "Мёртвая плоть"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 2,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_cold_corpse",
+          "name": "Холодный труп",
+          "creatureType": "undead",
+          "description": "Сам по себе бьёт просто, но контакт с ним постепенно давит на Нерв живых противников.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              },
+              {
+                "ref": "undead_2",
+                "name": "Укус мертвеца"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_6",
+                "name": "Холод могилы"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Не замечает раны"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 0,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_dead_rusher",
+          "name": "Рывковый мертвец",
+          "creatureType": "undead",
+          "description": "Неожиданно ускоряется, быстро входит в ближний бой и цепляется за цель мёртвой хваткой.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              },
+              {
+                "ref": "undead_2",
+                "name": "Укус мертвеца"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_8",
+                "name": "Рывок мертвеца"
+              },
+              {
+                "ref": "undead_5",
+                "name": "Мёртвая хватка"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 0,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_bone_lancer",
+          "name": "Костяной выпадник",
+          "creatureType": "undead",
+          "description": "Провоцирует опасность рядом с собой, отвечая дополнительной атакой на любое задержавшееся действие.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_7",
+                "name": "Удар ржавым оружием"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_9",
+                "name": "Костяной выпад"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Не замечает раны"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_limb_sacrifice",
+          "name": "Расчленённый страж",
+          "creatureType": "undead",
+          "description": "Жертвует конечностью, чтобы пережить тяжёлый удар, и продолжает бой ржавым оружием.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_7",
+                "name": "Удар ржавым оружием"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_11",
+                "name": "Отдать конечность"
+              },
+              {
+                "ref": "undead_3",
+                "name": "Последний взмах"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_hungry_dead",
+          "name": "Голодный мертвец",
+          "creatureType": "undead",
+          "description": "Пытается держаться вплотную к живой цели и подпитывается каждым удачным укусом.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_2",
+                "name": "Укус мертвеца"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_12",
+                "name": "Голод мертвеца"
+              },
+              {
+                "ref": "undead_5",
+                "name": "Мёртвая хватка"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 0,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_empty_mind",
+          "name": "Пустоголовый мертвец",
+          "creatureType": "undead",
+          "description": "Плохо поддаётся необычным эффектам и продолжает прямолинейно атаковать даже под контролем.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              },
+              {
+                "ref": "undead_7",
+                "name": "Удар ржавым оружием"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_13",
+                "name": "Пустой разум"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Не замечает раны"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_grave_caller",
+          "name": "Могильный призыватель",
+          "creatureType": "undead",
+          "description": "Становится опаснее, когда рядом уничтожают другую нежить, и поддерживает бой оружием ближнего боя.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_7",
+                "name": "Удар ржавым оружием"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_14",
+                "name": "Зов из могилы"
+              },
+              {
+                "ref": "undead_2",
+                "name": "Мёртвая плоть"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_plague_cloud",
+          "name": "Чумной труп",
+          "creatureType": "undead",
+          "description": "Создаёт вокруг себя ядовитое облако и заставляет живых противников покидать удобные позиции.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_18",
+                "name": "Облако разложения: яд"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_1",
+                "name": "Не замечает раны"
+              },
+              {
+                "ref": "undead_5",
+                "name": "Мёртвая хватка"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 0,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_choking_cloud",
+          "name": "Удушающий мертвец",
+          "creatureType": "undead",
+          "description": "Несёт облако удушья и особенно опасен в тесных пространствах.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_20",
+                "name": "Облако разложения: удушье"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_1",
+                "name": "Не замечает раны"
+              },
+              {
+                "ref": "undead_6",
+                "name": "Холод могилы"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 14,
+            "armor": 0,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_bone_bomber",
+          "name": "Костяной бомбардир",
+          "creatureType": "undead",
+          "description": "Идёт в плотный контакт и в критический момент разрывает себя костяным взрывом.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_21",
+                "name": "Костяной взрыв"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_3",
+                "name": "Последний взмах"
+              },
+              {
+                "ref": "undead_11",
+                "name": "Отдать конечность"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_plague_skeleton",
+          "name": "Чумной скелет",
+          "creatureType": "undead",
+          "description": "Сочетает старое оружие с заражением и после гибели оставляет последний опасный удар.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_8",
+                "name": "Заражённое оружие"
+              },
+              {
+                "ref": "undead_7",
+                "name": "Удар ржавым оружием"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_3",
+                "name": "Последний взмах"
+              },
+              {
+                "ref": "undead_14",
+                "name": "Зов из могилы"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 12,
+            "armor": 1,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_ossuary_hunter",
+          "name": "Охотник костницы",
+          "creatureType": "undead",
+          "description": "Метает костяные шипы, резко сокращает дистанцию и добивает цель в ближнем бою.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_9",
+                "name": "Костяной метатель"
+              },
+              {
+                "ref": "undead_2",
+                "name": "Укус мертвеца"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_8",
+                "name": "Рывок мертвеца"
+              },
+              {
+                "ref": "undead_9",
+                "name": "Костяной выпад"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 11,
+            "armor": 0,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_dead_duelist",
+          "name": "Мёртвый дуэлянт",
+          "creatureType": "undead",
+          "description": "Вооружённая нежить с хорошей защитой корпуса, которая сохраняет опасный последний взмах.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_7",
+                "name": "Удар ржавым оружием"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_2",
+                "name": "Мёртвая плоть"
+              },
+              {
+                "ref": "undead_3",
+                "name": "Последний взмах"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 13,
+            "armor": 2,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_corpse_brute",
+          "name": "Трупный тяжеловес",
+          "creatureType": "undead",
+          "description": "Большая нежить, которая полагается на Тело и мёртвую плоть, а не на манёвры.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              },
+              {
+                "ref": "undead_2",
+                "name": "Укус мертвеца"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_2",
+                "name": "Мёртвая плоть"
+              },
+              {
+                "ref": "undead_11",
+                "name": "Отдать конечность"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 18,
+            "armor": 2,
+            "pz": 2,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_grave_jailer",
+          "name": "Могильный тюремщик",
+          "creatureType": "undead",
+          "description": "Не выпускает живую цель из ближней дистанции и заражает её старым оружием.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_8",
+                "name": "Заражённое оружие"
+              },
+              {
+                "ref": "undead_7",
+                "name": "Удар ржавым оружием"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_5",
+                "name": "Мёртвая хватка"
+              },
+              {
+                "ref": "undead_6",
+                "name": "Холод могилы"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d8"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_decay_husk",
+          "name": "Оболочка разложения",
+          "creatureType": "undead",
+          "description": "Создаёт токсичную зону и переживает ответные атаки благодаря нечувствительности мёртвой плоти.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_18",
+                "name": "Облако разложения: яд"
+              },
+              {
+                "ref": "undead_20",
+                "name": "Облако разложения: удушье"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_2",
+                "name": "Мёртвая плоть"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Не замечает раны"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 16,
+            "armor": 1,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_bone_spitter",
+          "name": "Костяной плеватель",
+          "creatureType": "undead",
+          "description": "Специализированная дальняя нежить, которая держит среднюю дистанцию и мешает противнику нормально атаковать.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_9",
+                "name": "Костяной метатель"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_7",
+                "name": "Гаснущий взгляд"
+              },
+              {
+                "ref": "undead_13",
+                "name": "Пустой разум"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 10,
+            "armor": 0,
+            "pz": 4,
+            "nerve": 0,
+            "pool": 5,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_dead_standard",
+          "name": "Мёртвый знаменосец",
+          "creatureType": "undead",
+          "description": "Усиливается от гибели соседней нежити и остаётся в строю за счёт крепкой мёртвой плоти.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_7",
+                "name": "Удар ржавым оружием"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_14",
+                "name": "Зов из могилы"
+              },
+              {
+                "ref": "undead_2",
+                "name": "Мёртвая плоть"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 15,
+            "armor": 2,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 4,
+            "damage": "d6+1"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        },
+        {
+          "id": "undead_ossuary_abomination",
+          "name": "Костничная аномалия",
+          "creatureType": "undead",
+          "description": "Тяжёлая нежить, сочетающая костяной метатель, взрыв и способность жертвовать частью тела ради выживания.",
+          "hardIdentity": {
+            "attacks": [
+              {
+                "ref": "undead_9",
+                "name": "Костяной метатель"
+              },
+              {
+                "ref": "undead_21",
+                "name": "Костяной взрыв"
+              },
+              {
+                "ref": "undead_1",
+                "name": "Удар мёртвой рукой"
+              }
+            ],
+            "reactions": [
+              {
+                "ref": "undead_11",
+                "name": "Отдать конечность"
+              },
+              {
+                "ref": "undead_3",
+                "name": "Последний взмах"
+              }
+            ]
+          },
+          "idealProfile": {
+            "body": 19,
+            "armor": 2,
+            "pz": 3,
+            "nerve": 0,
+            "pool": 6,
+            "damage": "d10"
+          },
+          "tuningPolicy": {
+            "soft": [
+              "body",
+              "armor",
+              "pz",
+              "nerve",
+              "pool",
+              "damage"
+            ],
+            "hard": [
+              "creatureType",
+              "name",
+              "hardIdentity.attacks",
+              "hardIdentity.reactions"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "creatureTypeCount": 5,
+    "pregensPerType": 25,
+    "totalPregens": 125,
+    "types": [
+      "humanoid",
+      "mechanism",
+      "animal",
+      "beast",
+      "undead"
+    ],
+    "containsRoles": false
+  }
+}

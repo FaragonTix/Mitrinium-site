@@ -10,6 +10,8 @@ let v8Bundle=null;
 let generatorSearchResult=null;
 let tacticalPregenBank=null;
 let tacticalPregenBankError=null;
+let creaturePregenBank=null;
+let creaturePregenBankError=null;
 let generatorArchetypeIds=[];
 let savedCharacterSheets=[];
 let characterEquipmentCatalog=[];
@@ -995,12 +997,19 @@ function applyTacticalPregenWithFallback(enemy,kit,desiredScale) {
 }
 function generatorLibrary(settings) {
   const selected=[];
-  const generated=(v8Bundle?.unit_library||[]).map((profile,index)=> {
+  const legacyGenerated=(v8Bundle?.unit_library||[]).map((profile,index)=> {
     const base={id:`v8:${profile.archetype}:${index}`,name:`${V8_ARCHETYPE_LABELS[profile.archetype]||profile.archetype} ${index+1}`,profile,idealProfile:profile,usage:'archetype',archetype:profile.archetype,role:profile.archetype,tags:[profile.archetype],typeKey:'humanoid',classKey:'none',source:'v8'};
     const choice=tacticalSelectionFor(base,index,selected),kit=choice.kit,entry={...base,name:kit.name,tacticalRole:kit.role,tacticalKit:kit,tacticalScaleFallback:choice.scaleFallback,typeKey:typeForTacticalChassis(kit.chassis),description:kit.tactical_identity,hardIdentity:{name:kit.name,type:kit.chassis,attacks:[deepClone(kit.primary),deepClone(kit.secondary),deepClone(kit.special)],reactions:[deepClone(kit.reaction)],tactics:deepClone(kit.tactics)},tags:[profile.archetype,kit.role,kit.chassis,...(kit.diversity_tags||[])]};
     selected.push({tacticalPregenId:choice.kit.id,chassis:choice.kit.chassis,diversityTags:choice.kit.diversity_tags});
     return entry;
   });
+  const creatureGenerated=creaturePregenBank?MitriniumCreaturePregens.flattenCreaturePregens(creaturePregenBank).map((pregen,index)=> {
+    const resolved=MitriniumCreaturePregens.resolveCreaturePregen(pregen,{attacks:ATTACK_LIBRARY,reactions:REACTION_LIBRARY}),profile={...resolved.idealProfile,expl:Number(resolved.idealProfile.expl??3),penetration:Number(resolved.idealProfile.penetration)||0,archetype:resolved.archetype},tagKey=resolved.archetype==='boss'?'boss':resolved.archetype==='minion'?'minion':'chief';
+    const attacks=resolved.resolvedAttacks.map((attack,attackIndex)=>({...deepClone(attack),pool:profile.pool,expl:profile.expl,damage:damageStep(profile.damage,Number(attack.damageStep)||0),tacticalKind:attackIndex===0?'primary':'secondary'}));
+    const template={name:resolved.name,typeKey:resolved.creatureType,tagKey,classKey:'none',hp:profile.body,nerve:profile.nerve||0,armor:profile.armor,pz:profile.pz,pool:profile.pool,physicalDefensePool:profile.pool,mentalDefensePool:profile.pool,reactionLimit:resolved.resolvedReactions.length?1:0,attacks,reactions:deepClone(resolved.resolvedReactions),properties:[resolved.description],notes:resolved.description};
+    return {id:`creature:${resolved.id}`,baseId:`creature:${resolved.id}`,name:resolved.name,description:resolved.description,profile,idealProfile:deepClone(profile),usage:'archetype',archetype:resolved.archetype,role:resolved.role,tags:[resolved.archetype,resolved.creatureType],typeKey:resolved.creatureType,classKey:'none',source:'creature-archetype',template,hardIdentity:deepClone(resolved.hardIdentity),tuningPolicy:deepClone(resolved.tuningPolicy||{}),catalogIndex:index};
+  }):[];
+  const generated=creatureGenerated.length?creatureGenerated:legacyGenerated;
   const savedExact=customEnemies.map((template,index)=> {
     const enemy=instantiateTemplate(template,index);
     return {id:`library:${template.id}`,baseId:`library:${template.id}`,name:template.name,profile:enemyV8Profile(enemy),usage:'exact',archetype:enemy.v8Archetype||enemy.tagKey,role:enemy.tagKey,tags:[enemy.tagKey,enemy.v8Archetype,enemy.typeKey].filter(Boolean),typeKey:enemy.typeKey,classKey:enemy.classKey,source:'library',template,hardIdentity:{name:template.name,type:enemy.typeKey,attacks:deepClone(enemy.attacks),reactions:deepClone(enemy.reactions),properties:deepClone(enemy.properties)}};
@@ -1020,6 +1029,10 @@ function instantiateGeneratorEntry(entry,index) {
   if(entry.source==='locked'&&entry.enemy)return attachGeneratorMeta({...deepClone(entry.enemy),generatorLocked:true,slot:index+1},entry);
   if(entry.source==='library'&&entry.template)return attachGeneratorMeta({...instantiateTemplate(entry.template,index),generatorLibraryId:entry.id},entry);
   if(entry.source==='library-archetype'&&entry.template)return attachGeneratorMeta({...applyV8Profile(instantiateTemplate(entry.template,index),entry.profile),generatorLibraryId:entry.id},entry);
+  if(entry.source==='creature-archetype'&&entry.template) {
+    const enemy=applyV8Profile(instantiateTemplate(entry.template,index),entry.profile),attacks=enemy.attacks.map(attack=>({...attack,pool:entry.profile.pool,expl:entry.profile.expl??3,damage:damageStep(entry.profile.damage,Number(attack.damageStep)||0),penetrating:(Number(entry.profile.penetration)||0)>0||attack.penetrating}));
+    return attachGeneratorMeta({...enemy,attacks,primaryAttackId:attacks[0]?.id||''},entry);
+  }
   const archetype=entry.archetype||entry.profile?.archetype||'standard';
   const tagKey=archetype==='boss'?'boss':archetype==='minion'?'minion':'chief';
   const enemy=buildEnemy(clamp(Number(document.getElementById('level')?.value)||1,1,20),1000,entry.typeKey||'humanoid',tagKey,entry.classKey||'none',index,entry.name,Boolean(entry.tacticalKit));
@@ -2239,6 +2252,7 @@ function showToast(message,isError=false) {
 window.addEventListener('load',async()=> {
   try {v8Bundle=await window.mitriniumV8Ready;} catch(error) {showToast(`Не удалось загрузить модель v8: ${error.message}`,true);}
   try {tacticalPregenBank=await window.mitriniumTacticalBankReady;} catch(error) {tacticalPregenBankError=error;console.error(error);showToast(`Не удалось загрузить tactical pregen bank: ${error.message}`,true);}
+  try {creaturePregenBank=await window.mitriniumCreatureBankReady;const validation=MitriniumCreaturePregens.validateCreaturePregenBank(creaturePregenBank,{attacks:ATTACK_LIBRARY,reactions:REACTION_LIBRARY});if(!validation.ok)throw new Error(validation.errors.slice(0,5).join('; '));} catch(error) {creaturePregenBankError=error;console.error(error);showToast(`Не удалось загрузить creature pregen bank: ${error.message}`,true);}
   await loadCharacterProfileSources(false);
   initializeControls(); const restored=restoreLocal(); document.getElementById('players').value=state.players.length; document.getElementById('partyInputMode').value=state.partyInputMode; if(!restored)resetBestiaryDraft(); else {
     document.getElementById('beId').value=state.bestiaryDraft.id||''; state.bestiaryDraft.attacks=ensureTwoAttacks(state.bestiaryDraft.attacks,document.getElementById('beType').value);

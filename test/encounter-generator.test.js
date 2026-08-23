@@ -174,6 +174,25 @@ test("настройка архетипа меняет outcomes без смен�
   assert.ok(result.options.every((option) => option.entries[0].hardIdentity.attacks[0].name === "Когти" && option.entries[0].hardIdentity.reactions[0].name === "Рык"));
 });
 
+test("защита и давление архетипа настраиваются независимо", () => {
+  const ideal = { body: 16, nerve: 8, armor: 1, pz: 4, pool: 6, expl: 3, damage: "d8", penetration: 0, archetype: "brute" };
+  const variants = archetypeVariants({ id: "independent", name: "Независимый", usage: "archetype", profile: ideal });
+  assert.ok(variants.some((entry) => entry.profile.body > ideal.body && entry.profile.pool < ideal.pool));
+  assert.ok(variants.some((entry) => entry.profile.body < ideal.body && entry.profile.pool > ideal.pool));
+});
+
+test("поиск предпочитает попадание в обе цели сохранению идеальных чисел", () => {
+  const source = [{ id: "adaptive-two-axis", name: "Гибкий", usage: "archetype", profile: { body: 16, nerve: 8, armor: 1, pz: 4, pool: 6, expl: 3, damage: "d8", penetration: 0, archetype: "brute" } }];
+  const result = generateEncounterOptions({
+    library: source,
+    settings: { count: { mode: "exact", exact: 1 }, targets: { win: { mode: "exact", exact: .525 }, ko: { mode: "exact", exact: .5 } }, heterogeneity: { mode: "any", extremeAllowed: true } },
+    evaluate: ([item]) => ({ prediction: { party_win_probability: 1 - item.body / 40, p_any_pc_ko: item.pool / 10, mean_rounds: 3, mean_party_body_loss_fraction: .2 }, features: { enemy_survivability_cv: 0, enemy_pressure_cv: 0 } }),
+  });
+  assert.equal(result.options[0].targetError, 0);
+  assert.ok(result.options[0].entries[0].profile.body > 16);
+  assert.ok(result.options[0].entries[0].profile.pool < 6);
+});
+
 test("Replace random меняет только выбранный unlocked slot и сохраняет locked", () => {
   const entries = library.slice(0, 3).map((entry, index) => ({ ...entry, locked: index === 0 }));
   const result = replaceGeneratedSlot({ entries, index: 1, library, settings: { count: { mode: "exact", exact: 3 }, heterogeneity: { mode: "any", extremeAllowed: true } }, evaluate: fakeEvaluate });

@@ -318,11 +318,14 @@
   import * as MitriniumV8 from "./mitrinium-v8-core.js";
   import * as MitriniumEncounterGenerator from "./encounter-generator.js";
   import * as MitriniumTacticalPregens from "./tactical-pregens.js";
+  import * as MitriniumCreaturePregens from "./creature-pregens.js";
   window.MitriniumV8 = MitriniumV8;
   window.MitriniumEncounterGenerator = MitriniumEncounterGenerator;
   window.MitriniumTacticalPregens = MitriniumTacticalPregens;
+  window.MitriniumCreaturePregens = MitriniumCreaturePregens;
   window.mitriniumV8Ready = MitriniumV8.loadMitriniumV8();
   window.mitriniumTacticalBankReady = MitriniumTacticalPregens.loadTacticalPregenBank();
+  window.mitriniumCreatureBankReady = MitriniumCreaturePregens.loadCreaturePregenBank();
 </script>
 <?!= include('Dict'); ?>
 <?!= include('Script'); ?>
