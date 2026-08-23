@@ -155,6 +155,20 @@
     }, 0);
   }
 
+  function getSpentPrimarySkillPoints() {
+    return Object.entries(skills).reduce(function(total, groupEntry) {
+      const groupKey = groupEntry[0];
+      const group = groupEntry[1];
+      return total + Object.entries(group.items).reduce(function(groupTotal, skillEntry) {
+        return groupTotal + (
+          isSecondarySkill(groupKey, skillEntry[0])
+            ? 0
+            : Number(skillEntry[1].value || 0)
+        );
+      }, 0);
+    }, 0);
+  }
+
   function getPrimarySkillGroupTotal(groupKey) {
     const group = skills[groupKey];
     if (!group) return 0;
@@ -171,6 +185,12 @@
     const maximum = advancedEditMode ? 3 : 2;
     if (nextValue < 0 || nextValue > maximum) return;
     if (!advancedEditMode && delta > 0 && getSkillPointsLeft() <= 0) return;
+    if (
+      !advancedEditMode &&
+      delta > 0 &&
+      !isSecondarySkill(groupKey, skillKey) &&
+      getSpentPrimarySkillPoints() >= maxStartingPrimarySkillPoints
+    ) return;
     if (
       !advancedEditMode &&
       delta > 0 &&
@@ -196,7 +216,8 @@
     const selectedClass = document.getElementById('className')?.value || '';
     const recommendations = classRecommendedSkills[selectedClass] || {};
     const primarySkills = new Set(recommendations.primary || []);
-    const showRecommended = Boolean(recommendationToggle?.checked && selectedClass);
+    const showSkillGuidance = Boolean(recommendationToggle?.checked);
+    const showRecommended = Boolean(showSkillGuidance && selectedClass);
 
     if (recommendationLegend) {
       recommendationLegend.hidden = !recommendationToggle?.checked;
@@ -210,9 +231,10 @@
       : getSkillPointsLeft();
     if (secondaryProgress) {
       const spentSecondary = getSpentSecondarySkillPoints();
+      const spentPrimary = getSpentPrimarySkillPoints();
       secondaryProgress.textContent = advancedEditMode
         ? 'Ограничения создания отключены'
-        : `Второстепенные: ${spentSecondary} / ${requiredSecondarySkillPoints}`;
+        : `Второстепенные: ${spentSecondary} / минимум ${requiredSecondarySkillPoints} · Основные: ${spentPrimary} / максимум ${maxStartingPrimarySkillPoints}`;
       secondaryProgress.classList.toggle(
         'complete',
         advancedEditMode || spentSecondary >= requiredSecondarySkillPoints
@@ -235,7 +257,19 @@
         const path = `${groupKey}:${skillKey}`;
         const isRecommended = showRecommended && primarySkills.has(path);
         const isSecondary = isSecondarySkill(groupKey, skillKey);
-        const isUseful = showRecommended && usefulSkillPaths.includes(path);
+        const isUseful = showSkillGuidance && usefulSkillPaths.includes(path);
+        const skillMaximum = advancedEditMode ? 3 : 2;
+        const canDecrease = Number(skill.value) > 0;
+        const canIncrease = Number(skill.value) < skillMaximum && (
+          advancedEditMode || (
+            getSkillPointsLeft() > 0 && (
+              isSecondary || (
+                getSpentPrimarySkillPoints() < maxStartingPrimarySkillPoints &&
+                getPrimarySkillGroupTotal(groupKey) < maxStartingPrimarySkillGroupTotal
+              )
+            )
+          )
+        );
         const skillMarks = [
           isSecondary ? '<i class="secondary" aria-label="Вторичный навык" title="Вторичный навык"></i>' : '',
           isUseful ? '<i class="useful" aria-label="Полезный навык" title="Полезный навык"></i>' : '',
@@ -243,7 +277,7 @@
         ].filter(Boolean).join('');
 
         html += `
-          <div class="skill-item ${isRecommended ? 'recommended-primary' : ''} ${isSecondary ? 'secondary-skill' : ''} ${isUseful ? 'useful-skill' : ''}">
+          <div class="skill-item ${isRecommended ? 'recommended-primary' : ''} ${isSecondary ? 'secondary-skill' : ''} ${isUseful ? 'useful-skill' : ''} ${skillMarks ? 'has-skill-marks' : ''}">
             <details class="skill-name skill-info">
               <summary>
                 <span class="skill-name-text">${hyphenateSkillName(skill.name)}</span>
@@ -255,6 +289,7 @@
             <div class="mini-counter">
               <button
                 type="button"
+                ${canDecrease ? '' : 'disabled'}
                 onclick="changeSkill('${groupKey}', '${skillKey}', -1)"
               >
                 −
@@ -264,6 +299,7 @@
 
               <button
                 type="button"
+                ${canIncrease ? '' : 'disabled'}
                 onclick="changeSkill('${groupKey}', '${skillKey}', 1)"
               >
                 +

@@ -2564,8 +2564,26 @@
 
     .skill-item {
       height: 48px;
-      padding: 4px 5px;
+      padding: 2px 5px;
       font-size: 13px;
+    }
+
+    .skill-marks {
+      position: absolute;
+      top: 2px;
+      right: auto;
+      left: 8px;
+      z-index: 1;
+      margin: 0;
+    }
+
+    .skill-marks i {
+      display: block;
+    }
+
+    .skill-item.has-skill-marks .skill-name-text {
+      padding-top: 10px;
+      line-height: 1.15;
     }
 
     .skill-item .mini-counter button {

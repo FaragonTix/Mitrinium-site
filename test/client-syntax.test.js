@@ -321,8 +321,11 @@ test("рекомендации классов и второстепенные н
   assert.match(characterSource, /'Командование': 'Ко&shy;ман&shy;до&shy;ва&shy;ние'/);
   assert.match(coreSource, /'Рекрут': \{[\s\S]*?primary:[\s\S]*?'nyuh:strelba'/);
   assert.match(coreSource, /const secondarySkillPaths = \[[\s\S]*?'napor:sila'[\s\S]*?'snorovka:koordinatsiya'[\s\S]*?'nyuh:znanieUlits'[\s\S]*?'smetka:erudiciya'[\s\S]*?'gospodstvo:publika'/);
+  assert.match(coreSource, /const maxStartingPrimarySkillPoints = totalExtraSkillPoints - requiredSecondarySkillPoints/);
+  assert.match(characterSource, /getSpentPrimarySkillPoints\(\) >= maxStartingPrimarySkillPoints/);
   assert.match(coreSource, /const usefulSkillPaths = \[[\s\S]*?'nyuh:vnimatelnost'[\s\S]*?'smetka:erudiciya'[\s\S]*?'gospodstvo:disciplina'[\s\S]*?'napor:stoikost'[\s\S]*?'snorovka:uklonenie'/);
-  assert.match(characterSource, /isUseful = showRecommended && usefulSkillPaths\.includes\(path\)/);
+  assert.match(characterSource, /isUseful = showSkillGuidance && usefulSkillPaths\.includes\(path\)/);
+  assert.match(characterSource, /skillMarks \? 'has-skill-marks' : ''/);
   assert.match(characterSource, /usefulLegend\.hidden = !recommendationToggle\?\.checked/);
   assert.match(coreSource, /vzlom: \{ name: 'Взлом'/);
   assert.match(coreSource, /publika: \{ name: 'Публика'/);
