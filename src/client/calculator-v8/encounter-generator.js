@@ -329,15 +329,22 @@ function heterogeneityAllowed(features, settings) {
   return true;
 }
 
-function finalAllowed(entries, evaluation, settings) {
-  if (!partialAllowed(entries, settings) || !compositionAllowed(entries, settings.composition)) return false;
+function finalRejectionReasons(entries, evaluation, settings) {
+  const reasons = [];
+  if (!partialAllowed(entries, settings)) reasons.push("partialRejected");
+  if (!compositionAllowed(entries, settings.composition)) reasons.push("compositionRejected");
   const bosses = bossCount(entries);
-  if (["required", "exactly1"].includes(settings.boss.mode) && bosses !== 1) return false;
+  if (["required", "exactly1"].includes(settings.boss.mode) && bosses !== 1) reasons.push("bossRejected");
   const strengths = entries.map((entry) => entry.bs);
   const strongest = Math.max(...strengths), weakest = Math.min(...strengths);
-  if (strongest < settings.bs.strongestMin || strongest > settings.bs.strongestMax) return false;
-  if (weakest < settings.bs.weakestMin || weakest > settings.bs.weakestMax) return false;
-  return heterogeneityAllowed(evaluation.features || {}, settings);
+  if (strongest < settings.bs.strongestMin || strongest > settings.bs.strongestMax) reasons.push("strongestBsRejected");
+  if (weakest < settings.bs.weakestMin || weakest > settings.bs.weakestMax) reasons.push("weakestBsRejected");
+  if (!heterogeneityAllowed(evaluation.features || {}, settings)) reasons.push("heterogeneityRejected");
+  return reasons;
+}
+
+function finalAllowed(entries, evaluation, settings) {
+  return finalRejectionReasons(entries, evaluation, settings).length === 0;
 }
 
 function targetStatus(value, range) {
@@ -414,8 +421,17 @@ export function generateEncounterOptions({ library, locked = [], settings: rawSe
   const candidates = prepareLibrary(array(library), settings, random);
   const lockedEntries = array(locked).map((entry, index) => makeLibraryEntry({ ...entry, usage: "exact" }, index));
   const diagnostics = [];
-  if (!candidates.length && !lockedEntries.length) return { settings, options: [], diagnostics: ["Нет NPC, подходящих под фильтры библиотеки."] };
-  if (lockedEntries.length > settings.count.max) return { settings, options: [], diagnostics: ["Заблокированных NPC больше, чем разрешено ограничением количества."] };
+  const diagnosticCounts = {
+    partialRejected: 0,
+    compositionRejected: 0,
+    bossRejected: 0,
+    strongestBsRejected: 0,
+    weakestBsRejected: 0,
+    heterogeneityRejected: 0,
+    finalAccepted: 0,
+  };
+  if (!candidates.length && !lockedEntries.length) return { settings, options: [], diagnostics: ["Нет NPC, подходящих под фильтры библиотеки."], diagnosticCounts, evaluatedCount: 0 };
+  if (lockedEntries.length > settings.count.max) return { settings, options: [], diagnostics: ["Заблокированных NPC больше, чем разрешено ограничением количества."], diagnosticCounts, evaluatedCount: 0 };
   const evaluated = new Map();
   const evaluateEntries = (entries) => {
     const key = canonicalIdentity(entries);
@@ -429,17 +445,32 @@ export function generateEncounterOptions({ library, locked = [], settings: rawSe
       const next = new Map();
       for (const node of beam) for (const candidate of candidates) {
         const entries = [...node.entries, candidate];
-        if (!partialAllowed(entries, settings)) continue;
+        if (!partialAllowed(entries, settings)) {
+          diagnosticCounts.partialRejected += 1;
+          continue;
+        }
         const key = canonicalIdentity(entries);
         if (next.has(key)) continue;
         const evaluation = evaluateEntries(entries);
-        next.set(key, { entries, evaluation, score: scoredObjective(evaluation.prediction, settings, entries) });
+        if (entries.length === desired) {
+          const rejections = finalRejectionReasons(entries, evaluation, settings);
+          if (rejections.length) {
+            rejections.forEach((rejection) => { diagnosticCounts[rejection] += 1; });
+            continue;
+          }
+          diagnosticCounts.finalAccepted += 1;
+        }
+        next.set(key, { entries, evaluation, score: scoredObjective(evaluation.prediction, settings, entries), finalChecked: entries.length === desired });
       }
       beam = [...next.values()].sort((a, b) => a.score - b.score || random() - 0.5).slice(0, settings.beamWidth);
     }
     for (const node of beam) {
       const evaluation = node.evaluation || evaluateEntries(node.entries);
-      if (!finalAllowed(node.entries, evaluation, settings)) continue;
+      if (!finalAllowed(node.entries, evaluation, settings)) {
+        if (!node.finalChecked) finalRejectionReasons(node.entries, evaluation, settings).forEach((rejection) => { diagnosticCounts[rejection] += 1; });
+        continue;
+      }
+      if (!node.finalChecked) diagnosticCounts.finalAccepted += 1;
       finals.push({
         entries: node.entries,
         evaluation,
@@ -469,9 +500,12 @@ export function generateEncounterOptions({ library, locked = [], settings: rawSe
     options.push(option);
     if (options.length >= settings.topN) break;
   }
-  if (!options.length) diagnostics.push("Точного структурного варианта при текущих ограничениях не найдено. Ограничения не были ослаблены.");
+  if (!options.length) {
+    diagnostics.push("Точного структурного варианта при текущих ограничениях не найдено. Ограничения не были ослаблены.");
+    diagnostics.push(`Beam evaluated ${evaluated.size} candidates. Final rejected: heterogeneity=${diagnosticCounts.heterogeneityRejected}, composition=${diagnosticCounts.compositionRejected}, strongestBS=${diagnosticCounts.strongestBsRejected}, weakestBS=${diagnosticCounts.weakestBsRejected}, boss=${diagnosticCounts.bossRejected}, partial=${diagnosticCounts.partialRejected}. Final accepted=${diagnosticCounts.finalAccepted}.`);
+  }
   else if (options[0].targetError > 1e-9) diagnostics.push("Точного совпадения с целевыми исходами при текущих ограничениях не найдено; показаны ближайшие варианты.");
-  return { settings, options, diagnostics, evaluatedCount: evaluated.size };
+  return { settings, options, diagnostics, diagnosticCounts, evaluatedCount: evaluated.size };
 }
 
 export function marginalNpcImpact(entries, index, evaluate) {

@@ -156,6 +156,60 @@ test("extreme не появляется без явного разрешения
   assert.ok(result.options.every(option => Math.max(option.evaluation.features.enemy_survivability_cv, option.evaluation.features.enemy_pressure_cv) < 1));
 });
 
+test("final structural constraints фильтруются до beam pruning", () => {
+  const source = [
+    ...Array.from({ length: 7 }, (_, index) => ({
+      id: `objective-favorite-${index}`,
+      name: `Objective favorite ${index}`,
+      role: "alpha",
+      archetype: "alpha",
+      usage: "exact",
+      profile: { ...profile(1, "alpha"), searchPower: 1 },
+    })),
+    {
+      id: "structural-key",
+      name: "Structural key",
+      role: "beta",
+      archetype: "beta",
+      usage: "exact",
+      profile: { ...profile(1, "beta"), searchPower: 1.2 },
+    },
+  ];
+  const result = generateEncounterOptions({
+    library: source,
+    settings: {
+      count: { mode: "exact", exact: 2 },
+      composition: "mixed",
+      beamWidth: 8,
+      candidateLimit: 8,
+      topN: 2,
+      targets: { win: { mode: "exact", exact: .5 }, ko: { mode: "ignore" } },
+      heterogeneity: { mode: "any", extremeAllowed: false },
+    },
+    evaluate: profiles => {
+      const total = profiles.reduce((sum, item) => sum + item.searchPower, 0);
+      return {
+        prediction: { party_win_probability: total / 4, mean_pc_ko_fraction: 0, p_any_pc_ko: 0, mean_rounds: 3, mean_party_body_loss_fraction: 0 },
+        features: { enemy_survivability_cv: 0, enemy_pressure_cv: 0 },
+      };
+    },
+  });
+  assert.ok(result.diagnosticCounts.compositionRejected >= 8, "objective-favored invalid finals must be observed before slicing");
+  assert.ok(result.options.length > 0, "the slightly worse structurally-valid mixed encounter must survive");
+  assert.ok(result.options.every(option => new Set(option.entries.map(entry => entry.role)).size >= 2));
+});
+
+test("UI по умолчанию запрещает extreme и явно передаёт checkbox в generator settings", async () => {
+  const [index, script] = await Promise.all([
+    readFile(new URL("../calculator-script-source/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../calculator-script-source/Script.html", import.meta.url), "utf8"),
+  ]);
+  const checkbox = index.match(/<input id="extremeAllowed"[^>]*>/)?.[0] || "";
+  assert.ok(checkbox);
+  assert.doesNotMatch(checkbox, /\schecked(?:\s|=|>)/);
+  assert.match(script, /heterogeneity:\{mode:document\.getElementById\('heterogeneity'\)\.value,extremeAllowed:document\.getElementById\('extremeAllowed'\)\.checked\}/);
+});
+
 test("P(win) и mean PC KO fraction независимо входят в objective", () => {
   const prediction = fakeEvaluate([profile(3, "standard")]).prediction;
   const winHeavy = normalizeGeneratorSettings({ targets: { win: { mode: "exact", exact: .9 }, ko: { mode: "ignore" } }, weights: { win: 3, ko: 0 } });
@@ -320,6 +374,51 @@ test("финальный кандидат действительно оцени�
   assert.ok(calls > 0);
   assert.ok(result.options.length);
   assert.equal(bundle.runtime_simulation, false);
+});
+
+test("production V15 smoke matrix возвращает ближайшие structural-valid options", async (t) => {
+  const bundle = JSON.parse(await readFile(new URL("../src/client/calculator-v8/mitrinium_runtime_v15.min.json", import.meta.url), "utf8"));
+  const units = bundle.unit_library.map((unit, index) => ({ id: `v15-${index}`, name: `V15 ${index}`, profile: unit, usage: "exact", archetype: unit.archetype, role: unit.archetype, tags: [unit.archetype] }));
+  const standardParty = bundle.unit_library.filter(unit => unit.archetype === "standard");
+  const counts = [
+    ["exact-1", { mode: "exact", exact: 1 }],
+    ["exact-2", { mode: "exact", exact: 2 }],
+    ["exact-3", { mode: "exact", exact: 3 }],
+    ["range-1-6", { mode: "range", min: 1, max: 6 }],
+  ];
+  const aggregate = { scenarios: 0, withOptions: 0, evaluatedCount: 0, partialRejected: 0, compositionRejected: 0, bossRejected: 0, strongestBsRejected: 0, weakestBsRejected: 0, heterogeneityRejected: 0, finalAccepted: 0 };
+  for (const partySize of [1, 2, 3, 4, 5]) for (const difficulty of ["easy", "medium", "hard", "deadly"]) for (const [countLabel, count] of counts) for (const extremeAllowed of [false, true]) {
+    const party = Array.from({ length: partySize }, (_, index) => standardParty[index % standardParty.length]);
+    const witnessCount = count.mode === "exact" ? count.exact : count.min;
+    const witness = Array.from({ length: witnessCount }, () => units[0].profile);
+    const witnessFeatures = predictEncounter(bundle, party, witness).features;
+    assert.ok(extremeAllowed || Math.max(witnessFeatures.enemy_survivability_cv, witnessFeatures.enemy_pressure_cv) < 1, `matrix setup must contain a structural-valid witness for ${partySize}/${difficulty}/${countLabel}/${extremeAllowed}`);
+    const result = generateEncounterOptions({
+      library: units,
+      settings: {
+        difficulty,
+        targets: presetTargets(difficulty),
+        count,
+        composition: "any",
+        boss: { mode: "any" },
+        duplicates: { mode: "allowed" },
+        bs: { min: 0, max: 999999, strongestMin: 0, strongestMax: 999999, weakestMin: 0, weakestMax: 999999 },
+        heterogeneity: { mode: "any", extremeAllowed },
+        topN: 2,
+        beamWidth: 18,
+        candidateLimit: 24,
+      },
+      evaluate: enemies => predictEncounter(bundle, party, enemies),
+    });
+    aggregate.scenarios += 1;
+    aggregate.evaluatedCount += result.evaluatedCount;
+    Object.entries(result.diagnosticCounts).forEach(([key, value]) => { aggregate[key] += value; });
+    if (result.options.length) aggregate.withOptions += 1;
+    assert.ok(result.options.length > 0, `structural-valid exists but generator returned zero: party=${partySize}, difficulty=${difficulty}, count=${countLabel}, extremeAllowed=${extremeAllowed}; ${result.diagnostics.join(" ")}`);
+  }
+  assert.equal(aggregate.scenarios, 160);
+  assert.equal(aggregate.withOptions, 160);
+  t.diagnostic(`V15 smoke matrix ${JSON.stringify(aggregate)}`);
 });
 
 test("кнопка формирования сразу загружает лучший вариант в текущий бой", async () => {
