@@ -109,22 +109,9 @@
           <button class="small top-gap" type="button" onclick="addManualEnemy()">+ Добавить пресет</button>
         </section>
 
-        <details class="subpanel generator-advanced"><summary>Расширенные настройки</summary><div class="form-grid top-gap">
-          <label>Дубликаты<select id="duplicateMode"><option value="allowed">Разрешены</option><option value="forbidden">Запрещены</option><option value="max">Не больше N одинаковых</option><option value="identical">Все одинаковые</option></select></label><label>Максимум копий<input id="duplicateMax" type="number" min="1" max="12" value="2"></label>
-          <label>Неоднородность<select id="heterogeneity"><option value="any">Любая неэкстремальная</option><option value="low">Низкая</option><option value="medium">Средняя</option><option value="high">Высокая</option><option value="extreme">Экстремальная</option></select></label><label class="checkbox-line"><input id="extremeAllowed" type="checkbox"><span>Разрешить extreme</span></label>
-          <label>Источник пресетов<select id="generatorSource"><option value="mixed">Все пресеты</option><option value="archetypes">Встроенный банк</option><option value="library_archetypes">Пользовательская библиотека</option></select></label>
-          <label>BS NPC от<input id="enemyBsMin" type="number" min="0" value="0"></label><label>до<input id="enemyBsMax" type="number" min="0" value="5000"></label>
-          <label>Самый сильный от<input id="strongestBsMin" type="number" min="0" value="0"></label><label>до<input id="strongestBsMax" type="number" min="0" value="5000"></label>
-          <label>Самый слабый от<input id="weakestBsMin" type="number" min="0" value="0"></label><label>до<input id="weakestBsMax" type="number" min="0" value="5000"></label>
-          <label>Разрешённые теги<input id="allowedTags" placeholder="melee, ranged"></label><label>Запрещённые теги<input id="forbiddenTags" placeholder="boss, tank"></label>
-          <label>Seed<input id="generatorSeed" type="number" value="1"></label><button type="button" onclick="changeGeneratorSeed()">Другие варианты</button>
-          <label>Приоритет P(win)<input id="winWeight" type="range" min="0" max="3" step=".25" value="1"></label><label>Приоритет KO<input id="koWeight" type="range" min="0" max="3" step=".25" value="1"></label>
-          <label>Раунды<select id="roundsMode" onchange="markGeneratorCustom()"><option value="ignore">Не учитывать</option><option value="range">Диапазон</option><option value="exact">Точно</option></select></label><label>от<input id="roundsMin" type="number" min="0" max="50" step=".1" value="3"></label><label>до<input id="roundsMax" type="number" min="0" max="50" step=".1" value="7"></label><label>Приоритет<input id="roundsWeight" type="range" min="0" max="3" step=".25" value="0"></label>
-          <label>Потеря Тела<select id="bodyMode" onchange="markGeneratorCustom()"><option value="ignore">Не учитывать</option><option value="range">Диапазон</option><option value="exact">Точно</option></select></label><label>от, %<input id="bodyMin" type="number" min="0" max="100" value="20"></label><label>до, %<input id="bodyMax" type="number" min="0" max="100" value="60"></label><label>Приоритет<input id="bodyWeight" type="range" min="0" max="3" step=".25" value="0"></label>
-        </div><div class="generator-preset-row"><select id="generatorPresetSelect" onchange="loadGeneratorPreset(this.value)"><option value="">Сохранённые пресеты…</option></select><input id="generatorPresetName" placeholder="Название пресета"><button type="button" onclick="saveGeneratorPreset()">Сохранить параметры</button></div></details>
-
         <div class="buttons">
           <button class="primary large" onclick="generateEncounter()">Сформировать бой</button>
+          <button onclick="changeGeneratorSeed()">Другие варианты</button>
           <button id="rerollNamesButton" onclick="rerollNamesAndTypes()">Перебросить имена</button>
         </div>
       </aside>

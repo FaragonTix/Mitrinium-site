@@ -6,6 +6,7 @@ import {
   ARCHETYPE_TUNING_CONFIG,
   DIFFICULTY_PRESETS,
   archetypeVariants,
+  finiteMax,
   generateEncounterOptions,
   individualBs,
   marginalNpcImpact,
@@ -36,7 +37,7 @@ function fakeEvaluate(profiles) {
   return { prediction: { party_win_probability: Math.max(0, Math.min(1, 1 - total / 20)), mean_pc_ko_fraction: ko, p_any_pc_ko: Math.min(1, ko + 0.1), mean_rounds: 2 + total / 3, mean_party_body_loss_fraction: Math.min(1, total / 18) }, features: { enemy_survivability_cv: cv, enemy_pressure_cv: cv }, extreme: cv >= 1 };
 }
 
-const run = (settings, locked = [], source = library) => generateEncounterOptions({ library: source, locked, settings: { count: { mode: "exact", exact: 3 }, topN: 5, beamWidth: 24, candidateLimit: 20, heterogeneity: { mode: "any", extremeAllowed: true }, ...settings }, evaluate: fakeEvaluate });
+const run = (settings, locked = [], source = library) => generateEncounterOptions({ library: source, locked, settings: { count: { mode: "exact", exact: 3 }, topN: 5, beamWidth: 24, candidateLimit: 20, ...settings }, evaluate: fakeEvaluate });
 
 for (const key of ["easy", "medium", "hard", "deadly"]) {
   test(`Quick ${DIFFICULTY_PRESETS[key].label} преобразуется в диапазоны V15`, () => {
@@ -113,24 +114,28 @@ test("boss required, forbidden и exactly one соблюдаются", () => {
   assert.ok(run({ boss: { mode: "exactly1" } }).options.every(option => option.entries.filter(entry => entry.id === "boss").length === 1));
 });
 
-test("дубликаты: запрет, максимум и все одинаковые", () => {
-  const forbidden = run({ duplicates: { mode: "forbidden" } }).options[0].entries;
-  assert.equal(new Set(forbidden.map(entry => entry.id)).size, forbidden.length);
-  const maximum = run({ count: { mode: "exact", exact: 4 }, duplicates: { mode: "max", max: 2 } }).options[0].entries;
-  assert.ok(Math.max(...[...maximum.reduce((map, entry) => map.set(entry.id, (map.get(entry.id) || 0) + 1), new Map()).values()]) <= 2);
-  const identical = run({ duplicates: { mode: "identical" } }).options[0].entries;
-  assert.equal(new Set(identical.map(entry => entry.id)).size, 1);
-});
-
-test("BS-фильтры ограничивают NPC, strongest и weakest", () => {
-  const strengths = library.map((entry) => individualBs(entry.profile)).sort((a, b) => a - b);
-  const result = run({ bs: { min: strengths[0], max: strengths.at(-1), strongestMin: strengths.at(-2), strongestMax: strengths.at(-1), weakestMin: strengths[0], weakestMax: strengths[1] } });
-  assert.ok(result.options.length);
-  for (const option of result.options) {
-    assert.ok(option.entries.every(entry => entry.bs >= strengths[0] && entry.bs <= strengths.at(-1)));
-    assert.ok(Math.max(...option.entries.map(entry => entry.bs)) >= strengths.at(-2));
-    assert.ok(Math.min(...option.entries.map(entry => entry.bs)) <= strengths[1]);
-  }
+test("старые hidden restrictions игнорируются, а runtime defaults реально неограничены", () => {
+  const old = normalizeGeneratorSettings({
+    duplicates: { mode: "forbidden", max: 1 },
+    heterogeneity: { mode: "low", extremeAllowed: false },
+    bs: { min: 9999, max: 5000, strongestMax: 1, weakestMax: 1 },
+    allowedTags: ["missing"], forbiddenTags: ["minion"],
+    weights: { win: 0, ko: 0, rounds: 3, body: 3, deviation: 99 },
+    targets: { win: { mode: "range", min: 0, max: 1 }, ko: { mode: "range", min: 0, max: 1 }, rounds: { mode: "exact", exact: 4 }, body: { mode: "exact", exact: .5 } },
+  });
+  assert.deepEqual(old.duplicates, { mode: "allowed", max: 12 });
+  assert.deepEqual(old.heterogeneity, { mode: "any", extremeAllowed: true });
+  assert.equal(old.bs.max, Infinity);
+  assert.equal(old.bs.strongestMax, Infinity);
+  assert.equal(old.bs.weakestMax, Infinity);
+  assert.deepEqual(old.allowedTags, []);
+  assert.deepEqual(old.forbiddenTags, []);
+  assert.deepEqual(old.weights, { win: 1, ko: 1, rounds: 0, body: 0, deviation: ARCHETYPE_TUNING_CONFIG.lambda });
+  assert.equal(old.targets.rounds, null);
+  assert.equal(old.targets.body, null);
+  assert.equal(finiteMax(null), Infinity);
+  const result = generateEncounterOptions({ library: [library[0]], settings: { ...old, count: { mode: "exact", exact: 2 } }, evaluate: () => ({ ...fakeEvaluate([profile(1, "minion"), profile(1, "minion")]), features: { enemy_survivability_cv: 5, enemy_pressure_cv: 5 } }) });
+  assert.ok(result.options.length, "duplicates, BS, tags and extreme heterogeneity from old settings must not filter");
 });
 
 test("locked NPC сохраняется, включая достройку вокруг босса", () => {
@@ -146,17 +151,7 @@ test("структуры Boss + minions, Equal и Tank + glass cannon соблю
   assert.ok(run({ composition: "tank_glass", count: { mode: "exact", exact: 2 } }).options.every(option => option.entries.some(entry => entry.archetype === "tank") && option.entries.some(entry => ["striker", "shooter"].includes(entry.archetype))));
 });
 
-test("теги allowed/forbidden реально фильтруют библиотеку", () => {
-  const result = run({ allowedTags: ["ranged"], forbiddenTags: ["boss"] });
-  assert.ok(result.options.every(option => option.entries.every(entry => entry.tags.includes("ranged") && !entry.tags.includes("boss"))));
-});
-
-test("extreme не появляется без явного разрешения", () => {
-  const result = run({ heterogeneity: { mode: "any", extremeAllowed: false } });
-  assert.ok(result.options.every(option => Math.max(option.evaluation.features.enemy_survivability_cv, option.evaluation.features.enemy_pressure_cv) < 1));
-});
-
-test("final structural constraints фильтруются до beam pruning", () => {
+test("composition фильтруется до V15 evaluation", () => {
   const source = [
     ...Array.from({ length: 7 }, (_, index) => ({
       id: `objective-favorite-${index}`,
@@ -184,7 +179,6 @@ test("final structural constraints фильтруются до beam pruning", ()
       candidateLimit: 8,
       topN: 2,
       targets: { win: { mode: "exact", exact: .5 }, ko: { mode: "ignore" } },
-      heterogeneity: { mode: "any", extremeAllowed: false },
     },
     evaluate: profiles => {
       const total = profiles.reduce((sum, item) => sum + item.searchPower, 0);
@@ -194,20 +188,24 @@ test("final structural constraints фильтруются до beam pruning", ()
       };
     },
   });
-  assert.ok(result.diagnosticCounts.compositionRejected >= 8, "objective-favored invalid finals must be observed before slicing");
   assert.ok(result.options.length > 0, "the slightly worse structurally-valid mixed encounter must survive");
   assert.ok(result.options.every(option => new Set(option.entries.map(entry => entry.role)).size >= 2));
+  assert.equal(result.diagnosticCounts.v15Evaluations, result.evaluatedCount);
+  assert.ok(result.diagnosticCounts.structuralCandidates > 0);
 });
 
-test("UI по умолчанию запрещает extreme и явно передаёт checkbox в generator settings", async () => {
+test("advanced controls удалены и generatorSettingsFromUi к ним не обращается", async () => {
   const [index, script] = await Promise.all([
     readFile(new URL("../calculator-script-source/Index.html", import.meta.url), "utf8"),
     readFile(new URL("../calculator-script-source/Script.html", import.meta.url), "utf8"),
   ]);
-  const checkbox = index.match(/<input id="extremeAllowed"[^>]*>/)?.[0] || "";
-  assert.ok(checkbox);
-  assert.doesNotMatch(checkbox, /\schecked(?:\s|=|>)/);
-  assert.match(script, /heterogeneity:\{mode:document\.getElementById\('heterogeneity'\)\.value,extremeAllowed:document\.getElementById\('extremeAllowed'\)\.checked\}/);
+  const removedIds = ["duplicateMode", "duplicateMax", "heterogeneity", "extremeAllowed", "generatorSource", "enemyBsMin", "enemyBsMax", "strongestBsMin", "strongestBsMax", "weakestBsMin", "weakestBsMax", "allowedTags", "forbiddenTags", "generatorSeed", "winWeight", "koWeight", "roundsMode", "roundsMin", "roundsMax", "roundsWeight", "bodyMode", "bodyMin", "bodyMax", "bodyWeight", "generatorPresetSelect", "generatorPresetName"];
+  for (const id of removedIds) {
+    assert.doesNotMatch(index, new RegExp(`id=["']${id}["']`), `${id} must be removed from HTML`);
+    assert.doesNotMatch(script, new RegExp(`getElementById\\(["']${id}["']\\)`), `${id} must not be read by JS`);
+  }
+  assert.doesNotMatch(index, /Расширенные настройки/);
+  assert.match(index, /Другие варианты/);
 });
 
 test("P(win) и mean PC KO fraction независимо входят в objective", () => {
@@ -232,7 +230,7 @@ test("seed воспроизводим, альтернативы каноничн
 test("невозможные ограничения не ослабляются молча", () => {
   const result = run({ count: { mode: "exact", exact: 2 }, composition: "solo_boss", boss: { mode: "forbidden" } });
   assert.equal(result.options.length, 0);
-  assert.match(result.diagnostics.join(" "), /не найден|Ограничения/);
+  assert.match(result.diagnostics.join(" "), /Невозможно|не найден/);
 });
 
 test("marginal impact использует два полных evaluation", () => {
@@ -324,15 +322,12 @@ test("abstract player profiles имеют Body 11–16 и фиксированн
   assert.ok(profiles.slice(8).every((item) => item.damage === "d8+1"));
 });
 
-test("UI поддерживает source modes, карточки архетипов и точечную замену", async () => {
+test("UI сохраняет карточки архетипов и точечную замену без source control", async () => {
   const [index, script] = await Promise.all([
     readFile(new URL("../calculator-script-source/Index.html", import.meta.url), "utf8"),
     readFile(new URL("../calculator-script-source/Script.html", import.meta.url), "utf8"),
   ]);
-  assert.match(index, /id="generatorSource"/);
-  assert.match(index, /value="library_archetypes"/);
-  assert.doesNotMatch(index, /value="library_exact"/);
-  assert.match(index, /value="library_archetypes"/);
+  assert.doesNotMatch(index, /id="generatorSource"/);
   assert.match(script, />Как архетип</);
   assert.match(script, /Заменить случайным/);
   assert.match(script, /generatorEnemyCard/);
@@ -365,6 +360,23 @@ test("режим конкретных врагов использует един
   assert.doesNotMatch(index, /Точный статблок/);
 });
 
+test("миграция localStorage удаляет старые hidden generator restrictions", async () => {
+  const script = await readFile(new URL("../calculator-script-source/Script.html", import.meta.url), "utf8");
+  const match = script.match(/function migrateGeneratorSettings\(settings\) \{[\s\S]*?\n\}/);
+  assert.ok(match);
+  const migrate = new Function("deepClone", "clamp", `${match[0]}; return migrateGeneratorSettings;`)(value => JSON.parse(JSON.stringify(value)), (value, min, max) => Math.max(min, Math.min(max, value)));
+  const migrated = migrate({
+    mode: "quick", difficulty: "hard", count: { mode: "any", min: 1, max: 6 }, composition: "any", boss: { mode: "any" },
+    targets: { win: { mode: "range", min: .6, max: .75 }, ko: { mode: "range", min: .5, max: .75 }, rounds: { mode: "exact", exact: 4 }, body: { mode: "exact", exact: .7 } },
+    bs: { strongestMax: 5000 }, heterogeneity: { extremeAllowed: false }, duplicates: { mode: "forbidden" }, allowedTags: ["old"], forbiddenTags: ["old"], weights: { win: 3 }, seed: 99,
+  });
+  for (const key of ["bs", "heterogeneity", "duplicates", "allowedTags", "forbiddenTags", "weights", "seed", "source"]) assert.equal(key in migrated, false);
+  assert.deepEqual(migrated.targets.rounds, { mode: "ignore" });
+  assert.deepEqual(migrated.targets.body, { mode: "ignore" });
+  assert.deepEqual(migrated.targets.win, { mode: "range", min: .6, max: .75 });
+  assert.deepEqual(migrated.targets.ko, { mode: "range", min: .5, max: .75 });
+});
+
 test("финальный кандидат действительно оценивается production V15 без Monte-Carlo", async () => {
   const bundle = JSON.parse(await readFile(new URL("../src/client/calculator-v8/mitrinium_runtime_v15.min.json", import.meta.url), "utf8"));
   const units = bundle.unit_library.slice(0, 6).map((unit, index) => ({ id: `v15-${index}`, name: `V15 ${index}`, profile: unit, archetype: unit.archetype, role: unit.archetype, tags: [unit.archetype] }));
@@ -376,49 +388,45 @@ test("финальный кандидат действительно оцени�
   assert.equal(bundle.runtime_simulation, false);
 });
 
-test("production V15 smoke matrix возвращает ближайшие structural-valid options", async (t) => {
+test("широкие Win/KO и count=any используют fast-path и возвращают options", async () => {
   const bundle = JSON.parse(await readFile(new URL("../src/client/calculator-v8/mitrinium_runtime_v15.min.json", import.meta.url), "utf8"));
   const units = bundle.unit_library.map((unit, index) => ({ id: `v15-${index}`, name: `V15 ${index}`, profile: unit, usage: "exact", archetype: unit.archetype, role: unit.archetype, tags: [unit.archetype] }));
-  const standardParty = bundle.unit_library.filter(unit => unit.archetype === "standard");
-  const counts = [
-    ["exact-1", { mode: "exact", exact: 1 }],
-    ["exact-2", { mode: "exact", exact: 2 }],
-    ["exact-3", { mode: "exact", exact: 3 }],
-    ["range-1-6", { mode: "range", min: 1, max: 6 }],
-  ];
-  const aggregate = { scenarios: 0, withOptions: 0, evaluatedCount: 0, partialRejected: 0, compositionRejected: 0, bossRejected: 0, strongestBsRejected: 0, weakestBsRejected: 0, heterogeneityRejected: 0, finalAccepted: 0 };
-  for (const partySize of [1, 2, 3, 4, 5]) for (const difficulty of ["easy", "medium", "hard", "deadly"]) for (const [countLabel, count] of counts) for (const extremeAllowed of [false, true]) {
-    const party = Array.from({ length: partySize }, (_, index) => standardParty[index % standardParty.length]);
-    const witnessCount = count.mode === "exact" ? count.exact : count.min;
-    const witness = Array.from({ length: witnessCount }, () => units[0].profile);
-    const witnessFeatures = predictEncounter(bundle, party, witness).features;
-    assert.ok(extremeAllowed || Math.max(witnessFeatures.enemy_survivability_cv, witnessFeatures.enemy_pressure_cv) < 1, `matrix setup must contain a structural-valid witness for ${partySize}/${difficulty}/${countLabel}/${extremeAllowed}`);
+  const party = Array(3).fill(bundle.unit_library.find(unit => unit.archetype === "standard"));
+  let calls = 0;
+  const result = generateEncounterOptions({
+    library: units,
+    settings: { targets: { win: { mode: "range", min: 0, max: 1 }, ko: { mode: "range", min: 0, max: 1 } }, count: { mode: "any" }, composition: "any", boss: { mode: "any" } },
+    evaluate: enemies => { calls += 1; return predictEncounter(bundle, party, enemies); },
+  });
+  assert.ok(result.options.length > 0);
+  assert.equal(calls, result.diagnosticCounts.v15Evaluations);
+  assert.ok(calls <= result.settings.topN, `fast-path made ${calls} V15 evaluations`);
+  assert.ok(result.diagnosticCounts.candidateVariants > 0);
+  assert.ok(result.diagnosticCounts.structuralCandidates > 0);
+});
+
+test("Easy/Medium/Hard/Deadly возвращают ближайшие structural-valid options без десятков тысяч V15 calls", async (t) => {
+  const bundle = JSON.parse(await readFile(new URL("../src/client/calculator-v8/mitrinium_runtime_v15.min.json", import.meta.url), "utf8"));
+  const units = bundle.unit_library.map((unit, index) => ({ id: `v15-${index}`, name: `V15 ${index}`, profile: unit, usage: "archetype", archetype: unit.archetype, role: unit.archetype, tags: [unit.archetype] }));
+  const party = Array(3).fill(bundle.unit_library.find(unit => unit.archetype === "standard"));
+  const summary = {};
+  for (const difficulty of ["easy", "medium", "hard", "deadly"]) {
     const result = generateEncounterOptions({
       library: units,
       settings: {
         difficulty,
         targets: presetTargets(difficulty),
-        count,
+        count: { mode: "any" },
         composition: "any",
         boss: { mode: "any" },
-        duplicates: { mode: "allowed" },
-        bs: { min: 0, max: 999999, strongestMin: 0, strongestMax: 999999, weakestMin: 0, weakestMax: 999999 },
-        heterogeneity: { mode: "any", extremeAllowed },
-        topN: 2,
-        beamWidth: 18,
-        candidateLimit: 24,
       },
       evaluate: enemies => predictEncounter(bundle, party, enemies),
     });
-    aggregate.scenarios += 1;
-    aggregate.evaluatedCount += result.evaluatedCount;
-    Object.entries(result.diagnosticCounts).forEach(([key, value]) => { aggregate[key] += value; });
-    if (result.options.length) aggregate.withOptions += 1;
-    assert.ok(result.options.length > 0, `structural-valid exists but generator returned zero: party=${partySize}, difficulty=${difficulty}, count=${countLabel}, extremeAllowed=${extremeAllowed}; ${result.diagnostics.join(" ")}`);
+    assert.ok(result.options.length > 0, `${difficulty}: ${result.diagnostics.join(" ")}`);
+    assert.ok(result.diagnosticCounts.v15Evaluations < 3000, `${difficulty} made ${result.diagnosticCounts.v15Evaluations} V15 evaluations`);
+    summary[difficulty] = { options: result.options.length, ...result.diagnosticCounts };
   }
-  assert.equal(aggregate.scenarios, 160);
-  assert.equal(aggregate.withOptions, 160);
-  t.diagnostic(`V15 smoke matrix ${JSON.stringify(aggregate)}`);
+  t.diagnostic(`V15 quick smoke ${JSON.stringify(summary)}`);
 });
 
 test("кнопка формирования сразу загружает лучший вариант в текущий бой", async () => {

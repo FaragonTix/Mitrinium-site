@@ -35,6 +35,8 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, Number(value)));
 const array = (value) => Array.isArray(value) ? value : [];
 const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
 const tagsOf = (entry) => new Set([entry.role, entry.archetype, ...array(entry.tags)].filter(Boolean));
+export const finiteMin = (value) => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+export const finiteMax = (value) => value == null || value === "" ? Infinity : Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : Infinity;
 
 export function averageDamage(expression) {
   const match = String(expression || "d6").replace(/\s+/g, "").match(/^(\d*)d(\d+)([+-]\d+)?$/i);
@@ -179,6 +181,11 @@ export function seededRandom(seed = 1) {
 }
 
 function normalizedRange(target, fallback, bounds = [0, 1]) {
+  if (Array.isArray(target)) {
+    const min = clamp(target[0] ?? fallback[0], bounds[0], bounds[1]);
+    const max = clamp(target[1] ?? fallback[1], bounds[0], bounds[1]);
+    return min <= max ? [min, max] : [max, min];
+  }
   if (!target || target.mode === "ignore") return null;
   if (target.mode === "exact") {
     const exact = clamp(target.exact ?? target.min ?? fallback[0], bounds[0], bounds[1]);
@@ -210,28 +217,28 @@ export function normalizeGeneratorSettings(raw = {}) {
   const targets = raw.targets || presetDefaults;
   return {
     mode: raw.mode || "quick",
-    source: raw.source || "mixed",
+    source: raw.mode === "manual" ? "manual" : "mixed",
     difficulty: raw.difficulty || "medium",
     targets: {
       win: normalizedRange(targets.win, preset.winRange),
       ko: normalizedRange(targets.ko, preset.koRange),
-      rounds: normalizedRange(targets.rounds, [0, 20], [0, 50]),
-      body: normalizedRange(targets.body, [0, 1]),
+      rounds: null,
+      body: null,
     },
     count: { mode: countMode, min: countMin, max: countMax },
     composition: raw.composition || "any",
     boss: { mode: raw.boss?.mode || "any", max: clamp(raw.boss?.max ?? 1, 0, 12) },
-    duplicates: { mode: raw.duplicates?.mode || "allowed", max: clamp(raw.duplicates?.max ?? 2, 1, 12) },
-    heterogeneity: { mode: raw.heterogeneity?.mode || "any", extremeAllowed: Boolean(raw.heterogeneity?.extremeAllowed) },
+    duplicates: { mode: "allowed", max: 12 },
+    heterogeneity: { mode: "any", extremeAllowed: true },
     bs: {
-      min: Math.max(0, Number(raw.bs?.min) || 0), max: Math.max(0, Number(raw.bs?.max) || 999999),
-      strongestMin: Math.max(0, Number(raw.bs?.strongestMin) || 0), strongestMax: Math.max(0, Number(raw.bs?.strongestMax) || 999999),
-      weakestMin: Math.max(0, Number(raw.bs?.weakestMin) || 0), weakestMax: Math.max(0, Number(raw.bs?.weakestMax) || 999999),
+      min: finiteMin(null), max: finiteMax(null),
+      strongestMin: finiteMin(null), strongestMax: finiteMax(null),
+      weakestMin: finiteMin(null), weakestMax: finiteMax(null),
     },
-    allowedTags: array(raw.allowedTags).filter(Boolean),
-    forbiddenTags: array(raw.forbiddenTags).filter(Boolean),
+    allowedTags: [],
+    forbiddenTags: [],
     slots: array(raw.slots),
-    weights: { ...GENERATOR_DEFAULTS.weights, ...(raw.weights || {}) },
+    weights: { ...GENERATOR_DEFAULTS.weights },
     seed: Number(raw.seed) || 1,
     topN: clamp(raw.topN ?? GENERATOR_DEFAULTS.topN, 1, 5),
     beamWidth: clamp(raw.beamWidth ?? GENERATOR_DEFAULTS.beamWidth, 8, 100),
@@ -319,32 +326,36 @@ function compositionAllowed(entries, composition) {
   return true;
 }
 
-function heterogeneityAllowed(features, settings) {
-  const value = Math.max(Number(features.enemy_survivability_cv) || 0, Number(features.enemy_pressure_cv) || 0);
-  if (!settings.heterogeneity.extremeAllowed && value >= 1) return false;
-  if (settings.heterogeneity.mode === "low") return value <= 0.25;
-  if (settings.heterogeneity.mode === "medium") return value > 0.25 && value <= 0.55;
-  if (settings.heterogeneity.mode === "high") return value > 0.55 && value < 1;
-  if (settings.heterogeneity.mode === "extreme") return value >= 1;
-  return true;
-}
-
-function finalRejectionReasons(entries, evaluation, settings) {
-  const reasons = [];
-  if (!partialAllowed(entries, settings)) reasons.push("partialRejected");
-  if (!compositionAllowed(entries, settings.composition)) reasons.push("compositionRejected");
+function finalStructuralAllowed(entries, settings) {
+  if (!partialAllowed(entries, settings)) return false;
+  if (!compositionAllowed(entries, settings.composition)) return false;
   const bosses = bossCount(entries);
-  if (["required", "exactly1"].includes(settings.boss.mode) && bosses !== 1) reasons.push("bossRejected");
-  const strengths = entries.map((entry) => entry.bs);
-  const strongest = Math.max(...strengths), weakest = Math.min(...strengths);
-  if (strongest < settings.bs.strongestMin || strongest > settings.bs.strongestMax) reasons.push("strongestBsRejected");
-  if (weakest < settings.bs.weakestMin || weakest > settings.bs.weakestMax) reasons.push("weakestBsRejected");
-  if (!heterogeneityAllowed(evaluation.features || {}, settings)) reasons.push("heterogeneityRejected");
-  return reasons;
+  return !["required", "exactly1"].includes(settings.boss.mode) || bosses === 1;
 }
 
-function finalAllowed(entries, evaluation, settings) {
-  return finalRejectionReasons(entries, evaluation, settings).length === 0;
+function structurallyCompletable(entries, candidates, desired, settings) {
+  if (entries.length > desired || !partialAllowed(entries, settings)) return false;
+  if (entries.length === desired) return finalStructuralAllowed(entries, settings);
+  const remaining = desired - entries.length;
+  const roles = new Set(entries.map((entry) => entry.archetype || entry.role));
+  const bosses = bossCount(entries);
+  const hasCandidate = (predicate) => candidates.some(predicate);
+  if (["required", "exactly1"].includes(settings.boss.mode) && bosses === 0 && (!remaining || !hasCandidate((entry) => tagsOf(entry).has("boss")))) return false;
+  if (settings.composition === "few_strong" && desired > 3) return false;
+  if (settings.composition === "solo_boss" && desired !== 1) return false;
+  if (settings.composition === "swarm" && (desired < 4 || entries.some((entry) => !tagsOf(entry).has("minion")))) return false;
+  if (settings.composition === "boss_minions") {
+    if (entries.some((entry) => !tagsOf(entry).has("boss") && !tagsOf(entry).has("minion")) || bosses > 1) return false;
+    if (!bosses && !hasCandidate((entry) => tagsOf(entry).has("boss"))) return false;
+  }
+  if (settings.composition === "equal" && new Set(entries.map((entry) => entry.baseId || entry.id)).size > 1) return false;
+  if (settings.composition === "mixed" && roles.size < 2 && remaining > 0 && !hasCandidate((entry) => !roles.has(entry.archetype || entry.role))) return false;
+  if (settings.composition === "tank_glass") {
+    const hasTank = roles.has("tank") || hasCandidate((entry) => (entry.archetype || entry.role) === "tank");
+    const hasGlass = [...roles].some((role) => ["striker", "shooter"].includes(role)) || hasCandidate((entry) => ["striker", "shooter"].includes(entry.archetype || entry.role));
+    if (!hasTank || !hasGlass) return false;
+  }
+  return true;
 }
 
 function targetStatus(value, range) {
@@ -366,14 +377,7 @@ function structuralSignature(entries) {
 }
 
 function prepareLibrary(library, settings, random) {
-  const allowed = new Set(settings.allowedTags), forbidden = new Set(settings.forbiddenTags);
-  const eligible = library.map(makeLibraryEntry).filter((entry) => {
-    const tags = tagsOf(entry);
-    if (entry.bs < settings.bs.min || entry.bs > settings.bs.max) return false;
-    if (allowed.size && ![...allowed].some((tag) => tags.has(tag))) return false;
-    if ([...forbidden].some((tag) => tags.has(tag))) return false;
-    return true;
-  });
+  const eligible = library.map(makeLibraryEntry);
   const buckets = new Map();
   eligible.forEach((entry) => {
     const key = entry.archetype || entry.role || "other";
@@ -411,101 +415,122 @@ function prepareLibrary(library, settings, random) {
       selectedIds.add(required.id);
     }
   }
-  return selected.flatMap((entry) => archetypeVariants(entry));
+  const variants = selected.flatMap((entry) => archetypeVariants(entry));
+  const variantGroups = new Map();
+  variants.forEach((entry) => {
+    const key = entry.archetype || entry.role || "other";
+    if (!variantGroups.has(key)) variantGroups.set(key, []);
+    variantGroups.get(key).push({ entry, order: random() });
+  });
+  const spreadGroups = [...variantGroups.values()].map(strengthSpread);
+  const preselected = [];
+  const requiredIds = new Set(settings.slots.map((slot) => slot?.npcId).filter(Boolean));
+  for (const id of requiredIds) {
+    const required = variants.find((entry) => entry.id === id || entry.baseId === id);
+    if (required && !preselected.some((entry) => entry.variantKey === required.variantKey)) preselected.push(required);
+  }
+  for (let depth = 0; preselected.length < settings.candidateLimit && spreadGroups.some((group) => group[depth]); depth += 1) {
+    for (const group of spreadGroups) {
+      const entry = group[depth]?.entry;
+      if (entry && !preselected.some((item) => item.variantKey === entry.variantKey)) preselected.push(entry);
+      if (preselected.length >= settings.candidateLimit) break;
+    }
+  }
+  return { candidates: preselected, candidateVariants: variants.length };
+}
+
+function outcomeTargetsUnrestricted(settings) {
+  const coversUnit = (range) => range === null || range[0] <= 0 && range[1] >= 1;
+  return coversUnit(settings.targets.win) && coversUnit(settings.targets.ko) && settings.targets.rounds === null && settings.targets.body === null;
 }
 
 export function generateEncounterOptions({ library, locked = [], settings: rawSettings, evaluate }) {
   if (typeof evaluate !== "function") throw new TypeError("evaluate is required");
   const settings = normalizeGeneratorSettings(rawSettings);
   const random = seededRandom(settings.seed);
-  const candidates = prepareLibrary(array(library), settings, random);
+  const prepared = prepareLibrary(array(library), settings, random);
+  const candidates = prepared.candidates;
   const lockedEntries = array(locked).map((entry, index) => makeLibraryEntry({ ...entry, usage: "exact" }, index));
   const diagnostics = [];
-  const diagnosticCounts = {
-    partialRejected: 0,
-    compositionRejected: 0,
-    bossRejected: 0,
-    strongestBsRejected: 0,
-    weakestBsRejected: 0,
-    heterogeneityRejected: 0,
-    finalAccepted: 0,
-  };
-  if (!candidates.length && !lockedEntries.length) return { settings, options: [], diagnostics: ["Нет NPC, подходящих под фильтры библиотеки."], diagnosticCounts, evaluatedCount: 0 };
-  if (lockedEntries.length > settings.count.max) return { settings, options: [], diagnostics: ["Заблокированных NPC больше, чем разрешено ограничением количества."], diagnosticCounts, evaluatedCount: 0 };
+  const diagnosticCounts = { candidateVariants: prepared.candidateVariants, structuralCandidates: 0, v15Evaluations: 0, finalAccepted: 0 };
+  const result = (options) => ({ settings, options, diagnostics, diagnosticCounts, evaluatedCount: diagnosticCounts.v15Evaluations });
+  if (!candidates.length && !lockedEntries.length) {
+    diagnostics.push("Нет NPC выбранного типа или класса.");
+    return result([]);
+  }
+  if (lockedEntries.length > settings.count.max) {
+    diagnostics.push("Невозможно заданное количество: заблокированных NPC больше максимума.");
+    return result([]);
+  }
   const evaluated = new Map();
   const evaluateEntries = (entries) => {
     const key = canonicalIdentity(entries);
     if (!evaluated.has(key)) evaluated.set(key, evaluate(entries.map((entry) => entry.profile)));
+    diagnosticCounts.v15Evaluations = evaluated.size;
     return evaluated.get(key);
   };
-  const finals = [];
+  const fastPath = outcomeTargetsUnrestricted(settings);
+  const finalNodes = [];
   for (let desired = Math.max(settings.count.min, lockedEntries.length); desired <= settings.count.max; desired += 1) {
-    let beam = [{ entries: [...lockedEntries], score: lockedEntries.length ? scoredObjective(evaluateEntries(lockedEntries).prediction, settings, lockedEntries) : 0 }];
+    if (!structurallyCompletable(lockedEntries, candidates, desired, settings)) continue;
+    const lockedEvaluation = !fastPath && lockedEntries.length ? evaluateEntries(lockedEntries) : null;
+    let beam = [{ entries: [...lockedEntries], evaluation: lockedEvaluation, score: lockedEvaluation ? scoredObjective(lockedEvaluation.prediction, settings, lockedEntries) : pregenDeviation(lockedEntries), tie: random() }];
     while (beam.length && beam[0].entries.length < desired) {
       const next = new Map();
       for (const node of beam) for (const candidate of candidates) {
         const entries = [...node.entries, candidate];
-        if (!partialAllowed(entries, settings)) {
-          diagnosticCounts.partialRejected += 1;
-          continue;
-        }
+        if (!structurallyCompletable(entries, candidates, desired, settings)) continue;
         const key = canonicalIdentity(entries);
         if (next.has(key)) continue;
-        const evaluation = evaluateEntries(entries);
-        if (entries.length === desired) {
-          const rejections = finalRejectionReasons(entries, evaluation, settings);
-          if (rejections.length) {
-            rejections.forEach((rejection) => { diagnosticCounts[rejection] += 1; });
-            continue;
-          }
-          diagnosticCounts.finalAccepted += 1;
-        }
-        next.set(key, { entries, evaluation, score: scoredObjective(evaluation.prediction, settings, entries), finalChecked: entries.length === desired });
+        if (entries.length === desired) diagnosticCounts.structuralCandidates += 1;
+        const evaluation = fastPath ? null : evaluateEntries(entries);
+        next.set(key, { entries, evaluation, score: evaluation ? scoredObjective(evaluation.prediction, settings, entries) : pregenDeviation(entries), tie: random() });
       }
-      beam = [...next.values()].sort((a, b) => a.score - b.score || random() - 0.5).slice(0, settings.beamWidth);
+      beam = [...next.values()].sort((a, b) => a.score - b.score || a.tie - b.tie).slice(0, settings.beamWidth);
     }
     for (const node of beam) {
-      const evaluation = node.evaluation || evaluateEntries(node.entries);
-      if (!finalAllowed(node.entries, evaluation, settings)) {
-        if (!node.finalChecked) finalRejectionReasons(node.entries, evaluation, settings).forEach((rejection) => { diagnosticCounts[rejection] += 1; });
-        continue;
-      }
-      if (!node.finalChecked) diagnosticCounts.finalAccepted += 1;
-      finals.push({
-        entries: node.entries,
-        evaluation,
-        score: scoredObjective(evaluation.prediction, settings, node.entries),
-        targetError: objectiveScore(evaluation.prediction, settings),
-        pregenDeviation: pregenDeviation(node.entries),
-        identity: canonicalIdentity(node.entries),
-        signature: structuralSignature(node.entries),
-        status: {
-          win: presetTargetStatus(evaluation.prediction.party_win_probability, settings.targets.win),
-          ko: presetTargetStatus(evaluation.prediction.mean_pc_ko_fraction, settings.targets.ko),
-          rounds: targetStatus(evaluation.prediction.mean_rounds, settings.targets.rounds),
-          body: targetStatus(evaluation.prediction.mean_party_body_loss_fraction, settings.targets.body),
-        },
-      });
+      if (!finalStructuralAllowed(node.entries, settings)) continue;
+      if (node.entries.length === lockedEntries.length) diagnosticCounts.structuralCandidates += 1;
+      finalNodes.push(node);
     }
   }
-  finals.sort((a, b) => a.score - b.score || a.identity.localeCompare(b.identity));
+  diagnosticCounts.finalAccepted = finalNodes.length;
+  finalNodes.sort((a, b) => a.score - b.score || canonicalIdentity(a.entries).localeCompare(canonicalIdentity(b.entries)));
   const options = [];
   const identities = new Set(), signatures = new Map();
-  for (const option of finals) {
-    if (identities.has(option.identity)) continue;
-    const signatureUses = signatures.get(option.signature) || 0;
-    if (signatureUses >= 2 && finals.some((other) => other.signature !== option.signature && !identities.has(other.identity))) continue;
-    identities.add(option.identity);
-    signatures.set(option.signature, signatureUses + 1);
+  for (const node of finalNodes) {
+    const identity = canonicalIdentity(node.entries), signature = structuralSignature(node.entries);
+    if (identities.has(identity)) continue;
+    const signatureUses = signatures.get(signature) || 0;
+    if (signatureUses >= 2 && finalNodes.some((other) => structuralSignature(other.entries) !== signature && !identities.has(canonicalIdentity(other.entries)))) continue;
+    const evaluation = node.evaluation || evaluateEntries(node.entries);
+    const option = {
+      entries: node.entries,
+      evaluation,
+      score: scoredObjective(evaluation.prediction, settings, node.entries),
+      targetError: objectiveScore(evaluation.prediction, settings),
+      pregenDeviation: pregenDeviation(node.entries),
+      identity,
+      signature,
+      status: {
+        win: presetTargetStatus(evaluation.prediction.party_win_probability, settings.targets.win),
+        ko: presetTargetStatus(evaluation.prediction.mean_pc_ko_fraction, settings.targets.ko),
+        rounds: targetStatus(evaluation.prediction.mean_rounds, settings.targets.rounds),
+        body: targetStatus(evaluation.prediction.mean_party_body_loss_fraction, settings.targets.body),
+      },
+    };
+    identities.add(identity);
+    signatures.set(signature, signatureUses + 1);
     options.push(option);
     if (options.length >= settings.topN) break;
   }
   if (!options.length) {
-    diagnostics.push("Точного структурного варианта при текущих ограничениях не найдено. Ограничения не были ослаблены.");
-    diagnostics.push(`Beam evaluated ${evaluated.size} candidates. Final rejected: heterogeneity=${diagnosticCounts.heterogeneityRejected}, composition=${diagnosticCounts.compositionRejected}, strongestBS=${diagnosticCounts.strongestBsRejected}, weakestBS=${diagnosticCounts.weakestBsRejected}, boss=${diagnosticCounts.bossRejected}, partial=${diagnosticCounts.partialRejected}. Final accepted=${diagnosticCounts.finalAccepted}.`);
-  }
-  else if (options[0].targetError > 1e-9) diagnostics.push("Точного совпадения с целевыми исходами при текущих ограничениях не найдено; показаны ближайшие варианты.");
-  return { settings, options, diagnostics, diagnosticCounts, evaluatedCount: evaluated.size };
+    const bossesAvailable = candidates.some((entry) => tagsOf(entry).has("boss")) || lockedEntries.some((entry) => tagsOf(entry).has("boss"));
+    if (["required", "exactly1"].includes(settings.boss.mode) && !bossesAvailable) diagnostics.push("Не найден босс, хотя он обязателен.");
+    else if (settings.composition !== "any") diagnostics.push("Невозможно выполнить выбранный состав при текущем количестве и банке NPC.");
+    else diagnostics.push("Невозможно сформировать бой заданного размера.");
+  } else if (options[0].targetError > 1e-9) diagnostics.push("Точного совпадения с целевыми исходами не найдено; показаны ближайшие структурно допустимые варианты.");
+  return result(options);
 }
 
 export function marginalNpcImpact(entries, index, evaluate) {

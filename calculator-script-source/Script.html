@@ -13,6 +13,7 @@ let tacticalPregenBankError=null;
 let creaturePregenBank=null;
 let creaturePregenBankError=null;
 let generatorArchetypeIds=[];
+let generatorVariantSeed=1;
 let savedCharacterSheets=[];
 let characterEquipmentCatalog=[];
 function newId(prefix) {
@@ -602,7 +603,6 @@ function initializeControls() {
   renderBuilderLibraryControls();
   applyDifficultyPreset(document.getElementById('difficulty').value,false);
   renderGeneratorConstraints();
-  renderGeneratorPresetOptions();
 }
 function defaultV8PlayerProfile() {
   return {body:11,armor:2,pz:4,pool:4,expl:3,damage:'d6+1',penetration:0,agility:2,wits:2};
@@ -788,7 +788,6 @@ function renderGenerationMode() {
 }
 function percentValue(id,fallback=0) {return clamp((Number(document.getElementById(id)?.value)||fallback)/100,0,1);}
 function numberValue(id,fallback=0) {const value=Number(document.getElementById(id)?.value);return Number.isFinite(value)?value:fallback;}
-function csvTags(id) {return String(document.getElementById(id)?.value||'').split(',').map(value=>value.trim().toLowerCase()).filter(Boolean);}
 function applyDifficultyPreset(key,mark=true) {
   if(key==='custom')return;
   const preset=window.MitriniumEncounterGenerator?.DIFFICULTY_PRESETS?.[key];
@@ -820,20 +819,19 @@ function generatorSettingsFromUi() {
   const manual=getMode()==='manual';
   const manualSlots=manual?state.manualDraft.map(row=>({npcId:row.presetId})):[];
   return {
-    mode:getMode(),difficulty:difficulty==='custom'?'medium':difficulty,source:manual?'manual':document.getElementById('generatorSource')?.value||'mixed',
-    targets:{win:targetFromUi('targetWin'),ko:targetFromUi('targetKo'),rounds:targetFromUi('rounds',false),body:targetFromUi('body')},
+    mode:getMode(),difficulty:difficulty==='custom'?'medium':difficulty,source:manual?'manual':'mixed',
+    targets:{win:targetFromUi('targetWin'),ko:targetFromUi('targetKo'),rounds:{mode:'ignore'},body:{mode:'ignore'}},
     count:manual?{mode:'exact',exact:state.manualDraft.length}:{mode:countMode,exact:numberValue('enemyCount',3),min:countMode==='any'?1:numberValue('enemyCountMin',2),max:countMode==='any'?6:numberValue('enemyCountMax',5)},slots:manualSlots,
     composition:document.getElementById('composition').value,
     boss:{mode:document.getElementById('bossMode').value,max:numberValue('bossMax',1)},
-    duplicates:{mode:document.getElementById('duplicateMode').value,max:numberValue('duplicateMax',2)},
-    heterogeneity:{mode:document.getElementById('heterogeneity').value,extremeAllowed:document.getElementById('extremeAllowed').checked},
-    bs:{min:numberValue('enemyBsMin',0),max:numberValue('enemyBsMax',5000),strongestMin:numberValue('strongestBsMin',0),strongestMax:numberValue('strongestBsMax',5000),weakestMin:numberValue('weakestBsMin',0),weakestMax:numberValue('weakestBsMax',5000)},
-    allowedTags:csvTags('allowedTags'),forbiddenTags:csvTags('forbiddenTags'),seed:numberValue('generatorSeed',1),
-    weights:{win:numberValue('winWeight',1),ko:numberValue('koWeight',1),rounds:numberValue('roundsWeight',0),body:numberValue('bodyWeight',0)},
+    duplicates:{mode:'allowed',max:12},heterogeneity:{mode:'any',extremeAllowed:true},
+    bs:{min:0,max:null,strongestMin:0,strongestMax:null,weakestMin:0,weakestMax:null},
+    allowedTags:[],forbiddenTags:[],seed:generatorVariantSeed,
+    weights:{win:1,ko:1,rounds:0,body:0},
     creatureType:document.getElementById('creatureType').value,humanoidClass:document.getElementById('humanoidClass').value
   };
 }
-function changeGeneratorSeed() {document.getElementById('generatorSeed').value=numberValue('generatorSeed',1)+1;void generateEncounter();}
+function changeGeneratorSeed() {generatorVariantSeed+=1;void generateEncounter();}
 function shiftPercentTarget(prefix,delta) {const min=document.getElementById(`${prefix}Min`),max=document.getElementById(`${prefix}Max`);if(min)min.value=clamp(Number(min.value)+delta,0,100);if(max)max.value=clamp(Number(max.value)+delta,0,100);}
 function tuneGenerator(command) {
   if(['easier'].includes(command)){shiftPercentTarget('targetWin',10);shiftPercentTarget('targetKo',-10);}
@@ -844,17 +842,11 @@ function tuneGenerator(command) {
   if(['fewer','more'].includes(command)) {document.getElementById('enemyCountMode').value='exact';document.getElementById('enemyCount').value=clamp(numberValue('enemyCount',state.enemies.length||3)+(command==='more'?1:-1),1,12);renderGeneratorConstraints();}
   markGeneratorCustom();void generateEncounter();
 }
-const GENERATOR_PRESETS_KEY='mitriniumGeneratorPresetsV1';
-function savedGeneratorPresets() {try{return JSON.parse(localStorage.getItem(GENERATOR_PRESETS_KEY)||'{}');}catch{return {};}}
-function renderGeneratorPresetOptions() {const select=document.getElementById('generatorPresetSelect');if(!select)return;const current=select.value,presets=savedGeneratorPresets();select.innerHTML='<option value="">Сохранённые пресеты…</option>'+optionList(Object.keys(presets).map(name=>[name,name]),current);}
-function saveGeneratorPreset() {const name=String(document.getElementById('generatorPresetName')?.value||'').trim();if(!name){showToast('Введите название пресета.',true);return;}const presets=savedGeneratorPresets();presets[name]=generatorSettingsFromUi();localStorage.setItem(GENERATOR_PRESETS_KEY,JSON.stringify(presets));renderGeneratorPresetOptions();showToast(`Пресет «${name}» сохранён.`);}
-function loadGeneratorPreset(name) {const settings=savedGeneratorPresets()[name];if(!settings)return;applyGeneratorSettingsToUi(settings);showToast(`Пресет «${name}» загружен.`);}
 function applyGeneratorSettingsToUi(settings) {
   if(!settings)return;
   const set=(id,value)=>{const element=document.getElementById(id);if(element&&value!==undefined)element.value=value;};
-  set('generationMode',settings.mode);set('difficulty',settings.difficulty);set('generatorSource',settings.source==='library_exact'?'library_archetypes':settings.source);set('enemyCountMode',settings.count?.mode);set('enemyCount',settings.count?.exact);set('enemyCountMin',settings.count?.min);set('enemyCountMax',settings.count?.max);set('composition',settings.composition);set('bossMode',settings.boss?.mode);set('bossMax',settings.boss?.max);set('duplicateMode',settings.duplicates?.mode);set('duplicateMax',settings.duplicates?.max);set('heterogeneity',settings.heterogeneity?.mode);set('generatorSeed',settings.seed);
-  if(document.getElementById('extremeAllowed'))document.getElementById('extremeAllowed').checked=Boolean(settings.heterogeneity?.extremeAllowed);
-  [['targetWin',settings.targets?.win],['targetKo',settings.targets?.ko],['rounds',settings.targets?.rounds],['body',settings.targets?.body]].forEach(([prefix,target])=>{if(!target)return;set(`${prefix}Mode`,target.mode);const percent=prefix!=='rounds',factor=percent?100:1;set(`${prefix}Min`,(target.min??target.exact??0)*factor);set(`${prefix}Max`,(target.max??target.exact??0)*factor);});
+  set('generationMode',settings.mode);set('difficulty',settings.difficulty);set('enemyCountMode',settings.count?.mode);set('enemyCount',settings.count?.exact);set('enemyCountMin',settings.count?.min);set('enemyCountMax',settings.count?.max);set('composition',settings.composition);set('bossMode',settings.boss?.mode);set('bossMax',settings.boss?.max);
+  [['targetWin',settings.targets?.win],['targetKo',settings.targets?.ko]].forEach(([prefix,target])=>{if(!target)return;set(`${prefix}Mode`,target.mode);set(`${prefix}Min`,(target.min??target.exact??0)*100);set(`${prefix}Max`,(target.max??target.exact??0)*100);});
   renderGenerationMode();
 }
 function renderGeneratorLockedList() {const root=document.getElementById('generatorLockedList');if(!root)return;const locked=state.enemies.filter(enemy=>enemy.generatorLocked);root.innerHTML=locked.length?locked.map(enemy=>`<div class="generator-locked"><b>${escapeHtml(enemy.name)}</b><span>${escapeHtml(enemy.tagLabel||enemy.v8Archetype||'NPC')}</span></div>`).join(''):'<div class="empty">Нет заблокированных противников.</div>';}
@@ -1697,7 +1689,6 @@ function renderLibraries(errorMessage='') {
 function useLibraryEnemyAsArchetype(id) {
   const template=customEnemies.find(enemy=>enemy.id===id);if(!template)return;
   generatorArchetypeIds=[id];
-  const source=document.getElementById('generatorSource');if(source)source.value='library_archetypes';
   showScreen('prep');renderSummary();showToast(`«${template.name}» выбран как архетип: действия сохранятся, числовой профиль можно подстроить.`);
 }
 function addLibraryPresetToManual(id) {
@@ -2099,10 +2090,26 @@ function editLibraryEnemy(id) {
   fillBestiaryFormFromEnemy(enemy,true);
   showScreen('bestiary');
 }
-/* ---------------- СОХРАНЕНИЕ И МИГРАЦИЯ ---------------- */ function normalizeState(parsed) {
+/* ---------------- СОХРАНЕНИЕ И МИГРАЦИЯ ---------------- */
+function migrateGeneratorSettings(settings) {
+  if(!settings||typeof settings!=='object')return null;
+  const allowedModes=['quick','custom','composition','manual','complete'];
+  const mode=allowedModes.includes(settings.mode)?settings.mode:settings.generationMode;
+  return {
+    mode:allowedModes.includes(mode)?mode:'quick',generationMode:allowedModes.includes(mode)?mode:'quick',
+    difficulty:['easy','medium','hard','deadly','custom'].includes(settings.difficulty)?settings.difficulty:'medium',
+    targets:{win:settings.targets?.win||null,ko:settings.targets?.ko||null,rounds:{mode:'ignore'},body:{mode:'ignore'}},
+    count:settings.count&&typeof settings.count==='object'?deepClone(settings.count):{mode:'exact',exact:Number(settings.enemyCount)||3},
+    composition:String(settings.composition||'any'),boss:{mode:String(settings.boss?.mode||'any'),max:clamp(Number(settings.boss?.max)||1,0,12)},
+    creatureType:String(settings.creatureType||'auto'),humanoidClass:String(settings.humanoidClass||'auto'),
+    players:clamp(Number(settings.players)||3,1,10),level:clamp(Number(settings.level)||1,1,20),partyInputMode:settings.partyInputMode==='real'?'real':'abstract'
+  };
+}
+function normalizeState(parsed) {
   const base=defaultState(),out= {
     ...base,...parsed,version:10
   };
+  out.settings=migrateGeneratorSettings(parsed?.settings);
   delete out.targetBp;
   delete out.actionMultiplier;
   out.partyInputMode=parsed?.partyInputMode==='real'?'real':'abstract';
