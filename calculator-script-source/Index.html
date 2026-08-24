@@ -12,26 +12,55 @@
     <p>Подготовка столкновения, ведение боя и библиотека противников</p>
   </div>
   <nav class="screen-tabs" aria-label="Разделы приложения">
-    <button id="tab-prep" class="tab active" onclick="showScreen('prep')">1. Подготовка</button>
-    <button id="tab-combat" class="tab" onclick="showScreen('combat')">2. Бой</button>
-    <button id="tab-bestiary" class="tab" onclick="showScreen('bestiary')">3. Противники</button>
+    <button id="tab-players" class="tab active" onclick="showScreen('players')">1. Игроки</button>
+    <button id="tab-prep" class="tab" onclick="showScreen('prep')">2. Противники</button>
+    <button id="tab-combat" class="tab" onclick="showScreen('combat')">3. Бой</button>
+    <button id="tab-bestiary" class="tab" onclick="showScreen('bestiary')">4. Библиотека</button>
     <a href="https://script.google.com/macros/s/AKfycbzwapvTbhyXmOMwoHRTPZxosuGLzyr-7tflL_anmSgxLxkZi6RM7xgf5SAyxiPJxBna/exec">Генератор тайлов</a>
   </nav>
 </header>
 
 <main>
-  <section id="screen-prep" class="screen active">
-    <div class="prep-layout">
-      <aside class="panel sticky-card">
-        <h2>Параметры столкновения</h2>
-        <div class="form-grid">
+  <section id="screen-players" class="screen active">
+    <div class="players-setup-layout">
+      <section class="panel">
+        <div class="toolbar">
+          <div>
+            <h2 class="no-margin">Настройки игроков</h2>
+            <p class="help">Задайте состав партии и параметры, по которым production-модель V15 будет оценивать столкновение.</p>
+          </div>
+          <button class="primary" onclick="showScreen('prep')">К противникам →</button>
+        </div>
+        <div class="player-settings-bar">
           <label>Игроков<input id="players" type="number" min="1" max="10" value="3"></label>
           <label>Уровень<input id="level" type="number" min="1" max="20" value="1"></label>
+          <label>Режим профилей партии
+            <select id="partyInputMode" onchange="setPartyInputMode(this.value)">
+              <option value="abstract" selected>Абстрактные боевые профили</option>
+              <option value="real">Реальные параметры</option>
+            </select>
+          </label>
+        </div>
+        <div id="playerSetup" class="player-setup-list"></div>
+        <div class="buttons player-setup-actions">
+          <button onclick="addPlayer()">+ Добавить игрока</button>
+          <button class="primary large" onclick="showScreen('prep')">Продолжить к настройкам противников →</button>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section id="screen-prep" class="screen">
+    <div class="prep-layout">
+      <aside class="panel sticky-card">
+        <div class="toolbar compact"><h2 class="no-margin">Настройки противников</h2><button class="small" onclick="showScreen('players')">← Игроки</button></div>
+        <div class="form-grid">
           <label>Режим генерации
             <select id="generationMode" onchange="renderGenerationMode()">
               <option value="quick" selected>Быстрый</option>
               <option value="custom">Свои цели</option>
               <option value="composition">Сначала структура</option>
+              <option value="manual">Конкретные пресеты</option>
               <option value="complete">Достроить текущий бой</option>
             </select>
           </label>
@@ -46,26 +75,14 @@
           </label>
         </div>
 
-        <section class="subpanel">
-          <div class="section-title">Игроки и имена</div>
-          <label>Режим профилей партии
-            <select id="partyInputMode" onchange="setPartyInputMode(this.value)">
-              <option value="abstract" selected>Абстрактные профили v8</option>
-              <option value="real">Реальные параметры</option>
-            </select>
-          </label>
-          <div id="playerSetup" class="compact-list"></div>
-          <button class="small" onclick="addPlayer()">+ Добавить игрока</button>
-        </section>
-
         <details id="generatorTargets" class="subpanel generator-targets">
           <summary>Настроить цели</summary>
-          <p class="help">P(win) и вероятность хотя бы одного KO — независимые цели. Изменение диапазона переводит сложность в Custom.</p>
+          <p class="help">P(win) и средняя доля персонажей в KO — независимые цели V15. Изменение диапазона переводит сложность в Custom.</p>
           <div class="form-grid">
             <label>P(win), режим<select id="targetWinMode" onchange="markGeneratorCustom()"><option value="range">Диапазон</option><option value="exact">Точно</option><option value="ignore">Не учитывать</option></select></label>
             <label>от, %<input id="targetWinMin" type="number" min="0" max="100" value="65" oninput="markGeneratorCustom()"></label>
             <label>до, %<input id="targetWinMax" type="number" min="0" max="100" value="82" oninput="markGeneratorCustom()"></label>
-            <label title="Вероятность того, что хотя бы один персонаж партии будет выведен из строя за время боя. Это не вероятность поражения партии.">Вероятность хотя бы одного KO<select id="targetKoMode" onchange="markGeneratorCustom()"><option value="range">Диапазон</option><option value="exact">Точно</option><option value="ignore">Не учитывать</option></select></label>
+            <label title="Ожидаемая доля персонажей партии, выведенных из строя за бой. Это не вероятность хотя бы одного KO.">Средняя доля PC в KO<select id="targetKoMode" onchange="markGeneratorCustom()"><option value="range">Диапазон</option><option value="exact">Точно</option><option value="ignore">Не учитывать</option></select></label>
             <label>от, %<input id="targetKoMin" type="number" min="0" max="100" value="25" oninput="markGeneratorCustom()"></label>
             <label>до, %<input id="targetKoMax" type="number" min="0" max="100" value="55" oninput="markGeneratorCustom()"></label>
           </div>
@@ -85,10 +102,17 @@
 
         <section id="completeMode" class="mode-panel hidden"><div class="section-title">Заблокированная часть боя</div><div id="generatorLockedList" class="compact-list"></div><p class="help">Заблокируйте нужных противников в панели боя. Генератор сохранит их и подберёт остальных.</p></section>
 
+        <section id="manualMode" class="mode-panel hidden">
+          <div class="section-title">Конкретные пресеты противников</div>
+          <p class="help">Выберите образ для каждого противника. Имя, атаки и реакции останутся неизменными, а числовые параметры будут подстроены под цели столкновения.</p>
+          <div id="manualBuilder" class="manual-builder"></div>
+          <button class="small top-gap" type="button" onclick="addManualEnemy()">+ Добавить пресет</button>
+        </section>
+
         <details class="subpanel generator-advanced"><summary>Расширенные настройки</summary><div class="form-grid top-gap">
           <label>Дубликаты<select id="duplicateMode"><option value="allowed">Разрешены</option><option value="forbidden">Запрещены</option><option value="max">Не больше N одинаковых</option><option value="identical">Все одинаковые</option></select></label><label>Максимум копий<input id="duplicateMax" type="number" min="1" max="12" value="2"></label>
           <label>Неоднородность<select id="heterogeneity"><option value="any">Любая неэкстремальная</option><option value="low">Низкая</option><option value="medium">Средняя</option><option value="high">Высокая</option><option value="extreme">Экстремальная</option></select></label><label class="checkbox-line"><input id="extremeAllowed" type="checkbox"><span>Разрешить extreme</span></label>
-          <label>Источник противников<select id="generatorSource"><option value="mixed">Смешанный</option><option value="archetypes">Банк архетипов</option><option value="library_exact">Библиотека без изменений</option><option value="library_archetypes">Библиотека как архетипы</option></select></label>
+          <label>Источник пресетов<select id="generatorSource"><option value="mixed">Все пресеты</option><option value="archetypes">Встроенный банк</option><option value="library_archetypes">Пользовательская библиотека</option></select></label>
           <label>BS NPC от<input id="enemyBsMin" type="number" min="0" value="0"></label><label>до<input id="enemyBsMax" type="number" min="0" value="5000"></label>
           <label>Самый сильный от<input id="strongestBsMin" type="number" min="0" value="0"></label><label>до<input id="strongestBsMax" type="number" min="0" value="5000"></label>
           <label>Самый слабый от<input id="weakestBsMin" type="number" min="0" value="0"></label><label>до<input id="weakestBsMax" type="number" min="0" value="5000"></label>
@@ -101,13 +125,13 @@
 
         <div class="buttons">
           <button class="primary large" onclick="generateEncounter()">Сформировать бой</button>
-          <button onclick="rerollNamesAndTypes()">Перебросить имена</button>
+          <button id="rerollNamesButton" onclick="rerollNamesAndTypes()">Перебросить имена</button>
         </div>
       </aside>
 
       <div class="content-stack">
         <section class="panel">
-          <h2>Прогноз столкновения v8</h2>
+          <h2>Прогноз столкновения V15</h2>
           <div id="budgetSummary" class="summary"></div>
           <div id="v8Prediction" class="v8-prediction"><div class="empty">Сформируйте бой, чтобы получить прогноз.</div></div>
           <details class="manual-tuning"><summary>Подстроить текущий бой</summary><div class="buttons">
@@ -117,17 +141,17 @@
             <button onclick="tuneGenerator('fewer')">Уменьшить число врагов</button><button onclick="tuneGenerator('more')">Увеличить число врагов</button>
           </div></details>
           <div id="v8CalibrationWarning" class="callout v8-warning hidden"></div>
-          <div class="callout"><b>Production-модель Mitrinium v8</b><p>Весь состав рассчитывается одновременно по профилям Тела, Брони, ПЗ, пула, Expl, урона и Пробития. Старые ‰ и множители количества в прогноз не входят. Категории сложности задаются отдельной настраиваемой UI-шкалой.</p></div>
+          <div class="callout"><b>Production-модель Mitrinium V15</b><p>Весь состав рассчитывается одновременно по профилям Тела, Брони, ПЗ, пула, Expl, урона и Пробития. Основные оси сложности — P(win) и средняя доля PC в KO; P(any KO) показана только как дополнительный риск.</p></div>
         </section>
         <section id="generatorAlternativesPanel" class="panel hidden">
           <h2>Варианты генератора</h2>
-          <p class="help">Все варианты оценены полным production v8; порядок NPC не создаёт отдельный вариант.</p>
+          <p class="help">Все варианты оценены полным production V15; порядок NPC не создаёт отдельный вариант.</p>
           <div id="generatorDiagnostics"></div>
           <div id="generatorAlternatives" class="generator-alternatives"></div>
         </section>
         <section class="panel">
           <div class="toolbar">
-            <div><h2 class="no-margin">Библиотека статблоков</h2><div class="help">Сохранённые противники можно добавить в конкретный состав.</div></div>
+            <div><h2 class="no-margin">Пользовательские пресеты</h2><div class="help">Сохранённый NPC используется как пресет: его образ и действия сохраняются, числовой профиль можно подстроить.</div></div>
             <button onclick="loadEnemyLibrary(true)">Обновить</button>
           </div>
           <div class="filter-grid compact-filters">
@@ -145,7 +169,7 @@
     <div class="combat-layout">
       <aside class="combat-sidebar">
         <section class="panel">
-          <div class="toolbar compact"><h2 class="no-margin">Бой</h2><button class="small" onclick="showScreen('prep')">← Подготовка</button></div>
+          <div class="toolbar compact"><h2 class="no-margin">Бой</h2><button class="small" onclick="showScreen('prep')">← Противники</button></div>
           <div class="round-box">Раунд <span id="roundNumber">1</span></div>
           <div id="encounterMeta" class="help"></div>
           <label class="top-gap">ПЗ выбранной цели
@@ -323,7 +347,7 @@
   window.MitriniumEncounterGenerator = MitriniumEncounterGenerator;
   window.MitriniumTacticalPregens = MitriniumTacticalPregens;
   window.MitriniumCreaturePregens = MitriniumCreaturePregens;
-  window.mitriniumV8Ready = MitriniumV8.loadMitriniumV8();
+  window.mitriniumV8Ready = MitriniumV8.loadMitriniumV15();
   window.mitriniumTacticalBankReady = MitriniumTacticalPregens.loadTacticalPregenBank();
   window.mitriniumCreatureBankReady = MitriniumCreaturePregens.loadCreaturePregenBank();
 </script>

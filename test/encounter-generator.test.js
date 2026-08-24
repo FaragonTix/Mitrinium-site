@@ -32,13 +32,14 @@ function fakeEvaluate(profiles) {
   const values = profiles.map((item) => item.body);
   const mean = values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
   const cv = values.length ? Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length) / mean : 0;
-  return { prediction: { party_win_probability: Math.max(0, Math.min(1, 1 - total / 20)), p_any_pc_ko: Math.max(0, Math.min(1, total / 16)), mean_rounds: 2 + total / 3, mean_party_body_loss_fraction: Math.min(1, total / 18) }, features: { enemy_survivability_cv: cv, enemy_pressure_cv: cv }, extreme: cv >= 1 };
+  const ko = Math.max(0, Math.min(1, total / 16));
+  return { prediction: { party_win_probability: Math.max(0, Math.min(1, 1 - total / 20)), mean_pc_ko_fraction: ko, p_any_pc_ko: Math.min(1, ko + 0.1), mean_rounds: 2 + total / 3, mean_party_body_loss_fraction: Math.min(1, total / 18) }, features: { enemy_survivability_cv: cv, enemy_pressure_cv: cv }, extreme: cv >= 1 };
 }
 
 const run = (settings, locked = [], source = library) => generateEncounterOptions({ library: source, locked, settings: { count: { mode: "exact", exact: 3 }, topN: 5, beamWidth: 24, candidateLimit: 20, heterogeneity: { mode: "any", extremeAllowed: true }, ...settings }, evaluate: fakeEvaluate });
 
 for (const key of ["easy", "medium", "hard", "deadly"]) {
-  test(`Quick ${DIFFICULTY_PRESETS[key].label} преобразуется в диапазоны v8`, () => {
+  test(`Quick ${DIFFICULTY_PRESETS[key].label} преобразуется в диапазоны V15`, () => {
     const targets = presetTargets(key);
     assert.deepEqual([targets.win.min, targets.win.max], DIFFICULTY_PRESETS[key].winRange);
     assert.deepEqual([targets.ko.min, targets.ko.max], DIFFICULTY_PRESETS[key].koRange);
@@ -46,13 +47,13 @@ for (const key of ["easy", "medium", "hard", "deadly"]) {
   });
 }
 
-test("новые target regions и строгая смертельная область заданы в конфиге", () => {
-  assert.deepEqual(DIFFICULTY_PRESETS.easy, { label: "Легко", winRange: [.95, .98], koRange: [.05, .15] });
-  assert.deepEqual(DIFFICULTY_PRESETS.medium, { label: "Нормально", winRange: [.75, .87], koRange: [.15, .25] });
-  assert.deepEqual(DIFFICULTY_PRESETS.hard, { label: "Сложно", winRange: [.60, .75], koRange: [.25, .40] });
-  assert.equal(matchesDifficultyPreset("deadly", { party_win_probability: .49, p_any_pc_ko: .61 }), true);
-  assert.equal(matchesDifficultyPreset("deadly", { party_win_probability: .50, p_any_pc_ko: .61 }), false);
-  assert.equal(matchesDifficultyPreset("deadly", { party_win_probability: .49, p_any_pc_ko: .60 }), false);
+test("V15 target regions заданы в едином конфиге", () => {
+  assert.deepEqual(DIFFICULTY_PRESETS.easy, { label: "Легко", winRange: [.95, .98], koRange: [.15, .45] });
+  assert.deepEqual(DIFFICULTY_PRESETS.medium, { label: "Нормально", winRange: [.75, .87], koRange: [.35, .65] });
+  assert.deepEqual(DIFFICULTY_PRESETS.hard, { label: "Сложно", winRange: [.60, .75], koRange: [.50, .75] });
+  assert.deepEqual(DIFFICULTY_PRESETS.deadly, { label: "Смертельно", winRange: [0, .50], koRange: [.75, 1] });
+  assert.equal(matchesDifficultyPreset("deadly", { party_win_probability: .50, mean_pc_ko_fraction: .75 }), true);
+  assert.equal(matchesDifficultyPreset("deadly", { party_win_probability: .49, mean_pc_ko_fraction: .74 }), false);
 });
 
 test("ручные цели дают Custom-структуру и независимые оси", () => {
@@ -64,6 +65,16 @@ test("ручные цели дают Custom-структуру и независ
 test("точное количество и диапазон количества строго соблюдаются", () => {
   assert.ok(run({ count: { mode: "exact", exact: 4 } }).options.every(option => option.entries.length === 4));
   assert.ok(run({ count: { mode: "range", min: 2, max: 4 } }).options.every(option => option.entries.length >= 2 && option.entries.length <= 4));
+});
+
+test("конкретные слоты всегда используют выбранные пресеты", () => {
+  const result = run({
+    count: { mode: "exact", exact: 2 },
+    slots: [{ npcId: "boss" }, { npcId: "minion" }],
+    candidateLimit: 2,
+  });
+  assert.ok(result.options.length);
+  assert.ok(result.options.every((option) => option.entries[0].id === "boss" && option.entries[1].id === "minion"));
 });
 
 test("boss required, forbidden и exactly one соблюдаются", () => {
@@ -115,11 +126,17 @@ test("extreme не появляется без явного разрешения
   assert.ok(result.options.every(option => Math.max(option.evaluation.features.enemy_survivability_cv, option.evaluation.features.enemy_pressure_cv) < 1));
 });
 
-test("P(win) и KO независимо входят в objective", () => {
+test("P(win) и mean PC KO fraction независимо входят в objective", () => {
   const prediction = fakeEvaluate([profile(3, "standard")]).prediction;
   const winHeavy = normalizeGeneratorSettings({ targets: { win: { mode: "exact", exact: .9 }, ko: { mode: "ignore" } }, weights: { win: 3, ko: 0 } });
   const koHeavy = normalizeGeneratorSettings({ targets: { win: { mode: "ignore" }, ko: { mode: "exact", exact: .1 } }, weights: { win: 0, ko: 3 } });
   assert.notEqual(objectiveScore(prediction, winHeavy), objectiveScore(prediction, koHeavy));
+});
+
+test("P(any PC KO) не влияет на difficulty objective", () => {
+  const settings = normalizeGeneratorSettings({ targets: { win: { mode: "exact", exact: .7 }, ko: { mode: "exact", exact: .5 } } });
+  const base = { party_win_probability: .7, mean_pc_ko_fraction: .5, p_any_pc_ko: 0, mean_rounds: 3, mean_party_body_loss_fraction: .2 };
+  assert.equal(objectiveScore(base, settings), objectiveScore({ ...base, p_any_pc_ko: 1 }, settings));
 });
 
 test("seed воспроизводим, альтернативы каноничны и не являются перестановками", () => {
@@ -168,7 +185,7 @@ test("exact NPC не меняется, а archetype настраивает то�
 
 test("настройка архетипа меняет outcomes без смены identity", () => {
   const source = [{ id: "adaptive", name: "Зверь", usage: "archetype", role: "brute", archetype: "brute", profile: profile(3, "brute", 16), hardIdentity: { attacks: [{ name: "Когти" }], reactions: [{ name: "Рык" }] } }];
-  const result = generateEncounterOptions({ library: source, settings: { count: { mode: "exact", exact: 1 }, targets: { win: { mode: "exact", exact: .75 }, ko: { mode: "ignore" } }, heterogeneity: { mode: "any", extremeAllowed: true } }, evaluate: profiles => ({ prediction: { party_win_probability: 1 - profiles[0].body / 40, p_any_pc_ko: profiles[0].pool / 10, mean_rounds: 3, mean_party_body_loss_fraction: .2 }, features: { enemy_survivability_cv: 0, enemy_pressure_cv: 0 } }) });
+  const result = generateEncounterOptions({ library: source, settings: { count: { mode: "exact", exact: 1 }, targets: { win: { mode: "exact", exact: .75 }, ko: { mode: "ignore" } }, heterogeneity: { mode: "any", extremeAllowed: true } }, evaluate: profiles => ({ prediction: { party_win_probability: 1 - profiles[0].body / 40, mean_pc_ko_fraction: profiles[0].pool / 10, p_any_pc_ko: profiles[0].pool / 9, mean_rounds: 3, mean_party_body_loss_fraction: .2 }, features: { enemy_survivability_cv: 0, enemy_pressure_cv: 0 } }) });
   assert.ok(result.options.length);
   assert.ok(result.options.some((option) => option.entries[0].tuningDiff.length > 0));
   assert.ok(result.options.every((option) => option.entries[0].hardIdentity.attacks[0].name === "Когти" && option.entries[0].hardIdentity.reactions[0].name === "Рык"));
@@ -186,7 +203,7 @@ test("поиск предпочитает попадание в обе цели 
   const result = generateEncounterOptions({
     library: source,
     settings: { count: { mode: "exact", exact: 1 }, targets: { win: { mode: "exact", exact: .525 }, ko: { mode: "exact", exact: .5 } }, heterogeneity: { mode: "any", extremeAllowed: true } },
-    evaluate: ([item]) => ({ prediction: { party_win_probability: 1 - item.body / 40, p_any_pc_ko: item.pool / 10, mean_rounds: 3, mean_party_body_loss_fraction: .2 }, features: { enemy_survivability_cv: 0, enemy_pressure_cv: 0 } }),
+    evaluate: ([item]) => ({ prediction: { party_win_probability: 1 - item.body / 40, mean_pc_ko_fraction: item.pool / 10, p_any_pc_ko: item.pool / 9, mean_rounds: 3, mean_party_body_loss_fraction: .2 }, features: { enemy_survivability_cv: 0, enemy_pressure_cv: 0 } }),
   });
   assert.equal(result.options[0].targetError, 0);
   assert.ok(result.options[0].entries[0].profile.body > 16);
@@ -229,7 +246,8 @@ test("UI поддерживает source modes, карточки архетип�
     readFile(new URL("../calculator-script-source/Script.html", import.meta.url), "utf8"),
   ]);
   assert.match(index, /id="generatorSource"/);
-  assert.match(index, /value="library_exact"/);
+  assert.match(index, /value="library_archetypes"/);
+  assert.doesNotMatch(index, /value="library_exact"/);
   assert.match(index, /value="library_archetypes"/);
   assert.match(script, />Как архетип</);
   assert.match(script, /Заменить случайным/);
@@ -237,9 +255,35 @@ test("UI поддерживает source modes, карточки архетип�
   assert.match(script, /individualBs/);
 });
 
-test("финальный кандидат действительно оценивается production v8 без Monte-Carlo", async () => {
-  const bundle = JSON.parse(await readFile(new URL("../src/client/calculator-v8/mitrinium_runtime_v8.min.json", import.meta.url), "utf8"));
-  const units = bundle.unit_library.slice(0, 6).map((unit, index) => ({ id: `v8-${index}`, name: `V8 ${index}`, profile: unit, archetype: unit.archetype, role: unit.archetype, tags: [unit.archetype] }));
+test("настройки игроков и противников находятся на разных экранах", async () => {
+  const [index, script] = await Promise.all([
+    readFile(new URL("../calculator-script-source/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../calculator-script-source/Script.html", import.meta.url), "utf8"),
+  ]);
+  assert.match(index, /id="screen-players"/);
+  assert.match(index, /id="screen-prep"/);
+  assert.match(index, /id="tab-players"[^>]*>1\. Игроки</);
+  assert.match(index, /id="tab-prep"[^>]*>2\. Противники</);
+  assert.equal((index.match(/id="playerSetup"/g) || []).length, 1);
+  assert.match(script, /\['players','prep','combat','bestiary'\]/);
+});
+
+test("режим конкретных врагов использует единый банк настраиваемых пресетов", async () => {
+  const [index, script] = await Promise.all([
+    readFile(new URL("../calculator-script-source/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../calculator-script-source/Script.html", import.meta.url), "utf8"),
+  ]);
+  assert.match(index, /option value="manual">Конкретные пресеты/);
+  assert.match(index, /id="manualBuilder"/);
+  assert.match(script, /source:manual\?'manual'/);
+  assert.match(script, /library-archetype:/);
+  assert.match(script, /Добавить как пресет/);
+  assert.doesNotMatch(index, /Точный статблок/);
+});
+
+test("финальный кандидат действительно оценивается production V15 без Monte-Carlo", async () => {
+  const bundle = JSON.parse(await readFile(new URL("../src/client/calculator-v8/mitrinium_runtime_v15.min.json", import.meta.url), "utf8"));
+  const units = bundle.unit_library.slice(0, 6).map((unit, index) => ({ id: `v15-${index}`, name: `V15 ${index}`, profile: unit, archetype: unit.archetype, role: unit.archetype, tags: [unit.archetype] }));
   const party = Array(4).fill(bundle.unit_library.find(unit => unit.archetype === "standard"));
   let calls = 0;
   const result = generateEncounterOptions({ library: units, settings: { count: { mode: "exact", exact: 2 }, targets: presetTargets("medium"), topN: 2, beamWidth: 8, candidateLimit: 6, heterogeneity: { mode: "any", extremeAllowed: true } }, evaluate: enemies => { calls += 1; return predictEncounter(bundle, party, enemies); } });

@@ -215,7 +215,7 @@ test("сервер сохраняет нулевые текущие показа
   assert.equal(state.initialized, true);
 });
 
-test("сервер сохраняет состояние Прочности и Экспл. снаряжения", () => {
+test("сервер сохраняет состояние Прочности и Т снаряжения", () => {
   const state = sanitizeState({
     equipmentConditions: {
       "trost-kristall": { currentDurability: 0 },

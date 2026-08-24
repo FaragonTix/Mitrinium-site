@@ -16,7 +16,7 @@ import {
 import { BASE_FEATURE_ORDER, predictEncounter } from "../src/client/calculator-v8/mitrinium-v8-core.js";
 
 const bank = JSON.parse(await readFile(new URL("../src/client/calculator-v8/data/tactical-pregens-v1.json", import.meta.url), "utf8"));
-const runtime = JSON.parse(await readFile(new URL("../src/client/calculator-v8/mitrinium_runtime_v8.min.json", import.meta.url), "utf8"));
+const runtime = JSON.parse(await readFile(new URL("../src/client/calculator-v8/mitrinium_runtime_v15.min.json", import.meta.url), "utf8"));
 const numeric = { pool: 5, expl: 3, damage: "d8", penetrating: false, range: "Средняя" };
 
 test("tactical bank: 8 ролей, 40 наборов в каждой и 320 уникальных id", () => {
@@ -63,7 +63,7 @@ test("resolved enemy явно связывает primary с первой ата�
   assert.deepEqual(validateResolvedTacticalEnemy({ attacks: [{ id: "old" }] }), { ok: true, legacy: true, errors: [] });
 });
 
-test("tactical metadata не подменяет production v8 и геометрия остаётся полной", () => {
+test("tactical metadata не подменяет production V15 и геометрия остаётся полной", () => {
   const party = Array(4).fill(runtime.unit_library.find((unit) => unit.archetype === "standard"));
   const baseEnemy = runtime.unit_library.find((unit) => unit.archetype === "brute");
   const firstKit = tacticalKitsForRole(bank, "brute")[0];
@@ -72,9 +72,9 @@ test("tactical metadata не подменяет production v8 и геометр�
   const second = resolveTacticalKitRuntime(secondKit, { primary: baseEnemy }, "chief");
   const a = predictEncounter(runtime, party, [{ ...baseEnemy, tacticalPregenId: first.tacticalPregenId }]);
   const b = predictEncounter(runtime, party, [{ ...baseEnemy, tacticalPregenId: second.tacticalPregenId }]);
-  assert.deepEqual(a.vector, b.vector, "flavour/tactics alone must not alter v8 numbers");
+  assert.deepEqual(a.vector, b.vector, "flavour/tactics alone must not alter V15 numbers");
   assert.equal(a.vector.length, BASE_FEATURE_ORDER.length);
   assert.ok(a.vector.every(Number.isFinite));
   const stronger = predictEncounter(runtime, party, [{ ...baseEnemy, pool: baseEnemy.pool + 1 }]);
-  assert.notDeepEqual(a.vector, stronger.vector, "a numeric primary change must reach v8");
+  assert.notDeepEqual(a.vector, stronger.vector, "a numeric primary change must reach V15");
 });

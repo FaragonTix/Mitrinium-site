@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -167,6 +167,7 @@ async function buildCalculator() {
     )
     .replace(/Сохранить в Google Таблицу/g, "Сохранить в библиотеку сайта");
 
+  await rm(calculatorDir, { recursive: true, force: true });
   await mkdir(calculatorDir, { recursive: true });
   await writeFile(path.join(calculatorDir, "index.html"), html, "utf8");
   const equipmentSource = await readSource("EquipmentData.html");

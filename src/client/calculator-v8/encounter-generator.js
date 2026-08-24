@@ -1,9 +1,12 @@
-export const DIFFICULTY_PRESETS = Object.freeze({
-  easy: { label: "Легко", winRange: [0.95, 0.98], koRange: [0.05, 0.15] },
-  medium: { label: "Нормально", winRange: [0.75, 0.87], koRange: [0.15, 0.25] },
-  hard: { label: "Сложно", winRange: [0.60, 0.75], koRange: [0.25, 0.40] },
-  deadly: { label: "Смертельно", winRange: [0, 0.50], koRange: [0.60, 1], strict: { winMax: true, koMin: true } },
-});
+import { V15_DIFFICULTY_PRESETS } from "./difficulty-presets-v15.js";
+
+export const DIFFICULTY_PRESETS = Object.freeze(Object.fromEntries(
+  Object.entries(V15_DIFFICULTY_PRESETS).map(([key, preset]) => [key, Object.freeze({
+    label: preset.label,
+    winRange: preset.party_win_probability,
+    koRange: preset.mean_pc_ko_fraction,
+  })]),
+));
 
 export const ARCHETYPE_TUNING_CONFIG = Object.freeze({
   lambda: 0.015,
@@ -247,7 +250,7 @@ export function objectiveScore(prediction, settings) {
   const target = settings.targets;
   const weights = settings.weights;
   return weights.win * distanceToRange(prediction.party_win_probability, target.win)
-    + weights.ko * distanceToRange(prediction.p_any_pc_ko, target.ko)
+    + weights.ko * distanceToRange(prediction.mean_pc_ko_fraction, target.ko)
     + weights.rounds * distanceToRange(prediction.mean_rounds, target.rounds) / 10
     + weights.body * distanceToRange(prediction.mean_party_body_loss_fraction, target.body);
 }
@@ -263,13 +266,9 @@ export function matchesDifficultyPreset(key, prediction) {
   const preset = DIFFICULTY_PRESETS[key];
   if (!preset) return false;
   const win = Number(prediction.party_win_probability);
-  const ko = Number(prediction.p_any_pc_ko);
-  const winOk = preset.strict?.winMax
-    ? win >= preset.winRange[0] && win < preset.winRange[1]
-    : win >= preset.winRange[0] && win <= preset.winRange[1];
-  const koOk = preset.strict?.koMin
-    ? ko > preset.koRange[0] && ko <= preset.koRange[1]
-    : ko >= preset.koRange[0] && ko <= preset.koRange[1];
+  const ko = Number(prediction.mean_pc_ko_fraction);
+  const winOk = win >= preset.winRange[0] && win <= preset.winRange[1];
+  const koOk = ko >= preset.koRange[0] && ko <= preset.koRange[1];
   return winOk && koOk;
 }
 
@@ -394,6 +393,17 @@ function prepareLibrary(library, settings, random) {
       if (selected.length >= baseLimit) break;
     }
   }
+  // Explicit slots are authoritative: a concrete preset must not disappear
+  // merely because the general candidate sampler did not pick it.
+  const selectedIds = new Set(selected.map((entry) => entry.id));
+  for (const slot of settings.slots) {
+    if (!slot?.npcId || selectedIds.has(slot.npcId)) continue;
+    const required = eligible.find((entry) => entry.id === slot.npcId);
+    if (required) {
+      selected.push(required);
+      selectedIds.add(required.id);
+    }
+  }
   return selected.flatMap((entry) => archetypeVariants(entry));
 }
 
@@ -439,8 +449,8 @@ export function generateEncounterOptions({ library, locked = [], settings: rawSe
         identity: canonicalIdentity(node.entries),
         signature: structuralSignature(node.entries),
         status: {
-          win: presetTargetStatus(evaluation.prediction.party_win_probability, settings.targets.win, settings.difficulty === "deadly" ? "max" : null),
-          ko: presetTargetStatus(evaluation.prediction.p_any_pc_ko, settings.targets.ko, settings.difficulty === "deadly" ? "min" : null),
+          win: presetTargetStatus(evaluation.prediction.party_win_probability, settings.targets.win),
+          ko: presetTargetStatus(evaluation.prediction.mean_pc_ko_fraction, settings.targets.ko),
           rounds: targetStatus(evaluation.prediction.mean_rounds, settings.targets.rounds),
           body: targetStatus(evaluation.prediction.mean_party_body_loss_fraction, settings.targets.body),
         },
@@ -470,7 +480,7 @@ export function marginalNpcImpact(entries, index, evaluate) {
   const withoutEnemy = evaluate(normalized.filter((_, itemIndex) => itemIndex !== index).map((entry) => entry.profile)).prediction;
   return {
     win: withEnemy.party_win_probability - withoutEnemy.party_win_probability,
-    ko: withEnemy.p_any_pc_ko - withoutEnemy.p_any_pc_ko,
+    ko: withEnemy.mean_pc_ko_fraction - withoutEnemy.mean_pc_ko_fraction,
     withEnemy,
     withoutEnemy,
   };

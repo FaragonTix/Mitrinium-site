@@ -110,7 +110,7 @@ function withDefaultZoneText(text) {
 }
 function defaultManualEnemy() {
   return {
-    id:newId('m'),source:'generated',templateId:'',typeKey:'humanoid',tagKey:'chief',classKey:'none',name:''
+    id:newId('m'),presetId:'',source:'preset',templateId:'',typeKey:'humanoid',tagKey:'chief',classKey:'none',name:''
   };
 }
 function defaultBestiaryDraft() {
@@ -122,7 +122,7 @@ function defaultBestiaryDraft() {
 }
 function defaultState() {
   return {
-    version:10,currentScreen:'prep',round:1,combatTargetPz:4,combatLogging:{rolls:false,resources:false,reactions:false,visibleToPlayers:false},partyInputMode:'abstract',players:[1,2,3].map(i=>( {
+    version:10,currentScreen:'players',round:1,combatTargetPz:4,combatLogging:{rolls:false,resources:false,reactions:false,visibleToPlayers:false},partyInputMode:'abstract',players:[1,2,3].map(i=>( {
       id:newId('p'),name:`Игрок ${i}`,initiative:0,v8Archetype:'standard',v8Strength:'normal',v8Profile:{body:12,armor:2,pz:4,pool:4,expl:3,damage:'d8',penetration:0}
     })),settings:null,enemies:[],initiative: {
       activeId:null,order:[]
@@ -763,7 +763,7 @@ function renderPlayerSetup() {
     const f=p.v8Profile,weapons=Array.isArray(p.characterWeapons)?p.characterWeapons:[];
     const weaponPicker=weapons.length?`<label>Оружие<select onchange="selectPlayerWeapon('${p.id}',this.value)">${optionList(weapons.map(item=>[item.id,item.name]),p.characterWeaponId)}</select></label>`:'';
     const sourceNote=p.characterId?`<div class="player-character-note">Источник: ${escapeHtml(p.characterName||'лист персонажа')} · ${p.characterUsesCurrentState?'текущее состояние':'максимальные показатели'}${p.characterIsComplete===false?' · незаконченный лист':''}. Поля ниже можно поправить вручную.</div>`:'';
-    return `<div class="player-v8-card">${head}<div class="player-character-loader"><label>Лист из базы<select ${p.characterLoadPending?'disabled':''} onchange="loadPlayerCharacter('${p.id}',this.value)">${savedCharacterOptions(p.characterId)}</select></label><button class="small" type="button" ${p.characterLoadPending?'disabled':''} onclick="loadCharacterProfileSources(true)">${p.characterLoadPending?'Загрузка…':'Обновить список'}</button>${weaponPicker}</div>${sourceNote}<div class="player-v8-real"><label>Тело<input type="number" min="1" value="${f.body}" oninput="updatePlayerV8('${p.id}','body',this.value)"></label><label>Броня<input type="number" min="0" value="${f.armor}" oninput="updatePlayerV8('${p.id}','armor',this.value)"></label><label>Сноровка<input type="number" min="0" value="${f.agility??2}" oninput="updatePlayerV8('${p.id}','agility',this.value)"></label><label>Смекалка<input type="number" min="0" value="${f.wits??2}" oninput="updatePlayerV8('${p.id}','wits',this.value)"></label><label>ПЗ<input data-player-pz="${p.id}" type="number" min="2" max="20" value="${f.pz}" oninput="updatePlayerV8('${p.id}','pz',this.value)"></label><label>Пул<input type="number" min="2" max="8" value="${f.pool}" oninput="updatePlayerV8('${p.id}','pool',this.value)"></label><label>Expl<input type="number" min="0" max="12" value="${f.expl}" oninput="updatePlayerV8('${p.id}','expl',this.value)"></label><label>Урон<input value="${escapeHtml(f.damage)}" oninput="updatePlayerV8('${p.id}','damage',this.value)"></label><label>Пробитие<input type="number" min="0" max="20" value="${f.penetration}" oninput="updatePlayerV8('${p.id}','penetration',this.value)"></label></div></div>`;
+    return `<div class="player-v8-card">${head}<div class="player-character-loader"><label>Лист из базы<select ${p.characterLoadPending?'disabled':''} onchange="loadPlayerCharacter('${p.id}',this.value)">${savedCharacterOptions(p.characterId)}</select></label><button class="small" type="button" ${p.characterLoadPending?'disabled':''} onclick="loadCharacterProfileSources(true)">${p.characterLoadPending?'Загрузка…':'Обновить список'}</button>${weaponPicker}</div>${sourceNote}<div class="player-v8-real"><label>Тело<input type="number" min="1" value="${f.body}" oninput="updatePlayerV8('${p.id}','body',this.value)"></label><label>Броня<input type="number" min="0" value="${f.armor}" oninput="updatePlayerV8('${p.id}','armor',this.value)"></label><label>Сноровка<input type="number" min="0" value="${f.agility??2}" oninput="updatePlayerV8('${p.id}','agility',this.value)"></label><label>Смекалка<input type="number" min="0" value="${f.wits??2}" oninput="updatePlayerV8('${p.id}','wits',this.value)"></label><label>ПЗ<input data-player-pz="${p.id}" type="number" min="2" max="6" value="${f.pz}" oninput="updatePlayerV8('${p.id}','pz',this.value)"></label><label>Пул<input type="number" min="2" max="8" value="${f.pool}" oninput="updatePlayerV8('${p.id}','pool',this.value)"></label><label>Expl<input type="number" min="0" max="12" value="${f.expl}" oninput="updatePlayerV8('${p.id}','expl',this.value)"></label><label>Урон<input value="${escapeHtml(f.damage)}" oninput="updatePlayerV8('${p.id}','damage',this.value)"></label><label>Пробитие<input type="number" min="0" max="20" value="${f.penetration}" oninput="updatePlayerV8('${p.id}','penetration',this.value)"></label></div></div>`;
   }).join('');
 }
 function v8ProfileText(profile) {
@@ -775,8 +775,13 @@ function getMode() {
 }
 function renderGenerationMode() {
   const mode=getMode();
+  const manual=mode==='manual';
+  document.getElementById('generatorBasic')?.classList.toggle('hidden',manual);
+  document.getElementById('manualMode')?.classList.toggle('hidden',!manual);
   document.getElementById('completeMode')?.classList.toggle('hidden',mode!=='complete');
   document.getElementById('generatorTargets')?.toggleAttribute('open',mode==='custom');
+  document.getElementById('rerollNamesButton')?.classList.toggle('hidden',manual);
+  renderManualBuilder();
   renderGeneratorLockedList();
   renderGeneratorConstraints();
   renderSummary();
@@ -812,10 +817,12 @@ function targetFromUi(prefix,percent=true) {
 function generatorSettingsFromUi() {
   const countMode=document.getElementById('enemyCountMode').value;
   const difficulty=document.getElementById('difficulty').value;
+  const manual=getMode()==='manual';
+  const manualSlots=manual?state.manualDraft.map(row=>({npcId:row.presetId})):[];
   return {
-    mode:getMode(),difficulty:difficulty==='custom'?'medium':difficulty,source:document.getElementById('generatorSource')?.value||'mixed',
+    mode:getMode(),difficulty:difficulty==='custom'?'medium':difficulty,source:manual?'manual':document.getElementById('generatorSource')?.value||'mixed',
     targets:{win:targetFromUi('targetWin'),ko:targetFromUi('targetKo'),rounds:targetFromUi('rounds',false),body:targetFromUi('body')},
-    count:{mode:countMode,exact:numberValue('enemyCount',3),min:countMode==='any'?1:numberValue('enemyCountMin',2),max:countMode==='any'?6:numberValue('enemyCountMax',5)},
+    count:manual?{mode:'exact',exact:state.manualDraft.length}:{mode:countMode,exact:numberValue('enemyCount',3),min:countMode==='any'?1:numberValue('enemyCountMin',2),max:countMode==='any'?6:numberValue('enemyCountMax',5)},slots:manualSlots,
     composition:document.getElementById('composition').value,
     boss:{mode:document.getElementById('bossMode').value,max:numberValue('bossMax',1)},
     duplicates:{mode:document.getElementById('duplicateMode').value,max:numberValue('duplicateMax',2)},
@@ -845,7 +852,7 @@ function loadGeneratorPreset(name) {const settings=savedGeneratorPresets()[name]
 function applyGeneratorSettingsToUi(settings) {
   if(!settings)return;
   const set=(id,value)=>{const element=document.getElementById(id);if(element&&value!==undefined)element.value=value;};
-  set('generationMode',settings.mode);set('difficulty',settings.difficulty);set('generatorSource',settings.source);set('enemyCountMode',settings.count?.mode);set('enemyCount',settings.count?.exact);set('enemyCountMin',settings.count?.min);set('enemyCountMax',settings.count?.max);set('composition',settings.composition);set('bossMode',settings.boss?.mode);set('bossMax',settings.boss?.max);set('duplicateMode',settings.duplicates?.mode);set('duplicateMax',settings.duplicates?.max);set('heterogeneity',settings.heterogeneity?.mode);set('generatorSeed',settings.seed);
+  set('generationMode',settings.mode);set('difficulty',settings.difficulty);set('generatorSource',settings.source==='library_exact'?'library_archetypes':settings.source);set('enemyCountMode',settings.count?.mode);set('enemyCount',settings.count?.exact);set('enemyCountMin',settings.count?.min);set('enemyCountMax',settings.count?.max);set('composition',settings.composition);set('bossMode',settings.boss?.mode);set('bossMax',settings.boss?.max);set('duplicateMode',settings.duplicates?.mode);set('duplicateMax',settings.duplicates?.max);set('heterogeneity',settings.heterogeneity?.mode);set('generatorSeed',settings.seed);
   if(document.getElementById('extremeAllowed'))document.getElementById('extremeAllowed').checked=Boolean(settings.heterogeneity?.extremeAllowed);
   [['targetWin',settings.targets?.win],['targetKo',settings.targets?.ko],['rounds',settings.targets?.rounds],['body',settings.targets?.body]].forEach(([prefix,target])=>{if(!target)return;set(`${prefix}Mode`,target.mode);const percent=prefix!=='rounds',factor=percent?100:1;set(`${prefix}Min`,(target.min??target.exact??0)*factor);set(`${prefix}Max`,(target.max??target.exact??0)*factor);});
   renderGenerationMode();
@@ -860,8 +867,10 @@ function typedTypeList() {
 }
 function addManualEnemy(initial= {
 }) {
+  if(state.manualDraft.length>=12){showToast('Максимум 12 противников.',true);return;}
+  const firstPreset=manualPresetLibrary()[0]?.id||'';
   state.manualDraft.push( {
-    ...defaultManualEnemy(),...initial,id:newId('m')
+    ...defaultManualEnemy(),presetId:firstPreset,...initial,id:newId('m')
   });
   persistLocal();
   renderManualBuilder();
@@ -881,8 +890,6 @@ function updateManualRow(id,field,value) {
   const row=state.manualDraft.find(x=>x.id===id);
   if(!row)return;
   row[field]=value;
-  if(field==='typeKey'&&value!=='humanoid')row.classKey='none';
-  if(field==='source'&&value==='library'&&!row.templateId&&customEnemies.length)row.templateId=customEnemies[0].id;
   persistLocal();
   renderManualBuilder();
   renderSummary();
@@ -890,12 +897,21 @@ function updateManualRow(id,field,value) {
 function renderManualBuilder() {
   const root=document.getElementById('manualBuilder');
   if(!root)return;
+  const presets=manualPresetLibrary(),byId=new Map(presets.map(entry=>[entry.id,entry]));
+  const builtIn=presets.filter(entry=>entry.source==='creature-archetype'),custom=presets.filter(entry=>entry.source==='library-archetype');
+  const optionsFor=(selected)=>`<option value="">Выберите пресет…</option>${[
+    ['Встроенный банк',builtIn],['Пользовательская библиотека',custom]
+  ].filter(([,items])=>items.length).map(([label,items])=>`<optgroup label="${label}">${items.map(entry=>`<option value="${escapeHtml(entry.id)}" ${entry.id===selected?'selected':''}>${escapeHtml(entry.name)} · ${escapeHtml(TYPE_DATA[entry.typeKey]?.label||entry.typeKey)} · ${escapeHtml(V8_ARCHETYPE_LABELS[entry.archetype]||entry.role||'пресет')}</option>`).join('')}</optgroup>`).join('')}`;
   root.innerHTML=state.manualDraft.map((row,index)=> {
-    const sourceOptions=optionList([['generated','Сгенерированный'],['library','Из библиотеки']],row.source); const head=`<div class="manual-row-head"><b>Враг ${index+1}</b><button class="small danger" onclick="removeManualEnemy('${row.id}')">Убрать</button></div>`; if(row.source==='library') {
-      const templates=customEnemies.length?optionList(customEnemies.map(e=>[e.id,e.name]),row.templateId):'<option value="">Библиотека пуста</option>'; return `<div class="manual-row">${head}<div class="manual-row-grid"><label>Источник<select onchange="updateManualRow('${row.id}','source',this.value)">${sourceOptions}</select></label><label>Статблок<select onchange="updateManualRow('${row.id}','templateId',this.value)">${templates}</select></label></div></div>`;
-    }
-    const typeOptions=optionList(CREATURE_TYPES.map(k=>[k,TYPE_DATA[k].label]),row.typeKey),tagOptions=optionList(TAG_KEYS.map(k=>[k,TAGS[k].label]),row.tagKey),classOptions=optionList(CLASS_KEYS.filter(k=>k!=='auto').map(k=>[k,CLASSES[k].label]),row.classKey); const names=NAMES[row.typeKey]?.[row.tagKey]||[]; const nameOptions='<option value="">Случайное имя</option>'+optionList(names.map(n=>[n,n]),row.name); return `<div class="manual-row">${head}<div class="manual-row-grid"><label>Источник<select onchange="updateManualRow('${row.id}','source',this.value)">${sourceOptions}</select></label><label>Тип<select onchange="updateManualRow('${row.id}','typeKey',this.value)">${typeOptions}</select></label><label>Тег<select onchange="updateManualRow('${row.id}','tagKey',this.value)">${tagOptions}</select></label><label>Класс<select ${row.typeKey!=='humanoid'?'disabled':''} onchange="updateManualRow('${row.id}','classKey',this.value)">${classOptions}</select></label><label class="wide">Имя<select onchange="updateManualRow('${row.id}','name',this.value)">${nameOptions}</select></label></div></div>`;
+    const entry=byId.get(row.presetId),info=entry?generatorEntryDescription(entry):null,p=entry?.idealProfile||entry?.profile;
+    const head=`<div class="manual-row-head"><b>Противник ${index+1}</b><button class="small danger" onclick="removeManualEnemy('${row.id}')">Убрать</button></div>`;
+    const preview=entry?`<div class="manual-preset-preview"><b>${escapeHtml(entry.name)}</b><span>${escapeHtml(info?.description||'Пользовательский пресет')}</span>${p?`<small>Идеал: Тело ${p.body}, Броня ${p.armor}, ПЗ ${p.pz}, пул ${p.pool}, ${escapeHtml(p.damage)}</small>`:''}</div>`:'<div class="help">Выберите пресет из общего банка.</div>';
+    return `<div class="manual-row">${head}<label>Пресет<select onchange="updateManualRow('${row.id}','presetId',this.value)">${optionsFor(row.presetId)}</select></label>${preview}</div>`;
   }).join('');
+}
+function manualPresetLibrary() {
+  if(!creaturePregenBank&&!customEnemies.length)return[];
+  return generatorLibrary({mode:'manual',source:'manual',creatureType:'auto',humanoidClass:'auto'});
 }
 function getSettings() {
   ensurePlayerCount(document.getElementById('players').value);
@@ -997,7 +1013,7 @@ function applyTacticalPregenWithFallback(enemy,kit,desiredScale) {
 }
 function generatorLibrary(settings) {
   const selected=[];
-  const legacyGenerated=(v8Bundle?.unit_library||[]).map((profile,index)=> {
+  const legacyGenerated=creaturePregenBank?[]:(v8Bundle?.unit_library||[]).map((profile,index)=> {
     const base={id:`v8:${profile.archetype}:${index}`,name:`${V8_ARCHETYPE_LABELS[profile.archetype]||profile.archetype} ${index+1}`,profile,idealProfile:profile,usage:'archetype',archetype:profile.archetype,role:profile.archetype,tags:[profile.archetype],typeKey:'humanoid',classKey:'none',source:'v8'};
     const choice=tacticalSelectionFor(base,index,selected),kit=choice.kit,entry={...base,name:kit.name,tacticalRole:kit.role,tacticalKit:kit,tacticalScaleFallback:choice.scaleFallback,typeKey:typeForTacticalChassis(kit.chassis),description:kit.tactical_identity,hardIdentity:{name:kit.name,type:kit.chassis,attacks:[deepClone(kit.primary),deepClone(kit.secondary),deepClone(kit.special)],reactions:[deepClone(kit.reaction)],tactics:deepClone(kit.tactics)},tags:[profile.archetype,kit.role,kit.chassis,...(kit.diversity_tags||[])]};
     selected.push({tacticalPregenId:choice.kit.id,chassis:choice.kit.chassis,diversityTags:choice.kit.diversity_tags});
@@ -1014,10 +1030,11 @@ function generatorLibrary(settings) {
     const enemy=instantiateTemplate(template,index);
     return {id:`library:${template.id}`,baseId:`library:${template.id}`,name:template.name,profile:enemyV8Profile(enemy),usage:'exact',archetype:enemy.v8Archetype||enemy.tagKey,role:enemy.tagKey,tags:[enemy.tagKey,enemy.v8Archetype,enemy.typeKey].filter(Boolean),typeKey:enemy.typeKey,classKey:enemy.classKey,source:'library',template,hardIdentity:{name:template.name,type:enemy.typeKey,attacks:deepClone(enemy.attacks),reactions:deepClone(enemy.reactions),properties:deepClone(enemy.properties)}};
   });
-  const savedArchetypes=savedExact.filter(entry=>!generatorArchetypeIds.length||generatorArchetypeIds.includes(entry.template.id)).map(entry=>({...entry,id:`library-archetype:${entry.template.id}`,baseId:`library-archetype:${entry.template.id}`,source:'library-archetype',usage:'archetype',idealProfile:deepClone(entry.profile)}));
+  const allSavedArchetypes=savedExact.map(entry=>({...entry,id:`library-archetype:${entry.template.id}`,baseId:`library-archetype:${entry.template.id}`,source:'library-archetype',usage:'archetype',idealProfile:deepClone(entry.profile)}));
+  const savedArchetypes=allSavedArchetypes.filter(entry=>!generatorArchetypeIds.length||generatorArchetypeIds.includes(entry.template.id));
   const requestedType=settings.creatureType;
   const requestedClass=settings.humanoidClass;
-  const bySource=settings.source==='library_exact'?savedExact:settings.source==='library_archetypes'?savedArchetypes:settings.source==='archetypes'?generated:[...savedExact,...savedArchetypes,...generated];
+  const bySource=settings.source==='manual'?[...allSavedArchetypes,...generated]:['library_exact','library_archetypes'].includes(settings.source)?savedArchetypes:settings.source==='archetypes'?generated:[...savedArchetypes,...generated];
   return bySource.filter(entry=>(requestedType==='auto'||entry.typeKey===requestedType)&&(requestedClass==='auto'||requestedClass==='none'||entry.classKey===requestedClass));
 }
 function lockedGeneratorEntries() {
@@ -1059,7 +1076,7 @@ function renderGeneratorAlternatives(result) {
   diagnostics.innerHTML=result.diagnostics.map(message=>`<div class="callout generator-diagnostic">${escapeHtml(message)}</div>`).join('');
   root.innerHTML=result.options.length?result.options.map((option,index)=> {
     const p=option.evaluation.prediction;
-    return `<article class="generator-option"><div class="generator-option-head"><h3>Вариант ${String.fromCharCode(65+index)}</h3><button class="primary" onclick="applyGeneratorOption(${index})">Выбрать</button></div><div class="v8-prediction compact"><div class="v8-metric"><b>${Math.round(p.party_win_probability*100)}%</b><span>P(win) ${generatorDelta(option.status.win)}</span></div><div class="v8-metric"><b>${Math.round(p.p_any_pc_ko*100)}%</b><span>хотя бы один KO ${generatorDelta(option.status.ko)}</span></div><div class="v8-metric"><b>${p.mean_rounds.toFixed(1)}</b><span>раунды ${generatorDelta(option.status.rounds,false)}</span></div><div class="v8-metric"><b>${Math.round(p.mean_party_body_loss_fraction*100)}%</b><span>потеря Тела ${generatorDelta(option.status.body)}</span></div></div><div class="generator-enemy-cards">${option.entries.map((entry,slotIndex)=>generatorEnemyCard(entry,index,slotIndex)).join('')}</div><p class="help">Цель: P(win) ${result.settings.targets.win?`${formatTargetRange(result.settings.targets.win)}%`:'не учитывать'}; KO ${result.settings.targets.ko?`${formatTargetRange(result.settings.targets.ko)}%`:'не учитывать'}. Ошибка цели ${Number(option.targetError??option.score).toFixed(3)}; отклонение от идеала ${Number(option.pregenDeviation||0).toFixed(2)}.</p></article>`;
+    return `<article class="generator-option"><div class="generator-option-head"><h3>Вариант ${String.fromCharCode(65+index)}</h3><button class="primary" onclick="applyGeneratorOption(${index})">Выбрать</button></div><div class="v8-prediction compact"><div class="v8-metric"><b>${Math.round(p.party_win_probability*100)}%</b><span>P(win) ${generatorDelta(option.status.win)}</span></div><div class="v8-metric"><b>${Math.round(p.mean_pc_ko_fraction*100)}%</b><span>средняя доля PC в KO ${generatorDelta(option.status.ko)}</span></div><div class="v8-metric"><b>${Math.round(p.p_any_pc_ko*100)}%</b><span>P(any KO), дополнительно</span></div><div class="v8-metric"><b>${p.mean_rounds.toFixed(1)}</b><span>раунды ${generatorDelta(option.status.rounds,false)}</span></div><div class="v8-metric"><b>${Math.round(p.mean_party_body_loss_fraction*100)}%</b><span>потеря Тела ${generatorDelta(option.status.body)}</span></div></div><div class="generator-enemy-cards">${option.entries.map((entry,slotIndex)=>generatorEnemyCard(entry,index,slotIndex)).join('')}</div><p class="help">Цель: P(win) ${result.settings.targets.win?`${formatTargetRange(result.settings.targets.win)}%`:'не учитывать'}; средняя доля PC в KO ${result.settings.targets.ko?`${formatTargetRange(result.settings.targets.ko)}%`:'не учитывать'}. Ошибка цели ${Number(option.targetError??option.score).toFixed(3)}; отклонение от идеала ${Number(option.pregenDeviation||0).toFixed(2)}.</p></article>`;
   }).join(''):'<div class="empty">Вариантов нет. Измените ограничения; генератор не ослабляет их автоматически.</div>';
 }
 function toggleGeneratorOptionLock(optionIndex,slotIndex) {const entry=generatorSearchResult?.options?.[optionIndex]?.entries?.[slotIndex];if(!entry)return;entry.locked=!entry.locked;renderGeneratorAlternatives(generatorSearchResult);}
@@ -1067,7 +1084,7 @@ function replaceGeneratorOptionSlot(optionIndex,slotIndex) {
   const option=generatorSearchResult?.options?.[optionIndex];if(!option)return;
   const result=window.MitriniumEncounterGenerator.replaceGeneratedSlot({entries:option.entries,index:slotIndex,library:generatorLibrary(getSettings()),settings:generatorSearchResult.settings,evaluate:generatorEvaluation});
   if(!result.option){showToast(result.diagnostics?.[0]||'Замена не найдена.',true);return;}
-  generatorSearchResult.options[optionIndex]=result.option;renderGeneratorAlternatives(generatorSearchResult);showToast('Заменён только выбранный противник; бой пересчитан через v8.');
+  generatorSearchResult.options[optionIndex]=result.option;renderGeneratorAlternatives(generatorSearchResult);showToast('Заменён только выбранный противник; бой пересчитан через V15.');
 }
 async function applyGeneratorOption(index) {
   const option=generatorSearchResult?.options?.[index];if(!option)return;
@@ -1112,7 +1129,7 @@ function applyV8Profile(enemy,profile) {
   return {...enemy,maxHp:profile.body,hp:profile.body,...(profile.nerve!==undefined?{maxNerve:profile.nerve,nerve:profile.nerve}:{}),maxArmor:profile.armor,armor:profile.armor,pz:profile.pz,attacks,v8Archetype:profile.archetype};
 }
 function predictionSelectionScore(prediction,target) {
-  return (prediction.party_win_probability-target.win)**2+(prediction.p_any_pc_ko-target.ko)**2*.55;
+  return (prediction.party_win_probability-target.win)**2+(prediction.mean_pc_ko_fraction-target.ko)**2*.55;
 }
 function chooseV8GeneratedProfiles(entries,fixedEnemies,difficulty) {
   const generatedEntries=entries.filter(entry=>entry.source==='generated');
@@ -1143,8 +1160,9 @@ async function refreshV8Prediction() {
 }
 async function generateEncounter() {
   try {
-    if(!v8Bundle)throw new Error('Модель v8 ещё загружается. Повторите через секунду.');
+    if(!v8Bundle)throw new Error('Модель V15 ещё загружается. Повторите через секунду.');
     const settings=getSettings(),locked=settings.mode==='complete'?lockedGeneratorEntries():[];
+    if(settings.mode==='manual'&&state.manualDraft.some(row=>!row.presetId))throw new Error('Выберите пресет для каждого противника.');
     generatorSearchResult=window.MitriniumEncounterGenerator.generateEncounterOptions({library:generatorLibrary(settings),locked,settings,evaluate:generatorEvaluation});
     renderGeneratorAlternatives(generatorSearchResult);
     if(generatorSearchResult.options.length)showToast(`Найдено вариантов: ${generatorSearchResult.options.length}.`);
@@ -1180,15 +1198,14 @@ function renderV8Prediction() {
   const result=state.v8Result;
   if(!result?.prediction){root.innerHTML='<div class="empty">Сформируйте бой, чтобы получить прогноз.</div>';warning.classList.add('hidden');return;}
   const p=result.prediction,label=MitriniumV8.difficultyLabel(p);
-  root.innerHTML=`<div class="v8-metric"><b>${Math.round(p.party_win_probability*100)}%</b><span>победа партии</span></div><div class="v8-metric"><b>${Math.round(p.p_any_pc_ko*100)}%</b><span>хотя бы один KO</span></div><div class="v8-metric"><b>${p.mean_rounds.toFixed(1)}</b><span>ожидаемые раунды</span></div><div class="v8-metric"><b>${Math.round(p.mean_party_body_loss_fraction*100)}%</b><span>потеря Тела партии</span></div><div class="v8-label">Оценка UI: <strong>${label}</strong></div>`;
-  warning.classList.toggle('hidden',!result.extreme);
-  if(result.extreme)warning.innerHTML=`<b>Экстремальный профиль PЗ 7+</b><p>Он находится вне normal calibration v8. Показан ближайший сценарий из изолированного extreme reference${Number.isFinite(result.referenceDistance)?` (дистанция ${result.referenceDistance.toFixed(2)})`:''}; воспринимайте числа как ориентир.</p>`;
+  root.innerHTML=`<div class="v8-metric"><b>${Math.round(p.party_win_probability*100)}%</b><span>победа партии</span></div><div class="v8-metric"><b>${Math.round(p.mean_pc_ko_fraction*100)}%</b><span>средняя доля PC в KO</span></div><div class="v8-metric"><b>${Math.round(p.p_any_pc_ko*100)}%</b><span>P(any KO), дополнительно</span></div><div class="v8-metric"><b>${p.mean_rounds.toFixed(1)}</b><span>ожидаемые раунды</span></div><div class="v8-metric"><b>${Math.round(p.mean_party_body_loss_fraction*100)}%</b><span>потеря Тела партии</span></div><div class="v8-label">Оценка V15: <strong>${label}</strong></div>`;
+  warning.classList.add('hidden');
 }
 /* ---------------- БОЙ ---------------- */ function renderCombatMeta() {
   const prediction=state.v8Result?.prediction,difficultyLabel=prediction?MitriniumV8.difficultyLabel(prediction):'—';
   document.getElementById('roundNumber').textContent=state.round;
-  document.getElementById('encounterMeta').textContent=state.enemies.length?`${state.enemies.length} врагов · v8 «${difficultyLabel}»${state.v8Result?.extreme?' · extreme reference':''}`:'Бой пока не создан.';
-  document.getElementById('combatBudget').textContent=prediction?`Победа ${Math.round(prediction.party_win_probability*100)}% · KO ${Math.round(prediction.p_any_pc_ko*100)}% · ${prediction.mean_rounds.toFixed(1)} раунда · потеря Тела ${Math.round(prediction.mean_party_body_loss_fraction*100)}%.`:'Противников нет.';
+  document.getElementById('encounterMeta').textContent=state.enemies.length?`${state.enemies.length} врагов · V15 «${difficultyLabel}»`:'Бой пока не создан.';
+  document.getElementById('combatBudget').textContent=prediction?`Победа ${Math.round(prediction.party_win_probability*100)}% · средняя доля PC в KO ${Math.round(prediction.mean_pc_ko_fraction*100)}% · P(any KO) ${Math.round(prediction.p_any_pc_ko*100)}% · ${prediction.mean_rounds.toFixed(1)} раунда · потеря Тела ${Math.round(prediction.mean_party_body_loss_fraction*100)}%.`:'Противников нет.';
 }
 function resourceRow(enemy,field,label,cssClass) {
   const maxField= {
@@ -1241,12 +1258,12 @@ async function changeEnemyTacticalRole(id,role) {
   const enemy=findEnemy(id);if(!enemy||!MitriniumTacticalPregens.TACTICAL_ROLES.includes(role))return;
   try {
     const choice=MitriniumTacticalPregens.selectTacticalPregen({bank:requireTacticalBank(),role,desiredScale:tacticalScaleForArchetype(enemy.v8Archetype),existingEnemies:state.enemies.filter(item=>item.id!==id),seed:`manual:${id}:${role}`});
-    await replaceEnemyTacticalKit(enemy,choice.kit);showToast('Тактическая роль и набор обновлены; прогноз v8 пересчитан.');
+    await replaceEnemyTacticalKit(enemy,choice.kit);showToast('Тактическая роль и набор обновлены; прогноз V15 пересчитан.');
   } catch(error) {showToast(error.message||String(error),true);}
 }
 async function changeEnemyTacticalPregen(id,pregenId) {
   const enemy=findEnemy(id),kit=MitriniumTacticalPregens.findTacticalPregen(requireTacticalBank(),pregenId);if(!enemy||!kit)return;
-  try {await replaceEnemyTacticalKit(enemy,kit);showToast('Тактический набор обновлён; прогноз v8 пересчитан.');} catch(error) {showToast(error.message||String(error),true);}
+  try {await replaceEnemyTacticalKit(enemy,kit);showToast('Тактический набор обновлён; прогноз V15 пересчитан.');} catch(error) {showToast(error.message||String(error),true);}
 }
 function renderEnemyCard(enemy, {
   interactive=true
@@ -1658,7 +1675,7 @@ function filterLibrary(prefix) {
   });
 }
 function libraryCard(enemy,context) {
-  const type=TYPE_DATA[enemy.typeKey]||TYPE_DATA.humanoid,tag=TAGS[normalizeTagKey(enemy.tagKey||enemy.roleKey)]||TAGS.chief,attacks=ensureTwoAttacks(enemy.attacks,enemy.typeKey),primary=attacks[0],reactions=normalizeReactions(enemy.reactions),actions=context==='bestiary'?`<button class="small" onclick="editLibraryEnemy('${enemy.id}')">Редактировать</button><button class="small" onclick="addLibraryEnemyToCombat('${enemy.id}')">В бой</button><button class="small" onclick="useLibraryEnemyAsArchetype('${enemy.id}')">Как архетип</button><button class="small danger" onclick="deleteLibraryEnemy('${enemy.id}')">Удалить</button>`:`<button class="small" onclick="useLibraryEnemyInManual('${enemy.id}')">Точный статблок</button><button class="small" onclick="useLibraryEnemyAsArchetype('${enemy.id}')">Как архетип</button><button class="small" onclick="editLibraryEnemy('${enemy.id}')">Редактировать</button>`;
+  const type=TYPE_DATA[enemy.typeKey]||TYPE_DATA.humanoid,tag=TAGS[normalizeTagKey(enemy.tagKey||enemy.roleKey)]||TAGS.chief,attacks=ensureTwoAttacks(enemy.attacks,enemy.typeKey),primary=attacks[0],reactions=normalizeReactions(enemy.reactions),actions=context==='bestiary'?`<button class="small" onclick="editLibraryEnemy('${enemy.id}')">Редактировать</button><button class="small" onclick="addLibraryEnemyToCombat('${enemy.id}')">В бой</button><button class="small" onclick="useLibraryEnemyAsArchetype('${enemy.id}')">Как архетип</button><button class="small danger" onclick="deleteLibraryEnemy('${enemy.id}')">Удалить</button>`:`<button class="small primary" onclick="addLibraryPresetToManual('${enemy.id}')">Добавить как пресет</button><button class="small" onclick="useLibraryEnemyAsArchetype('${enemy.id}')">Только этот пресет в автоподборе</button><button class="small" onclick="editLibraryEnemy('${enemy.id}')">Редактировать</button>`;
   const libraryBs=window.MitriniumEncounterGenerator?.individualBs({body:enemy.hp,armor:enemy.armor,pz:enemy.pz,pool:primary.pool,expl:primary.expl??3,damage:primary.damage,penetration:primary.penetrating?1:0})||enemy.bp;
   return`<div class="library-card"><h3>${escapeHtml(enemy.name)}</h3><div class="library-meta"><span class="badge">${type.label}</span><span class="badge">${tag.label}</span><span class="badge bp">БС ${libraryBs}</span><span class="badge">ур. ${enemy.level}</span><span class="badge">${attacks.length} атак</span><span class="badge">${reactions.length} реакций</span></div><div class="help">Тело ${enemy.hp}, Броня ${enemy.armor}, ПЗ ${enemy.pz}; первая атака ${primary.pool}d6, Expl ${primary.expl??3}, ${escapeHtml(primary.damage)}.</div><div class="library-actions">${actions}</div></div>`;
 }
@@ -1680,16 +1697,15 @@ function useLibraryEnemyAsArchetype(id) {
   const source=document.getElementById('generatorSource');if(source)source.value='library_archetypes';
   showScreen('prep');renderSummary();showToast(`«${template.name}» выбран как архетип: действия сохранятся, числовой профиль можно подстроить.`);
 }
-function useLibraryEnemyInManual(id) {
-  const template=customEnemies.find(e=>e.id===id);
-  if(!template)return;
-  const enemy={...instantiateTemplate(template,state.enemies.length),generatorLocked:true};
-  state.enemies.push(enemy);
-  document.getElementById('generationMode').value='complete';
+function addLibraryPresetToManual(id) {
+  const template=customEnemies.find(e=>e.id===id);if(!template)return;
+  const presetId=`library-archetype:${id}`,empty=state.manualDraft.length===1&&!state.manualDraft[0].presetId;
+  if(empty)state.manualDraft[0].presetId=presetId;else if(state.manualDraft.length<12)state.manualDraft.push({...defaultManualEnemy(),id:newId('m'),presetId});else{showToast('Максимум 12 противников.',true);return;}
+  document.getElementById('generationMode').value='manual';
   persistLocal();
   renderGenerationMode();
   showScreen('prep');
-  showToast(`${template.name} добавлен и заблокирован в составе.`);
+  showToast(`${template.name} добавлен в конкретный состав как настраиваемый пресет.`);
 }
 async function addLibraryEnemyToCombat(id) {
   const template=customEnemies.find(e=>e.id===id);
@@ -2113,13 +2129,13 @@ function editLibraryEnemy(id) {
   };
   out.selectedEnemyId=out.enemies.some(enemy=>enemy.id===parsed?.selectedEnemyId)?parsed.selectedEnemyId:(out.enemies[0]?.id||null);
   out.manualDraft=Array.isArray(parsed?.manualDraft)&&parsed.manualDraft.length?parsed.manualDraft.map(r=>( {
-    ...defaultManualEnemy(),...r,tagKey:normalizeTagKey(r.tagKey||r.roleKey)
+    ...defaultManualEnemy(),...r,presetId:r.presetId||(r.source==='library'&&r.templateId?`library-archetype:${r.templateId}`:''),tagKey:normalizeTagKey(r.tagKey||r.roleKey)
   })):[defaultManualEnemy()];
   out.bestiaryDraft=parsed?.bestiaryDraft||defaultBestiaryDraft();
   out.bestiaryDraft.attacks=ensureTwoAttacks(out.bestiaryDraft.attacks,'humanoid');
   out.bestiaryDraft.reactions=normalizeReactions(out.bestiaryDraft.reactions);
   while(out.bestiaryDraft.reactions.length<DEFAULT_REACTIONS)out.bestiaryDraft.reactions.push(reactionTemplate());
-  out.currentScreen=['prep','combat','bestiary'].includes(parsed?.currentScreen)?parsed.currentScreen:'prep';
+  out.currentScreen=['players','prep','combat','bestiary'].includes(parsed?.currentScreen)?parsed.currentScreen:'players';
   return out;
 }
 function persistLocal() {
@@ -2216,7 +2232,7 @@ async function importJson() {
 }
 function showScreen(name) {
   state.currentScreen=name;
-  ['prep','combat','bestiary'].forEach(k=> {
+  ['players','prep','combat','bestiary'].forEach(k=> {
     document.getElementById(`screen-${k}`).classList.toggle('active',k===name); document.getElementById(`tab-${k}`).classList.toggle('active',k===name);
   });
   persistLocal();
@@ -2250,13 +2266,13 @@ function showToast(message,isError=false) {
   toastTimer=setTimeout(()=>toast.className='toast',3500);
 }
 window.addEventListener('load',async()=> {
-  try {v8Bundle=await window.mitriniumV8Ready;} catch(error) {showToast(`Не удалось загрузить модель v8: ${error.message}`,true);}
+  try {v8Bundle=await window.mitriniumV8Ready;} catch(error) {showToast(`Не удалось загрузить модель V15: ${error.message}`,true);}
   try {tacticalPregenBank=await window.mitriniumTacticalBankReady;} catch(error) {tacticalPregenBankError=error;console.error(error);showToast(`Не удалось загрузить tactical pregen bank: ${error.message}`,true);}
   try {creaturePregenBank=await window.mitriniumCreatureBankReady;const validation=MitriniumCreaturePregens.validateCreaturePregenBank(creaturePregenBank,{attacks:ATTACK_LIBRARY,reactions:REACTION_LIBRARY});if(!validation.ok)throw new Error(validation.errors.slice(0,5).join('; '));} catch(error) {creaturePregenBankError=error;console.error(error);showToast(`Не удалось загрузить creature pregen bank: ${error.message}`,true);}
   await loadCharacterProfileSources(false);
   initializeControls(); const restored=restoreLocal(); document.getElementById('players').value=state.players.length; document.getElementById('partyInputMode').value=state.partyInputMode; if(!restored)resetBestiaryDraft(); else {
     document.getElementById('beId').value=state.bestiaryDraft.id||''; state.bestiaryDraft.attacks=ensureTwoAttacks(state.bestiaryDraft.attacks,document.getElementById('beType').value);
   }
-  render(); showScreen(state.currentScreen||'prep'); onBestiaryArchetypeChange(); if(state.enemies.length&&v8Bundle)await refreshV8Prediction(); await loadEnemyLibrary(false);
+  render(); showScreen(state.currentScreen||'players'); onBestiaryArchetypeChange(); if(state.enemies.length&&v8Bundle)await refreshV8Prediction(); await loadEnemyLibrary(false);
 });
 </script>

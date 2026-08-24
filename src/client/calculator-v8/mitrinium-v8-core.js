@@ -1,4 +1,5 @@
-import { predictMitriniumV8 } from "./mitrinium_runtime_v8_predictor.js";
+import { V15_DIFFICULTY_PRESETS } from "./difficulty-presets-v15.js";
+import { predictMitriniumV15 } from "./mitrinium_runtime_v15_predictor.js";
 
 export const BASE_FEATURE_ORDER = Object.freeze([
   "log_clear_time_ratio",
@@ -10,13 +11,6 @@ export const BASE_FEATURE_ORDER = Object.freeze([
   "enemy_pressure_cv",
   "enemy_survival_pressure_corr",
   "log_pressure_integral_ratio",
-]);
-
-export const V8_DIFFICULTY_THRESHOLDS = Object.freeze([
-  { key: "easy", label: "Легко", minWin: 0.82, maxKo: 0.35 },
-  { key: "medium", label: "Средне", minWin: 0.62, maxKo: 0.62 },
-  { key: "hard", label: "Сложно", minWin: 0.38, maxKo: 0.82 },
-  { key: "deadly", label: "Смертельно", minWin: 0, maxKo: 1 },
 ]);
 
 const EPSILON = 1e-12;
@@ -186,7 +180,7 @@ export function normalizeCombatProfile(raw = {}) {
   return {
     body: Math.max(1, Math.round(finite(raw.body ?? raw.hp ?? raw.maxHp, 12))),
     armor: clamp(Math.round(finite(raw.armor ?? raw.maxArmor, 0)), 0, 20),
-    pz: clamp(Math.round(calculatedPz), 2, 20),
+    pz: clamp(Math.round(calculatedPz), 2, 6),
     pool: clamp(Math.round(finite(raw.pool ?? raw.attackPool, 4)), 2, 8),
     expl: clamp(Math.round(finite(raw.expl, 3)), 0, 12),
     damage: damage.text,
@@ -374,11 +368,34 @@ function pressureValues(attackerTeam, defenderTeam, pair) {
   }, 0) / defenderTeam.length);
 }
 
+function bestTargetPressureValues(attackerTeam, defenderTeam, pair) {
+  return attackerTeam.map((attacker) => Math.max(...defenderTeam.map((defender) => {
+    const metrics = pair(attacker, defender);
+    return metrics.pHit * metrics.expectedBodyDamageInitial;
+  })));
+}
+
+function quantile(values, probability) {
+  const sorted = [...values].sort((left, right) => left - right);
+  const position = (sorted.length - 1) * probability;
+  const lower = Math.floor(position);
+  const fraction = position - lower;
+  const upperValue = sorted[lower + 1] ?? sorted[lower];
+  return sorted[lower] + (upperValue - sorted[lower]) * fraction;
+}
+
 function dynamicPressureIntegral(party, enemies, pair) {
   let livingParty = party.map((unit) => ({ unit, work: 1 }));
   let livingEnemies = enemies.map((unit) => ({ unit, work: 1 }));
   let partyPressureIntegral = 0;
   let enemyPressureIntegral = 0;
+  let partyActionIntegral = 0;
+  let enemyActionIntegral = 0;
+  let durationTotal = 0;
+  let firstPartyLossTime = null;
+  let firstEnemyLossTime = null;
+  let partyKills = 0;
+  let enemyKills = 0;
 
   function target(attackers, defenders) {
     return defenders.map((defender) => {
@@ -391,6 +408,8 @@ function dynamicPressureIntegral(party, enemies, pair) {
     const partyTarget = target(livingParty, livingEnemies);
     const enemyTarget = target(livingEnemies, livingParty);
     const duration = Math.min(partyTarget.time, enemyTarget.time);
+    partyActionIntegral += duration * livingParty.length;
+    enemyActionIntegral += duration * livingEnemies.length;
     partyPressureIntegral += duration * livingParty.reduce((sum, attacker) => {
       const metrics = pair(attacker.unit, partyTarget.defender.unit);
       return sum + metrics.pHit * metrics.expectedBodyDamageInitial;
@@ -399,12 +418,78 @@ function dynamicPressureIntegral(party, enemies, pair) {
       const metrics = pair(attacker.unit, enemyTarget.defender.unit);
       return sum + metrics.pHit * metrics.expectedBodyDamageInitial;
     }, 0);
+    durationTotal += duration;
     partyTarget.defender.work -= duration * partyTarget.rate;
     enemyTarget.defender.work -= duration * enemyTarget.rate;
-    if (partyTarget.defender.work <= EPSILON) livingEnemies = livingEnemies.filter((item) => item !== partyTarget.defender);
-    if (enemyTarget.defender.work <= EPSILON) livingParty = livingParty.filter((item) => item !== enemyTarget.defender);
+    if (partyTarget.defender.work <= EPSILON) {
+      livingEnemies = livingEnemies.filter((item) => item !== partyTarget.defender);
+      partyKills += 1;
+      if (firstEnemyLossTime === null) firstEnemyLossTime = durationTotal;
+    }
+    if (enemyTarget.defender.work <= EPSILON) {
+      livingParty = livingParty.filter((item) => item !== enemyTarget.defender);
+      enemyKills += 1;
+      if (firstPartyLossTime === null) firstPartyLossTime = durationTotal;
+    }
   }
-  return { partyPressureIntegral, enemyPressureIntegral };
+  return {
+    partyPressureIntegral,
+    enemyPressureIntegral,
+    partyActionIntegral,
+    enemyActionIntegral,
+    duration: durationTotal,
+    firstPartyLossTime,
+    firstEnemyLossTime,
+    partyKills,
+    enemyKills,
+  };
+}
+
+function expandedEncounterFeatures(party, enemies, pair, enemyDurability, partyDurability, dynamic) {
+  const enemyFocus = enemyDurability.survivalValues;
+  const partyFocus = partyDurability.survivalValues;
+  const enemyFocusMin = Math.min(...enemyFocus);
+  const partyFocusMin = Math.min(...partyFocus);
+  const enemyFocusMean = enemyFocus.reduce((sum, value) => sum + value, 0) / enemyFocus.length;
+  const partyFocusMean = partyFocus.reduce((sum, value) => sum + value, 0) / partyFocus.length;
+  const enemyPressures = bestTargetPressureValues(enemies, party, pair);
+  const partyPressures = bestTargetPressureValues(party, enemies, pair);
+  const sortedEnemyPressures = [...enemyPressures].sort((left, right) => right - left);
+  const enemyPressureTotal = enemyPressures.reduce((sum, value) => sum + value, 0);
+  const partyPressureTotal = partyPressures.reduce((sum, value) => sum + value, 0);
+  const enemyPairMetrics = enemies.flatMap((attacker) => party.map((defender) => pair(attacker, defender)));
+  const partyPairMetrics = party.flatMap((attacker) => enemies.map((defender) => pair(attacker, defender)));
+  const horizon = dynamic.duration + 1;
+  const firstPartyLoss = dynamic.firstPartyLossTime ?? horizon;
+  const firstEnemyLoss = dynamic.firstEnemyLossTime ?? horizon;
+  const enemyKillFraction = dynamic.enemyKills / party.length;
+  const partyKillFraction = dynamic.partyKills / enemies.length;
+  return {
+    dynamic_enemy_kill_fraction: enemyKillFraction,
+    dynamic_net_kill_fraction_enemy_minus_party: enemyKillFraction - partyKillFraction,
+    dynamic_party_kill_fraction: partyKillFraction,
+    enemy_focus_min_over_mean: enemyFocusMin / Math.max(EPSILON, enemyFocusMean),
+    enemy_pressure_top1_share: sortedEnemyPressures[0] / Math.max(EPSILON, enemyPressureTotal),
+    log1p_enemy_pressure_mean: Math.log1p(enemyPressureTotal / enemyPressures.length),
+    log1p_enemy_pressure_top1: Math.log1p(sortedEnemyPressures[0]),
+    log1p_enemy_pressure_top2_sum: Math.log1p(sortedEnemyPressures.slice(0, 2).reduce((sum, value) => sum + value, 0)),
+    log1p_party_pressure_top1: Math.log1p(Math.max(...partyPressures)),
+    log_body_sum_ratio_enemy_over_party: Math.log(enemies.reduce((sum, unit) => sum + unit.body, 0) / party.reduce((sum, unit) => sum + unit.body, 0)),
+    log_dynamic_action_ratio_enemy_over_party: Math.log(dynamic.enemyActionIntegral / Math.max(EPSILON, dynamic.partyActionIntegral)),
+    log_dynamic_duration: Math.log(Math.max(EPSILON, dynamic.duration)),
+    log_dynamic_first_party_over_enemy_loss_time: Math.log(firstPartyLoss / Math.max(EPSILON, firstEnemyLoss)),
+    log_enemy_focus_ttk_mean: Math.log(Math.max(EPSILON, enemyFocusMean)),
+    log_enemy_focus_ttk_min: Math.log(Math.max(EPSILON, enemyFocusMin)),
+    log_enemy_pair_min_actions_to_ko: Math.log(Math.max(EPSILON, Math.min(...enemyPairMetrics.map((metrics) => metrics.expectedActionsToKo)))),
+    log_focus_kill_rate_ratio_enemy_over_party: Math.log(enemyFocusMin / Math.max(EPSILON, partyFocusMin)),
+    log_party_focus_ttk_median: Math.log(Math.max(EPSILON, quantile(partyFocus, 0.5))),
+    log_party_focus_ttk_p25: Math.log(Math.max(EPSILON, quantile(partyFocus, 0.25))),
+    log_party_pair_min_actions_to_ko: Math.log(Math.max(EPSILON, Math.min(...partyPairMetrics.map((metrics) => metrics.expectedActionsToKo)))),
+    party_focus_min_over_mean: partyFocusMin / Math.max(EPSILON, partyFocusMean),
+    party_pair_max_p_body_damage: Math.max(...partyPairMetrics.map((metrics) => metrics.pBodyDamageInitial)),
+    party_pressure_top1_share: Math.max(...partyPressures) / Math.max(EPSILON, partyPressureTotal),
+    party_size: party.length,
+  };
 }
 
 export function computeEncounterFeatures(bundle, partyInput, enemyInput) {
@@ -423,6 +508,7 @@ export function computeEncounterFeatures(bundle, partyInput, enemyInput) {
   const partyDurability = durability(enemies, party, pair);
   const enemyPressure = pressureValues(enemies, party, pair);
   const pressure = dynamicPressureIntegral(party, enemies, pair);
+  const expandedFeatures = expandedEncounterFeatures(party, enemies, pair, enemyDurability, partyDurability, pressure);
   const pressureRatio = pressure.enemyPressureIntegral / Math.max(EPSILON, pressure.partyPressureIntegral);
   const vector = [
     Math.log(enemyDurability.total / Math.max(EPSILON, partyDurability.total)),
@@ -440,6 +526,7 @@ export function computeEncounterFeatures(bundle, partyInput, enemyInput) {
     enemies,
     vector,
     features: Object.fromEntries(BASE_FEATURE_ORDER.map((name, index) => [name, vector[index]])),
+    expandedFeatures,
     diagnostics: {
       partyClearTime: enemyDurability.total,
       enemyClearTime: partyDurability.total,
@@ -448,63 +535,31 @@ export function computeEncounterFeatures(bundle, partyInput, enemyInput) {
       enemyPressureValues: enemyPressure,
       ...pressure,
     },
-    extreme: party.some((unit) => unit.pz >= 7) || enemies.some((unit) => unit.pz >= 7),
+    extreme: false,
   };
-}
-
-function predictExtremeReference(bundle, vector) {
-  const reference = bundle.extreme_reference;
-  if (!reference?.count) throw new Error("В runtime v8 отсутствует extreme reference.");
-  const means = BASE_FEATURE_ORDER.map((_, featureIndex) => {
-    let total = 0;
-    for (let point = 0; point < reference.count; point += 1) total += reference.features_flat[point * reference.feature_stride + featureIndex];
-    return total / reference.count;
-  });
-  const scales = BASE_FEATURE_ORDER.map((_, featureIndex) => {
-    let total = 0;
-    for (let point = 0; point < reference.count; point += 1) {
-      const delta = reference.features_flat[point * reference.feature_stride + featureIndex] - means[featureIndex];
-      total += delta * delta;
-    }
-    return Math.sqrt(total / reference.count) || 1;
-  });
-  let nearest = 0;
-  let nearestDistance = Number.POSITIVE_INFINITY;
-  for (let point = 0; point < reference.count; point += 1) {
-    let distance = 0;
-    for (let feature = 0; feature < reference.feature_stride; feature += 1) {
-      const delta = (vector[feature] - reference.features_flat[point * reference.feature_stride + feature]) / scales[feature];
-      distance += delta * delta;
-    }
-    if (distance < nearestDistance) {
-      nearestDistance = distance;
-      nearest = point;
-    }
-  }
-  const prediction = Object.fromEntries(reference.outcome_order.map((name, outcomeIndex) => [
-    name,
-    reference.outcomes_flat[nearest * reference.outcome_stride + outcomeIndex],
-  ]));
-  return { prediction, referenceIndex: nearest, referenceDistance: Math.sqrt(nearestDistance) };
 }
 
 export function predictEncounter(bundle, party, enemies) {
   const computed = computeEncounterFeatures(bundle, party, enemies);
-  if (computed.extreme) {
-    const reference = predictExtremeReference(bundle, computed.vector);
-    return { ...computed, ...reference, mode: "extreme-reference" };
-  }
-  return { ...computed, prediction: predictMitriniumV8(bundle, computed.vector), mode: "normal-v8" };
+  return { ...computed, prediction: predictMitriniumV15(bundle, computed.vector, computed.expandedFeatures), mode: "normal-v15" };
 }
 
-export function difficultyLabel(prediction, thresholds = V8_DIFFICULTY_THRESHOLDS) {
-  return (thresholds.find((band) => prediction.party_win_probability >= band.minWin && prediction.p_any_pc_ko <= band.maxKo) || thresholds.at(-1)).label;
+export function difficultyLabel(prediction, presets = V15_DIFFICULTY_PRESETS) {
+  const distance = (value, range) => value < range[0] ? range[0] - value : value > range[1] ? value - range[1] : 0;
+  return Object.values(presets).map((preset) => ({
+    label: preset.label,
+    distance: distance(prediction.party_win_probability, preset.party_win_probability)
+      + distance(prediction.mean_pc_ko_fraction, preset.mean_pc_ko_fraction),
+  })).sort((left, right) => left.distance - right.distance)[0].label;
 }
 
-export function loadMitriniumV8(url = "./mitrinium_runtime_v8.min.json") {
+export function loadMitriniumV15(url = "./mitrinium_runtime_v15.min.json") {
   if (!runtimePromise) runtimePromise = fetch(url).then((response) => {
-    if (!response.ok) throw new Error(`Mitrinium v8 runtime: HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`Mitrinium v15 runtime: HTTP ${response.status}`);
     return response.json();
   });
   return runtimePromise;
 }
+
+// Compatibility alias for integrations that import the established core module.
+export const loadMitriniumV8 = loadMitriniumV15;

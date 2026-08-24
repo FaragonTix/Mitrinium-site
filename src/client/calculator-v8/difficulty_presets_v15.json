@@ -1,0 +1,53 @@
+{
+  "model_version": "mitrinium-runtime-v15",
+  "primary_axes": [
+    "party_win_probability",
+    "mean_pc_ko_fraction"
+  ],
+  "presets": {
+    "easy": {
+      "party_win_probability": [
+        0.95,
+        0.98
+      ],
+      "mean_pc_ko_fraction": [
+        0.15000000000000002,
+        0.45
+      ],
+      "source": "direct MC KO fraction p10..p90, rounded outward to 0.05"
+    },
+    "medium": {
+      "party_win_probability": [
+        0.75,
+        0.87
+      ],
+      "mean_pc_ko_fraction": [
+        0.35000000000000003,
+        0.65
+      ],
+      "source": "direct MC KO fraction p10..p90, rounded outward to 0.05"
+    },
+    "hard": {
+      "party_win_probability": [
+        0.6,
+        0.75
+      ],
+      "mean_pc_ko_fraction": [
+        0.5,
+        0.75
+      ],
+      "source": "direct MC KO fraction p10..p90, rounded outward to 0.05"
+    },
+    "deadly": {
+      "party_win_probability": [
+        0.0,
+        0.5
+      ],
+      "mean_pc_ko_fraction": [
+        0.75,
+        1.0
+      ],
+      "source": "direct MC KO fraction p10..p90, rounded outward to 0.05"
+    }
+  }
+}

@@ -10,12 +10,12 @@ const DIFFICULTIES = {
   deadly:{label:'Смертельно',permille:1600}
 };
 
-/* Только цели подборщика интерфейса. Production-прогноз v8 не использует старые permille. */
+/* Центры V15 difficulty presets для выбора стартовых профилей. */
 const V8_SELECTION_TARGETS = {
-  easy:{win:.88,ko:.25},
-  medium:{win:.72,ko:.48},
-  hard:{win:.52,ko:.70},
-  deadly:{win:.25,ko:.90}
+  easy:{win:.965,ko:.30},
+  medium:{win:.81,ko:.50},
+  hard:{win:.675,ko:.625},
+  deadly:{win:.25,ko:.875}
 };
 
 const V8_ARCHETYPE_LABELS = {
