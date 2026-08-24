@@ -56,6 +56,36 @@ test("V15 target regions заданы в едином конфиге", () => {
   assert.equal(matchesDifficultyPreset("deadly", { party_win_probability: .49, mean_pc_ko_fraction: .74 }), false);
 });
 
+test("переключение сложности обновляет видимые диапазоны и сводку", async () => {
+  const script = await readFile(new URL("../calculator-script-source/Script.html", import.meta.url), "utf8");
+  const match = script.match(/function applyDifficultyPreset\(key,mark=true\) \{[\s\S]*?\n\}/);
+  assert.ok(match, "applyDifficultyPreset must default to a visible UI update");
+  const elements = Object.fromEntries([
+    "targetWinMode", "targetWinMin", "targetWinMax", "targetKoMode", "targetKoMin", "targetKoMax",
+  ].map((id) => [id, { value: "" }]));
+  let summaryRenders = 0;
+  const applyPreset = new Function("window", "document", "renderSummary", `${match[0]}; return applyDifficultyPreset;`)(
+    { MitriniumEncounterGenerator: { DIFFICULTY_PRESETS } },
+    { getElementById: (id) => elements[id] },
+    () => { summaryRenders += 1; },
+  );
+
+  for (const [key, expected] of [
+    ["easy", [95, 98, 15, 45]],
+    ["medium", [75, 87, 35, 65]],
+    ["hard", [60, 75, 50, 75]],
+  ]) {
+    applyPreset(key);
+    assert.deepEqual([
+      Number(elements.targetWinMin.value), Number(elements.targetWinMax.value),
+      Number(elements.targetKoMin.value), Number(elements.targetKoMax.value),
+    ], expected);
+    assert.equal(elements.targetWinMode.value, "range");
+    assert.equal(elements.targetKoMode.value, "range");
+  }
+  assert.equal(summaryRenders, 3);
+});
+
 test("ручные цели дают Custom-структуру и независимые оси", () => {
   const settings = normalizeGeneratorSettings({ targets: { win: { mode: "range", min: .6, max: .7 }, ko: { mode: "ignore" } } });
   assert.deepEqual(settings.targets.win, [.6, .7]);
@@ -290,4 +320,11 @@ test("финальный кандидат действительно оцени�
   assert.ok(calls > 0);
   assert.ok(result.options.length);
   assert.equal(bundle.runtime_simulation, false);
+});
+
+test("кнопка формирования сразу загружает лучший вариант в текущий бой", async () => {
+  const script = await readFile(new URL("../calculator-script-source/Script.html", import.meta.url), "utf8");
+  assert.match(script, /async function applyGeneratorOption\(index,\{stayOnPrep=false,silent=false\}=\{\}\)/);
+  assert.match(script, /await applyGeneratorOption\(0,\{stayOnPrep:true,silent:true\}\)/);
+  assert.match(script, /showScreen\(stayOnPrep\?'prep':'combat'\)/);
 });

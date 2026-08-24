@@ -789,7 +789,7 @@ function renderGenerationMode() {
 function percentValue(id,fallback=0) {return clamp((Number(document.getElementById(id)?.value)||fallback)/100,0,1);}
 function numberValue(id,fallback=0) {const value=Number(document.getElementById(id)?.value);return Number.isFinite(value)?value:fallback;}
 function csvTags(id) {return String(document.getElementById(id)?.value||'').split(',').map(value=>value.trim().toLowerCase()).filter(Boolean);}
-function applyDifficultyPreset(key,mark=false) {
+function applyDifficultyPreset(key,mark=true) {
   if(key==='custom')return;
   const preset=window.MitriniumEncounterGenerator?.DIFFICULTY_PRESETS?.[key];
   if(!preset)return;
@@ -1086,11 +1086,11 @@ function replaceGeneratorOptionSlot(optionIndex,slotIndex) {
   if(!result.option){showToast(result.diagnostics?.[0]||'Замена не найдена.',true);return;}
   generatorSearchResult.options[optionIndex]=result.option;renderGeneratorAlternatives(generatorSearchResult);showToast('Заменён только выбранный противник; бой пересчитан через V15.');
 }
-async function applyGeneratorOption(index) {
+async function applyGeneratorOption(index,{stayOnPrep=false,silent=false}={}) {
   const option=generatorSearchResult?.options?.[index];if(!option)return;
   const enemies=option.entries.map((entry,entryIndex)=>({...instantiateGeneratorEntry(entry,entryIndex),generatorLocked:Boolean(entry.locked)}));
   state.settings={...getSettings(),generatorTargets:generatorSearchResult.settings.targets,enemyCount:enemies.length};state.enemies=enemies;state.selectedEnemyId=enemies[0]?.id||null;state.round=1;state.initiative={activeId:null,order:[...state.players.map(player=>player.id),...enemies.map(enemy=>enemy.id)]};state.generatedAt=new Date().toISOString();state.version=11;
-  await refreshV8Prediction();persistLocal();render();showScreen('combat');showToast('Выбранный вариант загружен в бой.');
+  await refreshV8Prediction();persistLocal();render();showScreen(stayOnPrep?'prep':'combat');if(!silent)showToast('Выбранный вариант загружен в бой.');
 }
 function toggleGeneratorLock(id) {const enemy=findEnemy(id);if(!enemy)return;enemy.generatorLocked=!enemy.generatorLocked;persistLocal();renderEnemyGrid();renderGeneratorLockedList();}
 async function replaceCombatEnemyRandom(id) {
@@ -1165,7 +1165,10 @@ async function generateEncounter() {
     if(settings.mode==='manual'&&state.manualDraft.some(row=>!row.presetId))throw new Error('Выберите пресет для каждого противника.');
     generatorSearchResult=window.MitriniumEncounterGenerator.generateEncounterOptions({library:generatorLibrary(settings),locked,settings,evaluate:generatorEvaluation});
     renderGeneratorAlternatives(generatorSearchResult);
-    if(generatorSearchResult.options.length)showToast(`Найдено вариантов: ${generatorSearchResult.options.length}.`);
+    if(generatorSearchResult.options.length) {
+      await applyGeneratorOption(0,{stayOnPrep:true,silent:true});
+      showToast(`Лучший вариант сформирован. Доступно альтернатив: ${generatorSearchResult.options.length}.`);
+    }
     else showToast(generatorSearchResult.diagnostics[0]||'Подходящий состав не найден.',true);
   } catch(error) {
     showToast(error.message||String(error),true);
