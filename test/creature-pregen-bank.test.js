@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   flattenCreaturePregens,
   resolveCreaturePregen,
+  scaleCreatureProfileForLevel,
   validateCreaturePregenBank,
 } from "../src/client/calculator-v8/creature-pregens.js";
 import { archetypeVariants } from "../src/client/calculator-v8/encounter-generator.js";
@@ -63,4 +64,24 @@ test("калькулятор использует существующий damag
   assert.doesNotMatch(script, /\bshiftDamage\s*\(/);
   assert.match(script, /damage:damageStep\(profile\.damage/);
   assert.match(script, /damage:damageStep\(entry\.profile\.damage/);
+});
+
+test("level-aware creature scaling ограничивает сильный ideal на первом уровне и сохраняет Nerve/PZ", () => {
+  const baselines = [null, { hp: 22, armor: 1, pool: 4, damage: "d6" }, { hp: 62, armor: 4, pool: 8, damage: "d12" }];
+  const authored = { body: 60, armor: 8, pz: 6, nerve: 18, pool: 8, damage: "d12", penetration: 2, archetype: "standard" };
+  const levelOne = scaleCreatureProfileForLevel(authored, "standard", 1, baselines);
+  const highLevel = scaleCreatureProfileForLevel(authored, "standard", 2, baselines);
+  assert.ok(levelOne.body <= 16 && levelOne.armor <= 3 && levelOne.pool <= 5);
+  assert.ok(highLevel.body > levelOne.body && highLevel.pool > levelOne.pool);
+  assert.equal(levelOne.nerve, 18);
+  assert.equal(highLevel.nerve, 18);
+  assert.equal(levelOne.pz, 6);
+  assert.equal(highLevel.pz, 6);
+});
+
+test("UI использует выбранный party level и объясняет authored Nerve выше 10", async () => {
+  const script = await readFile(new URL("../calculator-script-source/Script.html", import.meta.url), "utf8");
+  assert.match(script, /scaleCreatureProfileForLevel\(authoredProfile,resolved\.archetype,settings\.level\|\|1,LEVEL_BASELINES\)/);
+  assert.match(script, /Запас Нерва позволяет использовать его для получения преимущества\./);
+  assert.match(script, /Справочная БС/);
 });

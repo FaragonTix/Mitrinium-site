@@ -81,9 +81,11 @@
     try {
       const response = await fetch("/api/auth/me");
       const payload = await response.json();
-      const button = document.getElementById("dashboardButton");
-      if (button && response.ok && payload?.user?.isAdmin) {
-        button.hidden = false;
+      if (response.ok && payload?.user?.isAdmin) {
+        ["dashboardButton", "calculatorAdminButton"].forEach((id) => {
+          const button = document.getElementById(id);
+          if (button) button.hidden = false;
+        });
       }
     } catch {
       // Остальной интерфейс сам обработает проблемы авторизации.

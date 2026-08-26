@@ -848,6 +848,45 @@
     font-size: 16px;
   }
 
+  .equipment-collapsible > summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-small);
+    background: var(--panel-light);
+    padding: 10px 12px;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .equipment-collapsible > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .equipment-collapsible > summary h3 {
+    flex: 1;
+    margin: 0;
+    border: 0;
+    padding: 0;
+    text-align: left;
+  }
+
+  .equipment-collapsible > summary::after {
+    content: 'Показать';
+    color: var(--muted);
+    font-size: 13px;
+    text-transform: none;
+  }
+
+  .equipment-collapsible[open] > summary {
+    margin-bottom: 12px;
+  }
+
+  .equipment-collapsible[open] > summary::after {
+    content: 'Скрыть';
+  }
+
   .equipment-list {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

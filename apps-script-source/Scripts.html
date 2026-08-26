@@ -65,7 +65,7 @@
   const maxSkillValue = 2;
   const totalExtraSkillPoints = 6;
   const startingMoney = 1000;
-  const maxStartingAbilities = 3;
+  const maxStartingAbilities = 6;
   const maxAdvancedAttributeValue = 5;
   const maxAdvancedSkillValue = 5;
 
@@ -436,11 +436,6 @@
     return;
   }
 
-  if (!advancedEditMode && selectedAbilities.length >= maxStartingAbilities) {
-    showAbilitiesWarning('На старте можно выбрать только 3 способности.');
-    return;
-  }
-
   const ability = getAbilityById(abilityId);
 
   if (!ability) {
@@ -448,25 +443,30 @@
   }
 
   if (!advancedEditMode) {
-    const alreadySelectedSameCategory = selectedAbilities.some(selectedAbilityId => {
+    const selectedInSameCategory = selectedAbilities.filter(selectedAbilityId => {
       const selectedAbility = getAbilityById(selectedAbilityId);
 
       return (
         selectedAbility &&
         selectedAbility.category === ability.category
       );
-    });
+    }).length;
 
-    if (alreadySelectedSameCategory) {
+    if (selectedInSameCategory >= 2) {
       const categoryName =
         abilityCategoryLabels[ability.category] || ability.category;
 
       showAbilitiesWarning(
-        `На старте можно выбрать только одну способность из категории «${categoryName}».`
+        `На старте можно выбрать только две способности из категории «${categoryName}».`
       );
 
       return;
     }
+  }
+
+  if (!advancedEditMode && selectedAbilities.length >= maxStartingAbilities) {
+    showAbilitiesWarning('На старте можно выбрать только 6 способностей.');
+    return;
   }
 
   selectedAbilities.push(abilityId);
@@ -641,8 +641,8 @@
     if (!advancedEditMode && getAttributePointsLeft() !== 0) errors.push('Распределите все очки Атрибутов.');
     if (!advancedEditMode && getSkillPointsLeft() !== 0) errors.push('Распределите все очки Навыков.');
     if (!advancedEditMode) {
-  if (character.abilities.length !== 3) {
-    errors.push('Выберите ровно 3 способности.');
+  if (character.abilities.length !== 6) {
+    errors.push('Выберите ровно 6 способностей.');
   }
 
   const selectedCategories = character.abilities
@@ -650,15 +650,17 @@
     .filter(Boolean)
     .map(ability => ability.category);
 
-  const uniqueCategories = new Set(selectedCategories);
+  const categoryCounts = selectedCategories.reduce((counts, category) => {
+    counts[category] = (counts[category] || 0) + 1;
+    return counts;
+  }, {});
 
   if (
-    uniqueCategories.size !== 3 ||
-    !uniqueCategories.has('ultimate') ||
-    !uniqueCategories.has('favorite') ||
-    !uniqueCategories.has('common')
+    categoryCounts.ultimate !== 2 ||
+    categoryCounts.favorite !== 2 ||
+    categoryCounts.common !== 2
   ) {
-    errors.push('На старте выберите по одной способности из каждой категории: Ультимативная, Любимый приём, Обычное дело.');
+    errors.push('На старте выберите по две способности из каждой категории: Ультимативные, Любимые приёмы, Обычные дела.');
   }
 }
     if (character.equipmentSpent > startingMoney) errors.push('Стоимость снаряжения превышает 1000 ф.');

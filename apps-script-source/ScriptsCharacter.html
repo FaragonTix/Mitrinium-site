@@ -278,7 +278,7 @@
 
         html += `
           <div class="skill-item ${isRecommended ? 'recommended-primary' : ''} ${isSecondary ? 'secondary-skill' : ''} ${isUseful ? 'useful-skill' : ''} ${skillMarks ? 'has-skill-marks' : ''}">
-            <details class="skill-name skill-info">
+            <details class="skill-name skill-info" ontoggle="handleSkillInfoToggle(this)">
               <summary>
                 <span class="skill-name-text">${hyphenateSkillName(skill.name)}</span>
                 ${skillMarks ? `<span class="skill-marks">${skillMarks}</span>` : ''}
@@ -312,6 +312,16 @@
       column.innerHTML = html;
       grid.appendChild(column);
     });
+  }
+
+  function handleSkillInfoToggle(currentDetails) {
+    if (!currentDetails || !currentDetails.open) return;
+
+    document
+      .querySelectorAll('#skillsGrid details.skill-info[open]')
+      .forEach(function(details) {
+        if (details !== currentDetails) details.open = false;
+      });
   }
 
   function hyphenateSkillName(name) {
@@ -751,8 +761,8 @@
     }
 
     if (!advancedEditMode) {
-      if (character.abilities.length !== 3) {
-        errors.push('Выберите ровно 3 способности.');
+      if (character.abilities.length !== 6) {
+        errors.push('Выберите ровно 6 способностей.');
       }
 
       const selectedCategories = character.abilities
@@ -764,16 +774,18 @@
           return ability.category;
         });
 
-      const uniqueCategories = new Set(selectedCategories);
+      const categoryCounts = selectedCategories.reduce(function(counts, category) {
+        counts[category] = (counts[category] || 0) + 1;
+        return counts;
+      }, {});
 
       if (
-        uniqueCategories.size !== 3 ||
-        !uniqueCategories.has('ultimate') ||
-        !uniqueCategories.has('favorite') ||
-        !uniqueCategories.has('common')
+        categoryCounts.ultimate !== 2 ||
+        categoryCounts.favorite !== 2 ||
+        categoryCounts.common !== 2
       ) {
         errors.push(
-          'На старте выберите по одной способности из каждой категории: Ультимативная, Любимый приём, Обычное дело.'
+          'На старте выберите по две способности из каждой категории: Ультимативные, Любимые приёмы, Обычные дела.'
         );
       }
     }

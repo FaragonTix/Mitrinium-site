@@ -33,11 +33,6 @@
     return;
   }
 
-  if (!advancedEditMode && selectedAbilities.length >= maxStartingAbilities) {
-    showAbilitiesWarning('На старте можно выбрать только 3 способности.');
-    return;
-  }
-
   const ability = getAbilityById(abilityId);
 
   if (!ability) {
@@ -45,25 +40,30 @@
   }
 
   if (!advancedEditMode) {
-    const alreadySelectedSameCategory = selectedAbilities.some(selectedAbilityId => {
+    const selectedInSameCategory = selectedAbilities.filter(selectedAbilityId => {
       const selectedAbility = getAbilityById(selectedAbilityId);
 
       return (
         selectedAbility &&
         selectedAbility.category === ability.category
       );
-    });
+    }).length;
 
-    if (alreadySelectedSameCategory) {
+    if (selectedInSameCategory >= 2) {
       const categoryName =
         abilityCategoryLabels[ability.category] || ability.category;
 
       showAbilitiesWarning(
-        `На старте можно выбрать только одну способность из категории «${categoryName}».`
+        `На старте можно выбрать только две способности из категории «${categoryName}».`
       );
 
       return;
     }
+  }
+
+  if (!advancedEditMode && selectedAbilities.length >= maxStartingAbilities) {
+    showAbilitiesWarning('На старте можно выбрать только 6 способностей.');
+    return;
   }
 
   selectedAbilities.push(abilityId);

@@ -849,10 +849,10 @@ function validateAbilities_(
 
   if (
     !isAdvancedEditMode &&
-    abilities.length !== 3
+    abilities.length !== 6
   ) {
     throw new Error(
-      'На старте нужно выбрать ровно 3 способности.'
+      'На старте нужно выбрать ровно 6 способностей.'
     );
   }
 }

@@ -13,6 +13,7 @@
 
   <?!= include('Styles'); ?>
   <?!= include('UiStyles'); ?>
+  <?!= include('RulesReferenceStyles'); ?>
 </head>
 
 <body>
@@ -49,6 +50,14 @@
         onclick="setAppMode('rolls')"
       >
         Броски
+      </button>
+
+      <button
+        type="button"
+        id="referenceModeButton"
+        onclick="setAppMode('reference')"
+      >
+        Памятка
       </button>
     </nav>
 
@@ -438,16 +447,16 @@
               <h2>Способности</h2>
 
               <p class="helper-note">
-                В стартовом режиме выберите по одной способности
-                из каждой категории: Ультимативная,
-                Любимый приём и Обычное дело.
+                В стартовом режиме выберите по две способности
+                из каждой категории: Ультимативные,
+                Любимые приёмы и Обычные дела.
               </p>
             </div>
 
             <div class="points-badge">
               Выбрано:
               <strong id="abilitiesSelectedCount">
-                0 / 3
+                0 / 6
               </strong>
             </div>
           </div>
@@ -566,8 +575,10 @@
             </div>
           </div>
 
-          <div class="equipment-section">
-            <h3>Остальное снаряжение</h3>
+          <details id="otherEquipmentSection" class="equipment-section equipment-collapsible">
+            <summary>
+              <h3>Остальное снаряжение</h3>
+            </summary>
 
             <div class="equipment-quick-filters" aria-label="Фильтры остального снаряжения">
               <button type="button" data-equipment-scope="other" data-equipment-filter="armor" onclick="setEquipmentFilter('other', 'armor')">Броня</button>
@@ -585,7 +596,7 @@
               id="otherEquipmentList"
               class="equipment-list"
             ></div>
-          </div>
+          </details>
         </section>
 
         <section class="card">
@@ -637,6 +648,9 @@
 >
   <?!= include('RollsView'); ?>
 </div>
+
+      <!-- Интерактивная памятка -->
+      <?!= include('RulesReferenceView'); ?>
     </main>
   </div>
 
@@ -673,5 +687,6 @@
   <?!= include('ViewerScripts'); ?>
   <?!= include('CharacterPdfScripts'); ?>
   <?!= include('RollsScripts'); ?>
+  <?!= include('RulesReferenceScripts'); ?>
 </body>
 </html>

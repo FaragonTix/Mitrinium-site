@@ -31,6 +31,10 @@ function tagsFrom(value) {
   return !text || text === "—" ? [] : text.split(/,\s*/).map(clean).filter(Boolean);
 }
 
+function poolFrom(value) {
+  return clean(value).replace(/([\p{L}])\s*\+\s*([\p{L}])/gu, "$1 + $2");
+}
+
 function section(lines, startName, endName) {
   const start = lines.indexOf(startName);
   const end = lines.indexOf(endName, start + 1);
@@ -50,11 +54,11 @@ function namedRows(lines, names) {
 const source = await readFile(sourcePath, "utf8");
 const target = await readFile(targetPath, "utf8");
 const jsonStart = target.indexOf("const equipmentData = ") + "const equipmentData = ".length;
-const jsonEnd = target.indexOf(";", jsonStart);
-const currentItems = JSON.parse(target.slice(jsonStart, jsonEnd));
 const recommendationsStart = target.indexOf("const classRecommendedEquipment = ");
+const jsonEnd = target.lastIndexOf(";", recommendationsStart);
+const currentItems = JSON.parse(target.slice(jsonStart, jsonEnd).trim());
 const recommendationsJsonStart = recommendationsStart + "const classRecommendedEquipment = ".length;
-const recommendationsJsonEnd = target.indexOf(";", recommendationsJsonStart);
+const recommendationsJsonEnd = target.indexOf(";\n\n  const universallyRecommendedEquipment", recommendationsJsonStart);
 const recommendations = JSON.parse(target.slice(recommendationsJsonStart, recommendationsJsonEnd));
 const ids = new Map(currentItems.map((item) => [item.name, item.id]));
 const currentByName = new Map(currentItems.map((item) => [item.name, item]));
@@ -73,13 +77,16 @@ const meleeNames = [
   "Сапёрная лопатка", "Искровой резак", "Тяжёлый меч", "Булава", "Боевой молот", "Химический распылитель",
 ];
 const thrownNames = [
-  "Камень / бутылка / подручный предмет", "Метательный дротик", "Метательный нож", "Метательный топорик", "Джавелин / короткое метательное копьё", "Тяжёлый гарпун",
+  "Камень / бутылка / подручный предмет", "Метательный дротик", "Метательный нож", "Метательный топорик",
 ];
 const rangedNames = [
   "Пистоль", "Дуэльный пистоль", "Короткий револьвер ранней конструкции", "Мушкет", "Карабин", "Охотничье ружьё", "Механический арбалет", "Дротиковая трубка", "Пружинный гвоздомёт",
 ];
 const specialNames = [
-  "Пиротехнический пистоль", "Нож-капельник", "Трость с кристаллическим навершием", "Перчатка синего поля", "Красный резонансный монокль", "Красный резонансный кулон", "Малый синий кристалл настройки",
+  "Пиротехнический пистоль", "Нож-капельник",
+];
+const crystalNames = [
+  "Трость с кристаллическим навершием", "Перчатка синего поля", "Красный резонансный монокль", "Красный резонансный кулон", "Малый синий кристалл настройки",
 ];
 const kitNames = [
   "Малый набор инструментов", "Большой набор инструментов", "Набор отмычек", "Оружейный набор", "Письменный набор", "Дорожная канцелярия", "Набор печатей", "Полевая аптечка", "Хирургический набор", "Химический футляр", "Ювелирный набор", "Полевой исследовательский набор",
@@ -100,43 +107,51 @@ for (const [name, armor, priceText, maintenanceText, tagsText] of armorRows) {
 const meleeRows = namedRows(section(lines, "Ближнее оружие", "Метательное оружие"), meleeNames);
 for (const row of meleeRows) {
   const [name, priceText, ...values] = row;
-  const chemical = name === "Химический распылитель";
-  if (chemical && values[0].endsWith("+")) values.splice(0, 2, `${values[0]} ${values[1]}`);
-  const [pool, rangeOrDamage, damageOrExploitation, exploitationOrMaintenance, maintenanceOrTags, maybeTags] = values;
+  if (name === "Химический распылитель" && values[0].endsWith("+")) {
+    values.splice(0, 2, `${values[0]} ${values[1]}`);
+  }
+  const [pool, damage, exploitation, maintenanceText, tagsText, ...wording] = values;
   items.push({
     id: identity(name), name, category: "Ближнее оружие", price: numberFrom(priceText), priceText,
-    pool, ...(chemical ? { range: rangeOrDamage } : {}), damage: chemical ? damageOrExploitation : rangeOrDamage,
-    exploitation: numberFrom(chemical ? exploitationOrMaintenance : damageOrExploitation),
-    maintenance: numberFrom(chemical ? maintenanceOrTags : exploitationOrMaintenance),
-    tags: tagsFrom(chemical ? maybeTags : maintenanceOrTags),
+    pool: poolFrom(pool), damage, exploitation: numberFrom(exploitation), maintenance: numberFrom(maintenanceText),
+    tags: tagsFrom(tagsText), ...(wording.length ? { purpose: clean(wording.join(" ")) } : {}),
   });
 }
 
 const thrownRows = namedRows(section(lines, "Метательное оружие", "Дальнее и огнестрельное оружие"), thrownNames);
 for (const [name, priceText, pool, range, damage, exploitation, maintenanceText, tagsText] of thrownRows) {
-  items.push({ id: identity(name), name, category: "Метательное оружие", price: numberFrom(priceText), priceText, pool, range, damage, exploitation: numberFrom(exploitation), maintenance: numberFrom(maintenanceText), tags: tagsFrom(tagsText) });
+  items.push({ id: identity(name), name, category: "Метательное оружие", price: numberFrom(priceText), priceText, pool: poolFrom(pool), range, damage, exploitation: numberFrom(exploitation), maintenance: numberFrom(maintenanceText), tags: tagsFrom(tagsText) });
 }
 
 const rangedRows = namedRows(section(lines, "Дальнее и огнестрельное оружие", "Специальное оружие и устройства"), rangedNames);
 for (const [name, priceText, pool, range, damage, exploitation, maintenanceText, tagsText] of rangedRows) {
-  items.push({ id: identity(name), name, category: "Дальнее оружие", price: numberFrom(priceText), priceText, pool, range, damage, exploitation: numberFrom(exploitation), maintenance: numberFrom(maintenanceText), tags: tagsFrom(tagsText) });
+  items.push({ id: identity(name), name, category: "Дальнее оружие", price: numberFrom(priceText), priceText, pool: poolFrom(pool), range, damage, exploitation: numberFrom(exploitation), maintenance: numberFrom(maintenanceText), tags: tagsFrom(tagsText) });
 }
 
-const specialRows = namedRows(section(lines, "Специальное оружие и устройства", "Фурма"), specialNames);
+const specialRows = namedRows(section(lines, "Специальное оружие и устройства", "Кристаллические предметы"), specialNames);
 for (const [name, priceText, pool, damage, exploitation, maintenanceText, tagsText] of specialRows) {
-  items.push({ id: identity(name), name, category: "Специальное оружие", price: numberFrom(priceText), priceText, pool, damage, exploitation: numberFrom(exploitation), maintenance: numberFrom(maintenanceText), tags: tagsFrom(tagsText) });
+  items.push({ id: identity(name), name, category: "Специальное оружие", price: numberFrom(priceText), priceText, pool: poolFrom(pool), damage, exploitation: numberFrom(exploitation), maintenance: numberFrom(maintenanceText), tags: tagsFrom(tagsText) });
+}
+
+const crystalRows = namedRows(section(lines, "Кристаллические предметы", "Фурма"), crystalNames);
+for (const [name, priceText, pool, damage, durability, maintenanceText, tagsText] of crystalRows) {
+  items.push({ id: identity(name), name, category: "Кристаллы", price: numberFrom(priceText), priceText, pool: poolFrom(pool), damage, durability: numberFrom(durability), maintenance: numberFrom(maintenanceText), tags: tagsFrom(tagsText) });
 }
 items.push({
   id: identity("Фурма"), name: "Фурма", category: "Дальнее оружие", price: 1200, priceText: "1200 ф",
-  pool: "Нюх + Стрельба", range: "средняя", damage: "d4+1 — d12", exploitation: "2–6", maintenance: 0,
-  purpose: "Тяжёлое паровое оружие с пятью режимами давления: проверочный, низкий, рабочий, высокий и форсированный.", tags: ["Пар", "тяжёлое"],
+  pool: "Нюх + Стрельба", range: "средняя", damage: "d4 — d10", exploitation: "2–5", maintenance: 0,
+  purpose: "Тяжёлое паровое оружие с режимами давления: Проверочный (Т 2, d4), Низкий (Т 3, d6), Рабочий (Т 4, d8, Пробитие 1), Высокий (Т 5, d10, Пробитие 1).", tags: ["Пар", "тяжёлое"],
 });
 
 const kitRows = namedRows(section(lines, "Профессиональные наборы", "Вспомогательные предметы"), kitNames);
+const detailedKitPurposes = {
+  "Малый набор инструментов": "Компактный набор для полевого ремонта и работы с механизмами. Содержит небольшой молоток, гаечный ключ, плоскогубцы, несколько отвёрток, напильник, шило, моток проволоки, небольшой набор мелких деталей, крепёж и масло.",
+  "Большой набор инструментов": "Полный набор для ремонта, сборки и разборки механизмов. Содержит молот, набор гаечных ключей, плоскогубцы и клещи, отвёртки, напильники, зубило, ручную дрель, ножовку по металлу, струбцину, проволоку, крепёж, масло и множество запасных деталей.",
+};
 for (const [name, priceText, purpose, maintenanceText] of kitRows) {
-  const preservedPurpose = name === "Полевая аптечка"
+  const preservedPurpose = detailedKitPurposes[name] || (name === "Полевая аптечка"
     ? "Состав: раневой коллодий, «Семёрка», несколько (3) доз Сомнола, перевязочный материал и набор слабых антидотов."
-    : purpose;
+    : purpose);
   items.push({ id: identity(name), name, category: "Набор", price: numberFrom(priceText), priceText, purpose: preservedPurpose, maintenance: numberFrom(maintenanceText), tags: [] });
 }
 

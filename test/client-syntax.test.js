@@ -24,11 +24,39 @@ test("клиентские скрипты редактора синтаксич�
     readClassicScript("../apps-script-source/ViewerScripts.html"),
     readClassicScript("../apps-script-source/CharacterPdfScripts.html"),
     readClassicScript("../apps-script-source/RollsScripts.html"),
+    readClassicScript("../apps-script-source/RulesReferenceScripts.html"),
   ]);
 
   for (const source of scripts) {
     assert.doesNotThrow(() => new Function(source));
   }
+});
+
+test("памятка содержит актуальные правила 0.5.6 и доступна отдельным режимом", async () => {
+  const [index, core, view, styles] = await Promise.all([
+    readFile(new URL("../apps-script-source/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/ScriptsCore.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/RulesReferenceView.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/RulesReferenceStyles.html", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(index, /id="referenceModeButton"/);
+  assert.match(core, /'reference'/);
+  assert.match(view, /редакция 0\.5\.6/);
+  assert.match(view, /d4 \+ d6 \+ d8/);
+  assert.match(view, /ПЗ цели \+ текущая Т оружия/);
+  assert.match(view, /Короткий отдых[\s\S]*?d6 Тела/);
+  assert.match(view, /базовая Т 3 → максимум Т 6/);
+  assert.match(view, /Нормальная 0 ЭФ → Пониженная −2 ЭФ → Недостаточная −5 ЭФ/);
+  assert.match(view, /Пороховое оружие[\s\S]*?40–100 ф/);
+  assert.match(view, /Броня 4 \/ 5[\s\S]*?140 \/ 300 ф/);
+  assert.doesNotMatch(view, /<details[^>]*\sopen(?:\s|>)/);
+  const restIndex = view.indexOf("<h2>Отдых и починка</h2>");
+  const extendedIndex = view.indexOf("<h2>Протяжённые действия</h2>");
+  const maintenanceIndex = view.indexOf("<h2>Обслуживание снаряжения</h2>");
+  assert.ok(restIndex >= 0 && extendedIndex > restIndex && maintenanceIndex > extendedIndex);
+  assert.match(view, /<details class="reference-card wide accent-green reference-section-spoiler"[\s\S]*?<h2>Обслуживание снаряжения<\/h2>/);
+  assert.match(styles, /\.reference-topic-nav/);
 });
 
 test("главная страница содержит ссылки на правила и книгу сеттинга", async () => {
@@ -37,6 +65,19 @@ test("главная страница содержит ссылки на пра�
   assert.match(landing, /1u-42AfJ8D4FAS9f41KpYCBMHo95bQSdS/);
   assert.match(landing, /1Z-Zor0VfLCpU9fWEM2iIslm3RXvRwj8K/);
   assert.match(landing, />\s*Книга сеттинга\s*</);
+});
+
+test("администратор получает ссылку на калькулятор, а окно бросков объясняет биографическую черту", async () => {
+  const [builder, authClient, rollsView] = await Promise.all([
+    readFile(new URL("../scripts/build-editor.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../src/client/google-script-run.js", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/RollsView.html", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(builder, /id="calculatorAdminButton"[\s\S]*?location\.href='\/calculator\/'[\s\S]*?hidden/);
+  assert.match(authClient, /payload\?\.user\?\.isAdmin[\s\S]*?\["dashboardButton", "calculatorAdminButton"\]/);
+  assert.match(rollsView, /Один раз за игровую встречу после броска[\s\S]*?повысить ЭФ на 1/);
+  assert.match(rollsView, /применимость определяет ведущий/);
 });
 
 test("черновики блокируют просмотр и могут быть сохранены явно", async () => {
@@ -179,10 +220,11 @@ test("у каждой способности есть пререквизит, а
     "utf8",
   );
 
-  assert.equal(abilities.length, 90);
+  assert.equal(abilities.length, 108);
+  assert.equal(new Set(abilities.map((ability) => ability.id)).size, abilities.length);
   for (const className of ["Психопат", "Кустарь", "Воротила", "Рекрут", "Менталист", "Натуралист"]) {
     for (const category of ["ultimate", "favorite", "common"]) {
-      assert.equal(abilities.filter((ability) => ability.className === className && ability.category === category).length, 5);
+      assert.equal(abilities.filter((ability) => ability.className === className && ability.category === category).length, 6);
     }
   }
   assert.ok(abilities.every((ability) => ability.prerequisite));
@@ -212,6 +254,64 @@ test("у каждой способности есть пререквизит, а
   assert.equal(byName["Бумага уже есть"].pool, "Господство + Обман или Смекалка + Закон");
   assert.equal(byName["Встречный захват"].pool, "Воротила — Господство + Обман; цель — Нюх + Внимательность");
   assert.equal(byName["Мастерство преображения"].pool, "Господство + Публика");
+  assert.equal(
+    byName["Липкий пол"].effect,
+    "Действие. Метни ёмкость с липким составом в один видимый незанятый гекс на Средней дистанции. При успехе гекс до конца сцены становится липким и считается труднопроходимым. Существо, входящее в гекс или выходящее из него, делает проверку Сноровка + Координация или Напор+Сила против сл. 7. При провале его движение заканчивается, а существо не может перемещаться до начала своего следующего хода.",
+  );
+  assert.equal(byName["Тяжёлый замах"].charges, 2);
+  assert.equal(byName["Выстрел и перекат"].reaction, "после");
+  assert.equal(byName["Две обезьяны"].breakthrough, "Наложи Глухоту и Немоту одновременно.");
+  assert.equal(byName["Полевые дротики"].prerequisite, "Дротиковая трубка.");
+});
+
+test("на старте выбираются две способности каждой категории", async () => {
+  const [abilitySource, abilityUiSource, core, characterScripts, editor, server] = await Promise.all([
+    readClassicScript("../apps-script-source/AbilitiesData.html"),
+    readClassicScript("../apps-script-source/ScriptsAbilities.html"),
+    readFile(new URL("../apps-script-source/ScriptsCore.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/ScriptsCharacter.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/Code.js", import.meta.url), "utf8"),
+  ]);
+  const { abilityData, abilityCategoryLabels } = new Function(
+    `${abilitySource}; return { abilityData, abilityCategoryLabels };`,
+  )();
+  const runSelectionScenario = new Function(
+    "abilityData",
+    "abilityCategoryLabels",
+    `
+      const selectedAbilities = [];
+      const maxStartingAbilities = 6;
+      const advancedEditMode = false;
+      let activeAbilityId = null;
+      const warnings = [];
+      function refreshViewerIfOpen() {}
+      ${abilityUiSource}
+      renderAbilities = function() {};
+      showAbilitiesWarning = function(message) { warnings.push(message); };
+      const psychopat = abilityData.filter(ability => ability.className === "Психопат");
+      for (const category of ["ultimate", "favorite", "common"]) {
+        const choices = psychopat.filter(ability => ability.category === category);
+        toggleAbilitySelection(choices[0].id);
+        toggleAbilitySelection(choices[1].id);
+        toggleAbilitySelection(choices[2].id);
+      }
+      return { selectedAbilities, warnings };
+    `,
+  );
+  const result = runSelectionScenario(abilityData, abilityCategoryLabels);
+
+  assert.equal(result.selectedAbilities.length, 6);
+  assert.equal(result.warnings.length, 3);
+  assert.ok(result.warnings.every((warning) => warning.includes("только две способности")));
+  assert.match(core, /const maxStartingAbilities = 6/);
+  assert.match(characterScripts, /categoryCounts\.ultimate !== 2/);
+  assert.match(characterScripts, /categoryCounts\.favorite !== 2/);
+  assert.match(characterScripts, /categoryCounts\.common !== 2/);
+  assert.match(characterScripts, /Выберите ровно 6 способностей/);
+  assert.match(editor, /выберите по две способности/);
+  assert.match(editor, /0 \/ 6/);
+  assert.match(server, /abilities\.length !== 6/);
 });
 
 test("биографические факты соответствуют редакции 0.5.3", async () => {
@@ -243,7 +343,7 @@ test("снаряжение использует актуальный катал�
   )((value) => String(value));
   const watch = equipmentData.find((item) => item.name === "Простые карманные часы");
 
-  assert.equal(equipmentData.length, 87);
+  assert.equal(equipmentData.length, 85);
   assert.ok(watch);
   assert.ok(equipmentData.some((item) => item.name === "Дермопластическая мазь №7 («Семёрка»)"));
   assert.ok(equipmentData.some((item) => item.name === "Чистый спирт (1 л)" && item.priceText === "100 ф"));
@@ -264,8 +364,12 @@ test("снаряжение использует актуальный катал�
   );
   assert.equal(
     equipmentData.filter((item) => item.category === "Метательное оружие").length,
-    6,
+    4,
   );
+  assert.ok(equipmentData.every((item) => ![
+    "Джавелин / короткое метательное копьё",
+    "Тяжёлый гарпун",
+  ].includes(item.name)));
   const crystalItems = equipmentData.filter((item) => item.category === "Кристаллы");
   assert.equal(crystalItems.length, 5);
   assert.ok(crystalItems.every((item) => item.durability === 2 && item.exploitation === undefined));
@@ -303,9 +407,19 @@ test("снаряжение использует актуальный катал�
   );
   assert.equal(equipmentData.find((item) => item.name === "Трость с кристаллическим навершием")?.damage, "d4");
   assert.ok(equipmentData.some((item) => item.name === "Фурма"));
+  assert.equal(equipmentData.find((item) => item.name === "Фурма")?.damage, "d4 — d10");
+  assert.equal(equipmentData.find((item) => item.name === "Фурма")?.exploitation, "2–5");
   assert.equal(
     equipmentData.find((item) => item.name === "Полевая аптечка")?.purpose,
     "Состав: раневой коллодий, «Семёрка», несколько (3) доз Сомнола, перевязочный материал и набор слабых антидотов.",
+  );
+  assert.equal(
+    equipmentData.find((item) => item.name === "Малый набор инструментов")?.purpose,
+    "Компактный набор для полевого ремонта и работы с механизмами. Содержит небольшой молоток, гаечный ключ, плоскогубцы, несколько отвёрток, напильник, шило, моток проволоки, небольшой набор мелких деталей, крепёж и масло.",
+  );
+  assert.equal(
+    equipmentData.find((item) => item.name === "Большой набор инструментов")?.purpose,
+    "Полный набор для ремонта, сборки и разборки механизмов. Содержит молот, набор гаечных ключей, плоскогубцы и клещи, отвёртки, напильники, зубило, ручную дрель, ножовку по металлу, струбцину, проволоку, крепёж, масло и множество запасных деталей.",
   );
   assert.ok(classRecommendedEquipment["Менталист"].includes("pistol"));
   assert.ok(!classRecommendedEquipment["Менталист"].includes("duelny-pistol"));
@@ -369,6 +483,20 @@ test("каталоги снаряжения имеют независимые б
   assert.equal(helpers.matchesEquipmentFilter(byName['Пистоль'], 'melee'), false);
   assert.match(equipmentUiSource, /class="equipment-quick-stats"/);
   assert.match(styles, /\.equipment-quick-stat\s*\{/);
+  assert.match(editor, /<details id="otherEquipmentSection" class="equipment-section equipment-collapsible">/);
+  assert.doesNotMatch(editor, /<details id="otherEquipmentSection"[^>]*\sopen(?:\s|>)/);
+  assert.match(styles, /\.equipment-collapsible > summary::after\s*\{[\s\S]*?content: 'Показать'/);
+});
+
+test("одновременно открыта только одна подсказка навыка", async () => {
+  const characterSource = await readFile(
+    new URL("../apps-script-source/ScriptsCharacter.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(characterSource, /ontoggle="handleSkillInfoToggle\(this\)"/);
+  assert.match(characterSource, /querySelectorAll\('#skillsGrid details\.skill-info\[open\]'\)/);
+  assert.match(characterSource, /if \(details !== currentDetails\) details\.open = false/);
 });
 
 test("рекомендации классов и второстепенные навыки редакции 0.5.2 настроены отдельно", async () => {

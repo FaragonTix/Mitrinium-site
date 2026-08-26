@@ -11,16 +11,27 @@ export const DIFFICULTY_PRESETS = Object.freeze(Object.fromEntries(
 export const ARCHETYPE_TUNING_CONFIG = Object.freeze({
   lambda: 0.015,
   damageSteps: ["d4", "d4+1", "d6", "d6+1", "d8", "d8+1", "d10", "d10+1", "d12"],
-  weights: { body: 1, nerve: 1, pool: 2, damage: 2, armor: 4, penetration: 5, pz: 8 },
+  weights: { body: 1, pool: 2, damage: 2, armor: 4, penetration: 5, pz: 8 },
   defaults: {
     body: { preferred: 3, hard: 10, min: 1, max: 60 },
-    nerve: { preferred: 3, hard: 8, min: 0, max: 40 },
     pool: { preferred: 1, hard: 3, min: 1, max: 8 },
     damage: { preferred: 1, hard: 3 },
     armor: { preferred: 1, hard: 2, min: 0, max: 8 },
-    penetration: { preferred: 0, hard: 1, min: 0, max: 3 },
+    penetration: { preferred: 1, hard: 1, min: 0, max: 3 },
     pz: { preferred: 1, hard: 2, min: 2, max: 6 },
   },
+});
+
+export const DEFAULT_TUNING_POLICY = Object.freeze({
+  tunable: Object.freeze({
+    body: true,
+    armor: true,
+    pool: true,
+    damage: true,
+    penetration: true,
+    pz: false,
+    nerve: false,
+  }),
 });
 
 export const GENERATOR_DEFAULTS = Object.freeze({
@@ -44,19 +55,28 @@ export function averageDamage(expression) {
   return (Number(match[1] || 1) * (Number(match[2]) + 1)) / 2 + Number(match[3] || 0);
 }
 
-// Универсальный индекс одного NPC. Он не зависит от партии и никогда не
-// используется как prediction или additive encounter score.
+// Приблизительный справочный индекс одного NPC. Он не зависит от партии,
+// не моделирует расход Нерва и никогда не используется как prediction,
+// additive encounter score или hidden generator constraint.
 export function individualBs(profile) {
   const body = Math.max(1, Number(profile.body) || 1);
-  const nerve = Math.max(0, Number(profile.nerve) || 0);
   const armor = Math.max(0, Number(profile.armor) || 0);
   const pz = Math.max(2, Number(profile.pz) || 2);
   const pool = Math.max(1, Number(profile.pool) || 1);
   const expl = Math.max(0, Number(profile.expl) || 0);
   const penetration = Math.max(0, Number(profile.penetration) || 0);
-  const durability = body * (1 + nerve * 0.025) * (1 + armor * 0.22) * (1 + (pz - 2) * 0.09);
+  const durability = body * (1 + armor * 0.22) * (1 + (pz - 2) * 0.09);
   const pressure = (pool + expl * 0.55) * (averageDamage(profile.damage) + penetration * 1.5);
   return Math.max(20, Math.round(Math.sqrt(durability * pressure) * 24));
+}
+
+export function normalizeTuningPolicy(input = {}) {
+  const requested = input?.tunable && typeof input.tunable === "object" ? input.tunable : {};
+  const tunable = Object.fromEntries(Object.entries(DEFAULT_TUNING_POLICY.tunable).map(([key, fallback]) => [
+    key,
+    key === "nerve" ? false : key === "pz" ? requested.pz === true : requested[key] === undefined ? fallback : requested[key] === true,
+  ]));
+  return { ...clone(input), tunable };
 }
 
 export function makeLibraryEntry(input, index = 0) {
@@ -83,6 +103,7 @@ export function makeLibraryEntry(input, index = 0) {
       reactions: clone(array(input.reactions)),
     },
     tags: [...new Set([role, archetype, ...array(input.tags)].filter(Boolean))],
+    tuningPolicy: normalizeTuningPolicy(input.tuningPolicy),
     bs: individualBs(profile),
     deviation: Math.max(0, Number(input.deviation) || 0),
     tuningDiff: array(input.tuningDiff),
@@ -109,19 +130,21 @@ function resolvedArchetypeVariant(entry, changes, phase) {
   const ideal = entry.idealProfile;
   const profile = { ...ideal };
   for (const [key, delta] of Object.entries(changes)) {
+    if (entry.tuningPolicy?.tunable?.[key] !== true) continue;
     const limit = tuningLimit(entry, key);
     if (key === "damage") {
       const span = phase === "preferred" ? limit.preferred : limit.hard;
       const boundedDelta = Array.isArray(span) ? delta : clamp(delta, -(Number(span) || 0), Number(span) || 0);
       const hardRange = Array.isArray(limit.hard) ? limit.hard.map(damageIndex) : [0, ARCHETYPE_TUNING_CONFIG.damageSteps.length - 1];
       profile.damage = ARCHETYPE_TUNING_CONFIG.damageSteps[clamp(damageIndex(ideal.damage) + boundedDelta, hardRange[0], hardRange[1])];
-    } else if (ideal[key] !== undefined || key !== "nerve") {
+    } else if (ideal[key] !== undefined) {
       profile[key] = tuneNumber(ideal[key], delta, limit, phase);
     }
   }
   const tuningDiff = [];
   let deviation = 0;
-  for (const key of ["body", "nerve", "pool", "damage", "armor", "penetration", "pz"]) {
+  for (const key of ["body", "pool", "damage", "penetration", "armor", "pz"]) {
+    if (entry.tuningPolicy?.tunable?.[key] !== true) continue;
     if (ideal[key] === undefined && profile[key] === undefined) continue;
     const before = key === "damage" ? damageIndex(ideal[key]) : Number(ideal[key]) || 0;
     const after = key === "damage" ? damageIndex(profile[key]) : Number(profile[key]) || 0;
@@ -144,17 +167,17 @@ export function archetypeVariants(rawEntry) {
   // instead of moving both outcome axes in lockstep.
   const defenses = [
     { changes: {}, phase: "ideal" },
-    { changes: { body: -3, nerve: -3, armor: -1, pz: -1 }, phase: "preferred" },
-    { changes: { body: 3, nerve: 3, armor: 1, pz: 1 }, phase: "preferred" },
-    { changes: { body: -10, nerve: -8, armor: -2, pz: -2 }, phase: "hard" },
-    { changes: { body: 10, nerve: 8, armor: 2, pz: 2 }, phase: "hard" },
+    { changes: { body: -3, armor: -1, pz: -1 }, phase: "preferred" },
+    { changes: { body: 3, armor: 1, pz: 1 }, phase: "preferred" },
+    { changes: { body: -10, armor: -2, pz: -2 }, phase: "hard" },
+    { changes: { body: 10, armor: 2, pz: 2 }, phase: "hard" },
   ];
   const offenses = [
     { changes: {}, phase: "ideal" },
-    { changes: { pool: -1, damage: -1 }, phase: "preferred" },
-    { changes: { pool: 1, damage: 1 }, phase: "preferred" },
-    { changes: { pool: -3, damage: -3 }, phase: "hard" },
-    { changes: { pool: 3, damage: 3 }, phase: "hard" },
+    { changes: { pool: -1, damage: -1, penetration: -1 }, phase: "preferred" },
+    { changes: { pool: 1, damage: 1, penetration: 1 }, phase: "preferred" },
+    { changes: { pool: -3, damage: -3, penetration: -1 }, phase: "hard" },
+    { changes: { pool: 3, damage: 3, penetration: 1 }, phase: "hard" },
   ];
   const variants = defenses.flatMap((defense) => offenses.map((offense) => resolvedArchetypeVariant(
     entry,
@@ -384,8 +407,10 @@ function prepareLibrary(library, settings, random) {
     if (!buckets.has(key)) buckets.set(key, []);
     buckets.get(key).push({ entry, order: random() });
   });
-  const strengthSpread = (items) => {
-    const sorted = [...items].sort((a, b) => a.entry.bs - b.entry.bs || a.order - b.order);
+  const tuningSpread = (items) => {
+    // Candidate coverage is based on authored/tuning distance, never on the
+    // informational BS index. Outcome difficulty is decided only by V15.
+    const sorted = [...items].sort((a, b) => a.entry.deviation - b.entry.deviation || a.order - b.order);
     if (sorted.length < 3) return sorted;
     const indices = [Math.floor((sorted.length - 1) / 2), 0, sorted.length - 1];
     for (let denominator = 4; indices.length < sorted.length; denominator *= 2) {
@@ -395,7 +420,7 @@ function prepareLibrary(library, settings, random) {
     }
     return [...new Set(indices)].map((index) => sorted[index]);
   };
-  const groups = [...buckets.values()].map(strengthSpread);
+  const groups = [...buckets.values()].map(tuningSpread);
   const selected = [];
   const baseLimit = Math.min(eligible.length, Math.max(groups.length, Math.ceil(settings.candidateLimit / 2)));
   for (let depth = 0; selected.length < baseLimit && groups.some((group) => group[depth]); depth += 1) {
@@ -422,7 +447,7 @@ function prepareLibrary(library, settings, random) {
     if (!variantGroups.has(key)) variantGroups.set(key, []);
     variantGroups.get(key).push({ entry, order: random() });
   });
-  const spreadGroups = [...variantGroups.values()].map(strengthSpread);
+  const spreadGroups = [...variantGroups.values()].map(tuningSpread);
   const preselected = [];
   const requiredIds = new Set(settings.slots.map((slot) => slot?.npcId).filter(Boolean));
   for (const id of requiredIds) {

@@ -1,0 +1,109 @@
+<script>
+  const rulesReferenceScenes = {
+    hindrance: ['3d4', '3 Куба сцены 3d4'],
+    normal: ['d4 + d6 + d8', 'Кубы сцены d4 + d6 + d8'],
+    advantage: ['3d8', '3 Куба сцены 3d8']
+  };
+
+  let rulesReferenceTopic = 'all';
+  let rulesReferenceScene = 'normal';
+
+  function clampRulesReferenceValue(value, minimum, maximum) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return minimum;
+    return Math.max(minimum, Math.min(maximum, parsed));
+  }
+
+  function initializeRulesReference() {
+    updateRulesReferencePool();
+    filterRulesReference();
+  }
+
+  function setRulesReferenceScene(scene) {
+    if (!rulesReferenceScenes[scene]) return;
+    rulesReferenceScene = scene;
+    document.querySelectorAll('[data-reference-scene]').forEach(function (button) {
+      const active = button.dataset.referenceScene === scene;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    updateRulesReferencePool();
+  }
+
+  function updateRulesReferencePool() {
+    const attributeInput = document.getElementById('referenceAttributeDice');
+    const skillInput = document.getElementById('referenceSkillDice');
+    const output = document.getElementById('referencePoolOutput');
+    if (!attributeInput || !skillInput || !output) return;
+
+    const attribute = clampRulesReferenceValue(attributeInput.value, 1, 3);
+    const skill = clampRulesReferenceValue(skillInput.value, 0, 3);
+    attributeInput.value = attribute;
+    skillInput.value = skill;
+
+    const characterDice = attribute + skill;
+    const scene = rulesReferenceScenes[rulesReferenceScene] || rulesReferenceScenes.normal;
+    const pool = rulesReferenceScene === 'normal'
+      ? 'd4 + ' + (characterDice + 1) + 'd6 + d8'
+      : scene[0] + ' + ' + characterDice + 'd6';
+
+    output.innerHTML = '<span>Ваш пул</span><strong>' + pool + '</strong><small>' + scene[1] + ' + ' + characterDice + 'd6 персонажа</small>';
+  }
+
+  function normalizeRulesReferenceText(value) {
+    return String(value || '')
+      .toLocaleLowerCase('ru-RU')
+      .replace(/ё/g, 'е')
+      .replace(/[^a-zа-я0-9]+/gi, ' ')
+      .trim();
+  }
+
+  function setRulesReferenceTopic(topic) {
+    rulesReferenceTopic = topic || 'all';
+    document.querySelectorAll('[data-reference-topic]').forEach(function (button) {
+      const active = button.dataset.referenceTopic === rulesReferenceTopic;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    filterRulesReference();
+  }
+
+  function filterRulesReference() {
+    const input = document.getElementById('referenceSearch');
+    const status = document.getElementById('referenceResultStatus');
+    const emptyState = document.getElementById('referenceEmptyState');
+    const query = normalizeRulesReferenceText(input ? input.value : '');
+    const cards = Array.from(document.querySelectorAll('[data-reference-card]'));
+    let visibleCount = 0;
+
+    cards.forEach(function (card) {
+      const topics = String(card.dataset.referenceTopics || '').split(/\s+/);
+      const matchesTopic = rulesReferenceTopic === 'all' || topics.includes(rulesReferenceTopic);
+      const matchesSearch = !query || normalizeRulesReferenceText(card.textContent).includes(query);
+      const visible = matchesTopic && matchesSearch;
+      card.hidden = !visible;
+      if (visible) visibleCount += 1;
+    });
+
+    if (emptyState) emptyState.hidden = visibleCount > 0;
+    if (status) {
+      status.textContent = !query && rulesReferenceTopic === 'all'
+        ? 'Показаны все разделы'
+        : (visibleCount ? 'Найдено разделов: ' + visibleCount : 'Совпадений нет');
+    }
+  }
+
+  function clearRulesReferenceSearch() {
+    const input = document.getElementById('referenceSearch');
+    if (!input) return;
+    input.value = '';
+    input.focus();
+    filterRulesReference();
+  }
+
+  function resetRulesReferenceFilters() {
+    const input = document.getElementById('referenceSearch');
+    if (input) input.value = '';
+    setRulesReferenceTopic('all');
+  }
+</script>

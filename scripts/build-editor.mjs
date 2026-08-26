@@ -48,6 +48,16 @@ async function buildEditor() {
 
       <button
         type="button"
+        id="calculatorAdminButton"
+        class="dashboard-button"
+        onclick="location.href='/calculator/'"
+        hidden
+      >
+        Калькулятор
+      </button>
+
+      <button
+        type="button"
         id="logoutButton"
         class="logout-button"
         onclick="mitriniumLogout()"

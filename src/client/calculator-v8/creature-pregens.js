@@ -1,5 +1,54 @@
 const array = (value) => Array.isArray(value) ? value : [];
 
+const CREATURE_DAMAGE_STEPS = ["d4", "d4+1", "d6", "d6+1", "d8", "d8+1", "d10", "d10+1", "d12"];
+
+export const LEVEL_ONE_ARCHETYPE_PROFILES = Object.freeze({
+  minion: Object.freeze({ body: 8, armor: 1, pool: 3, damage: "d6+1" }),
+  standard: Object.freeze({ body: 12, armor: 2, pool: 4, damage: "d8" }),
+  striker: Object.freeze({ body: 10, armor: 1, pool: 5, damage: "d8+1" }),
+  tank: Object.freeze({ body: 16, armor: 3, pool: 3, damage: "d6+1" }),
+  shooter: Object.freeze({ body: 10, armor: 2, pool: 5, damage: "d8" }),
+  brute: Object.freeze({ body: 14, armor: 2, pool: 4, damage: "d8+1" }),
+  elite: Object.freeze({ body: 14, armor: 3, pool: 5, damage: "d8+1" }),
+  boss: Object.freeze({ body: 22, armor: 3, pool: 5, damage: "d8+1" }),
+});
+
+function boundedRound(value, min, max) {
+  return Math.max(min, Math.min(max, Math.round(Number(value) || 0)));
+}
+
+function damageStepIndex(value) {
+  const index = CREATURE_DAMAGE_STEPS.indexOf(String(value || "d6"));
+  return index < 0 ? CREATURE_DAMAGE_STEPS.indexOf("d6") : index;
+}
+
+// Creature pregens describe identity. Their authored numeric profile is
+// projected onto the selected level baseline before difficulty tuning.
+// PZ and Nerve remain authored identity values; in particular Nerve is never
+// scaled together with durability or damage.
+export function scaleCreatureProfileForLevel(profile, archetype, level, levelBaselines) {
+  const source = { ...profile };
+  const canonical = LEVEL_ONE_ARCHETYPE_PROFILES[archetype] || LEVEL_ONE_ARCHETYPE_PROFILES.standard;
+  const baselines = array(levelBaselines);
+  const base = baselines[1] || { hp: 22, armor: 1, pool: 4, damage: "d6" };
+  const safeLevel = boundedRound(level, 1, Math.max(1, baselines.length - 1));
+  const target = baselines[safeLevel] || base;
+  const bodyOffset = boundedRound((Number(source.body) || canonical.body) - canonical.body, -4, 4);
+  const armorOffset = boundedRound((Number(source.armor) || 0) - canonical.armor, -1, 1);
+  const poolOffset = boundedRound((Number(source.pool) || canonical.pool) - canonical.pool, -1, 1);
+  const damageOffset = boundedRound(damageStepIndex(source.damage) - damageStepIndex(canonical.damage), -1, 1);
+  const levelDamageDelta = damageStepIndex(target.damage) - damageStepIndex(base.damage);
+  return {
+    ...source,
+    body: boundedRound(canonical.body * (Number(target.hp || base.hp) / Number(base.hp || 22)) + bodyOffset, 1, 60),
+    armor: boundedRound(canonical.armor + (Number(target.armor) - Number(base.armor)) + armorOffset, 0, 8),
+    pool: boundedRound(canonical.pool + (Number(target.pool) - Number(base.pool)) + poolOffset, 1, 8),
+    damage: CREATURE_DAMAGE_STEPS[boundedRound(damageStepIndex(canonical.damage) + levelDamageDelta + damageOffset, 0, CREATURE_DAMAGE_STEPS.length - 1)],
+    pz: Number(source.pz),
+    nerve: Number(source.nerve) || 0,
+  };
+}
+
 export function flattenCreaturePregens(bank) {
   return array(bank?.creatureTypes).flatMap((group) => array(group.pregens));
 }

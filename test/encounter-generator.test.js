@@ -12,6 +12,7 @@ import {
   marginalNpcImpact,
   matchesDifficultyPreset,
   normalizeGeneratorSettings,
+  normalizeTuningPolicy,
   objectiveScore,
   presetTargets,
   replaceGeneratedSlot,
@@ -246,6 +247,54 @@ test("individual BS универсален и не зависит от парт�
   assert.equal(individualBs(npc), individualBs({ ...npc }));
 });
 
+test("справочная BS не превращает Нерв в линейный бонус силы", () => {
+  const npc = { ...profile(3, "standard", 12), nerve: 0 };
+  assert.equal(individualBs(npc), individualBs({ ...npc, nerve: 18 }));
+});
+
+test("справочная BS не участвует даже в candidate preselection генератора", async () => {
+  const source = await readFile(new URL("../src/client/calculator-v8/encounter-generator.js", import.meta.url), "utf8");
+  const prepare = source.match(/function prepareLibrary[\s\S]*?\n\}/)?.[0] || "";
+  assert.ok(prepare);
+  assert.doesNotMatch(prepare, /\.bs\b/);
+  assert.match(prepare, /entry\.deviation/);
+});
+
+test("Easy/Medium/Hard tuning одного archetype сохраняет authored Nerve", () => {
+  const ideal = { body: 14, nerve: 18, armor: 2, pz: 4, pool: 5, expl: 3, damage: "d8", penetration: 1, archetype: "elite" };
+  const variants = archetypeVariants({ id: "nerve-identity", name: "Ветеран", usage: "archetype", profile: ideal });
+  for (const difficulty of ["easy", "medium", "hard"]) {
+    const selected = [...variants].sort((left, right) => {
+      const target = { easy: 8, medium: 14, hard: 22 }[difficulty];
+      return Math.abs(left.profile.body - target) - Math.abs(right.profile.body - target);
+    })[0];
+    assert.equal(selected.profile.nerve, 18, difficulty);
+  }
+  assert.ok(variants.every((entry) => !entry.tuningDiff.some((diff) => diff.key === "nerve")));
+});
+
+test("PZ меняется только при новом explicit tuningPolicy, а Нерв всегда false", () => {
+  const ideal = { body: 14, nerve: 18, armor: 2, pz: 4, pool: 5, expl: 3, damage: "d8", penetration: 1, archetype: "elite" };
+  const legacy = archetypeVariants({ id: "legacy-policy", usage: "archetype", profile: ideal, tuningPolicy: { soft: ["body", "pz", "nerve"] } });
+  const explicit = archetypeVariants({ id: "explicit-pz", usage: "archetype", profile: ideal, tuningPolicy: { tunable: { pz: true, nerve: true } } });
+  assert.ok(legacy.every((entry) => entry.profile.pz === ideal.pz && entry.profile.nerve === ideal.nerve));
+  assert.ok(explicit.some((entry) => entry.profile.pz !== ideal.pz));
+  assert.ok(explicit.every((entry) => entry.profile.nerve === ideal.nerve));
+  assert.deepEqual(normalizeTuningPolicy({ tunable: { pz: true, nerve: true } }).tunable, {
+    body: true, armor: true, pool: true, damage: true, penetration: true, pz: true, nerve: false,
+  });
+});
+
+test("automatic difficulty variants используют Body, Armor и offense, но не Nerve/PZ", () => {
+  const ideal = { body: 14, nerve: 18, armor: 2, pz: 4, pool: 5, expl: 3, damage: "d8", penetration: 1, archetype: "elite" };
+  const variants = archetypeVariants({ id: "smooth-axes", usage: "archetype", profile: ideal });
+  const changed = new Set(variants.flatMap((entry) => entry.tuningDiff.map((diff) => diff.key)));
+  assert.ok(changed.has("body") && changed.has("armor"));
+  assert.ok(changed.has("pool") && changed.has("damage") && changed.has("penetration"));
+  assert.ok(!changed.has("nerve") && !changed.has("pz"));
+  assert.ok(variants.every((entry) => entry.profile.nerve === 18 && entry.profile.pz === 4));
+});
+
 test("exact NPC не меняется, а archetype настраивает только числовой профиль", () => {
   const identity = {
     name: "Медведь",
@@ -427,6 +476,33 @@ test("Easy/Medium/Hard/Deadly возвращают ближайшие structural
     summary[difficulty] = { options: result.options.length, ...result.diagnosticCounts };
   }
   t.diagnostic(`V15 quick smoke ${JSON.stringify(summary)}`);
+});
+
+test("production V15 matrix показывает smooth tuning без изменения Nerve/PZ", async (t) => {
+  const bundle = JSON.parse(await readFile(new URL("../src/client/calculator-v8/mitrinium_runtime_v15.min.json", import.meta.url), "utf8"));
+  const party = Array(3).fill(bundle.unit_library.find(unit => unit.archetype === "standard"));
+  const matrix = {};
+  for (const archetype of ["standard", "brute", "boss"]) {
+    const authored = { ...bundle.unit_library.find(unit => unit.archetype === archetype), nerve: archetype === "boss" ? 18 : 12 };
+    const source = [{ id: `matrix-${archetype}`, name: archetype, usage: "archetype", profile: authored, archetype, role: archetype, tags: [archetype] }];
+    matrix[archetype] = { ideal: authored };
+    for (const difficulty of ["easy", "medium", "hard"]) {
+      const result = generateEncounterOptions({
+        library: source,
+        settings: { difficulty, targets: presetTargets(difficulty), count: { mode: "exact", exact: 1 }, composition: "any", boss: { mode: "any" }, topN: 1, candidateLimit: 25, beamWidth: 25 },
+        evaluate: enemies => predictEncounter(bundle, party, enemies),
+      });
+      assert.ok(result.options.length, `${archetype}/${difficulty}`);
+      const selected = result.options[0].entries[0].profile;
+      assert.equal(selected.nerve, authored.nerve);
+      assert.equal(selected.pz, authored.pz);
+      matrix[archetype][difficulty] = selected;
+    }
+  }
+  const compact = Object.fromEntries(Object.entries(matrix).map(([name, rows]) => [name, Object.fromEntries(Object.entries(rows).map(([key, item]) => [key, {
+    body: item.body, armor: item.armor, pz: item.pz, pool: item.pool, damage: item.damage, penetration: item.penetration, nerve: item.nerve,
+  }]))]));
+  t.diagnostic(`V15 archetype tuning matrix ${JSON.stringify(compact)}`);
 });
 
 test("кнопка формирования сразу загружает лучший вариант в текущий бой", async () => {

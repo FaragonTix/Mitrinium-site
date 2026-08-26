@@ -1,0 +1,177 @@
+<div id="referenceMode" class="rules-reference hidden" aria-hidden="true">
+  <section class="reference-hero">
+    <div>
+      <p class="reference-kicker">Памятка игрока · редакция 0.5.6</p>
+      <h2>Правила под рукой</h2>
+      <p class="reference-lead">Короткие алгоритмы для игры за столом. Начните с броска Эффективности или найдите нужное правило по теме.</p>
+    </div>
+    <a class="reference-book-link" href="https://docs.google.com/document/d/1lrJRQbbYDmEap1faz7Fh2OEfor8c2XDOKNyRxb3jxPQ/edit?usp=sharing" target="_blank" rel="noopener noreferrer">Полная книга правил <span aria-hidden="true">↗</span></a>
+    <div class="reference-search-wrap">
+      <label for="referenceSearch">Найти правило</label>
+      <div class="reference-search-control">
+        <span aria-hidden="true">⌕</span>
+        <input id="referenceSearch" type="search" placeholder="Например: уклонение, Нерв, дальняя дистанция" autocomplete="off" oninput="filterRulesReference()">
+        <button type="button" aria-label="Очистить поиск" onclick="clearRulesReferenceSearch()">×</button>
+      </div>
+      <p id="referenceResultStatus" aria-live="polite">Показаны все разделы</p>
+    </div>
+  </section>
+
+  <nav class="reference-topic-nav" aria-label="Темы памятки">
+    <button type="button" class="active" data-reference-topic="all" aria-pressed="true" onclick="setRulesReferenceTopic('all')">Все</button>
+    <button type="button" data-reference-topic="rolls" aria-pressed="false" onclick="setRulesReferenceTopic('rolls')">Броски</button>
+    <button type="button" data-reference-topic="character" aria-pressed="false" onclick="setRulesReferenceTopic('character')">Персонаж</button>
+    <button type="button" data-reference-topic="combat" aria-pressed="false" onclick="setRulesReferenceTopic('combat')">Бой</button>
+    <button type="button" data-reference-topic="field" aria-pressed="false" onclick="setRulesReferenceTopic('field')">Поле</button>
+    <button type="button" data-reference-topic="states" aria-pressed="false" onclick="setRulesReferenceTopic('states')">Состояния</button>
+    <button type="button" data-reference-topic="equipment" aria-pressed="false" onclick="setRulesReferenceTopic('equipment')">Снаряжение</button>
+    <button type="button" data-reference-topic="recovery" aria-pressed="false" onclick="setRulesReferenceTopic('recovery')">Отдых</button>
+  </nav>
+
+  <section class="reference-pool-lab" data-reference-card data-reference-topics="rolls">
+    <div class="reference-section-heading">
+      <div><span class="reference-number">01</span><h2>Соберите пул Эффективности</h2></div>
+      <button type="button" class="secondary-button" onclick="setAppMode('rolls')">Перейти к броскам</button>
+    </div>
+    <div class="reference-pool-grid">
+      <div class="scene-selector" role="group" aria-label="Условия сцены">
+        <span class="reference-label">Кубы сцены</span>
+        <button type="button" data-reference-scene="hindrance" aria-pressed="false" onclick="setRulesReferenceScene('hindrance')"><strong>Помеха</strong><small>3d4</small></button>
+        <button type="button" class="active" data-reference-scene="normal" aria-pressed="true" onclick="setRulesReferenceScene('normal')"><strong>Обычно</strong><small>d4 + d6 + d8</small></button>
+        <button type="button" data-reference-scene="advantage" aria-pressed="false" onclick="setRulesReferenceScene('advantage')"><strong>Преимущество</strong><small>3d8</small></button>
+      </div>
+      <div class="reference-pool-inputs">
+        <label><span>Атрибут</span><input id="referenceAttributeDice" type="number" min="1" max="3" value="2" inputmode="numeric" oninput="updateRulesReferencePool()"><small>число d6</small></label>
+        <span aria-hidden="true">+</span>
+        <label><span>Навык</span><input id="referenceSkillDice" type="number" min="0" max="3" value="2" inputmode="numeric" oninput="updateRulesReferencePool()"><small>0 допустим</small></label>
+      </div>
+      <output id="referencePoolOutput" class="reference-pool-output" aria-live="polite"><span>Ваш пул</span><strong>d4 + 5d6 + d8</strong><small>Кубы сцены + 4d6 персонажа</small></output>
+    </div>
+    <ol class="reference-algorithm">
+      <li><span>1</span><p><strong>Бросьте весь пул.</strong> Кубы сцены держите отдельным цветом.</p></li>
+      <li><span>2</span><p><strong>Сложите два наибольших</strong> результата.</p></li>
+      <li><span>3</span><p><strong>Вычтите сумму двух наименьших.</strong> Итог — ЭФ.</p></li>
+      <li><span>4</span><p><strong>Сравните ЭФ со сложностью.</strong> Равенство — успех.</p></li>
+    </ol>
+  </section>
+
+  <div class="reference-card-grid">
+    <article class="reference-card accent-red" data-reference-card data-reference-topics="rolls">
+      <header><span class="reference-number">02</span><div><p>После броска</p><h2>Прорыв, Осложнение и Контроль</h2></div></header>
+      <div class="reference-critical-grid">
+        <div><span class="dice-parity even">2 · 4 · 6</span><strong>Три чётных</strong><p>Потенциальный Прорыв. Срабатывает только при успешной проверке.</p></div>
+        <div><span class="dice-parity odd">1 · 3 · 5</span><strong>Три нечётных</strong><p>Осложнение. Оно не отменяет успех проверки.</p></div>
+      </div>
+      <p class="reference-callout"><strong>В бою:</strong> событие можно превратить в +1/−1 ЭФ. При превышении ПЗ на 2+ Прорыв можно обменять на прорывной эффект оружия.</p>
+      <details><summary>Если предмет требует Контроля</summary><div><p>Бросайте Контроль только при Осложнении: <strong>d20 + бонус Методики</strong> против сложности, обычно <strong>16+</strong>.</p><p>Методики: Порох, Пар, Кристаллы, Реагенты. При провале текущая Т растёт на 1, но не выше удвоенной базовой Т. Предмет с Прочностью вместо этого теряет 1 Прочность.</p></div></details>
+      <details><summary>Шкала сложности ЭФ</summary><div class="difficulty-strip"><span><b>5</b> элементарная</span><span><b>6</b> простая</span><span><b>7</b> стандартная</span><span><b>8</b> квалифицированная</span><span><b>9</b> профессиональная</span><span><b>10</b> сложная профессиональная</span><span><b>11</b> экспертная</span><span><b>12</b> исключительная</span><span><b>13</b> предельная</span><span><b>14</b> почти невозможная</span></div></details>
+    </article>
+
+    <article class="reference-card accent-blue" data-reference-card data-reference-topics="character">
+      <header><span class="reference-number">03</span><div><p>Главные показатели</p><h2>Тело, ПЗ, Броня и Нерв</h2></div></header>
+      <div class="reference-formulas">
+        <div><span>Тело</span><strong>4 + (Напор + Сноровка) × 2</strong><small>обычно 8–16</small></div>
+        <div><span>Порог Защиты</span><strong>2 + ⌈(Сноровка + Смекалка) / 2⌉</strong><small>округление вверх</small></div>
+        <div><span>Основной Нерв</span><strong>Господство + Нюх</strong><small>ещё 3 бонусных очка</small></div>
+      </div>
+      <details><summary>Как работает Броня</summary><div><p><strong>Урон ниже Брони:</strong> ничего. <strong>Равен Броне:</strong> Тело не теряется, Броня −1. <strong>Выше:</strong> потеряйте разницу в Теле, затем Броня −1.</p><p>Пробитие игнорирует указанное число единиц Брони.</p></div></details>
+      <details><summary>На что тратить Нерв</summary><div class="reference-list-columns"><ul><li>перебросить кость ЭФ;</li><li>до броска улучшить Кубы сцены;</li><li>перебросить d20 Контроля.</li></ul><ul><li>игнорировать ментальный эффект 1 раунд;</li><li>остаться в сознании 1 раунд;</li><li>снизить вражеский критический эффект.</li></ul><p>Бонусный Нерв тратится только на три защитных эффекта справа. Когда он исчерпан, персонаж получает Надлом: Кубы сцены становятся 3d4 до полноценного восстановления.</p></div></details>
+    </article>
+
+    <article class="reference-card wide accent-orange" data-reference-card data-reference-topics="combat">
+      <header><span class="reference-number">04</span><div><p>Раунд = 5 секунд</p><h2>Бой по шагам</h2></div></header>
+      <div class="combat-timeline">
+        <div><span>До боя</span><strong>Инициатива</strong><p>Нюх + Смекалка. Её можно понизить до конца боя.</p></div>
+        <div><span>Фаза 1</span><strong>Движение</strong><p>10 м / 3 гекса. Рывок: 15 м / 5 гексов и без действия.</p></div>
+        <div><span>Фаза 2</span><strong>Действие</strong><p>Одна атака, способность или другое действие.</p></div>
+        <div><span>В любой фазе</span><strong>Реакция</strong><p>Одна за раунд, если выполнен триггер.</p></div>
+      </div>
+      <div class="reference-dark-formula"><span>Сложность попадания</span><strong>ПЗ цели + текущая Т оружия</strong><small>Атака попадает, если её ЭФ равна этой сложности или выше.</small></div>
+      <div class="hit-breakdown" aria-label="Пример расчёта сложности попадания">
+        <div><span>Защита цели</span><strong>ПЗ 3</strong><small>Постоянный показатель цели</small></div>
+        <b aria-hidden="true">+</b>
+        <div><span>Оружие</span><strong>текущая Т 3</strong><small>Не обязательно равна базовой</small></div>
+        <b aria-hidden="true">=</b>
+        <div class="result"><span>Нужно выбросить</span><strong>ЭФ 6+</strong><small>Равенство считается успехом</small></div>
+      </div>
+      <details><summary>Что означает Требовательность (Т)</summary><div><p><strong>Базовая Т</strong> указана в таблице снаряжения. <strong>Текущая Т</strong> применяется при каждой атаке и может быть выше базовой. Чем ниже Т, тем проще попасть.</p><ul><li>провал Контроля технического оружия или устройства: текущая Т +1;</li><li>эксплуатация без обслуживания также может повысить текущую Т;</li><li>текущая Т не опускается ниже базовой и не превышает удвоенную базовую: базовая Т 3 → максимум Т 6;</li><li>возврат к обслуживанию после перерыва возвращает текущую Т к базовой.</li></ul><p>Если способность задаёт собственную сложность или особое правило попадания, используйте её текст вместо этой формулы.</p></div></details>
+      <details><summary>Универсальные Реакции</summary><div><dl>
+        <dt>Реакция уклонения</dt><dd>До результата атаки: Кубы сцены + Сноровка + Уклонение; каждые полные 4 ЭФ дают +1 ПЗ на эту атаку.</dd>
+        <dt>Атакующая реакция</dt><dd>Основная атака во время движения своего или противника. Тратит Действие и не прерывает движение.</dd>
+        <dt>Спровоцированная атака</dt><dd>Основная атака без траты Действия, когда противник удаляется из ближней дистанции. Атакующий не должен двигаться.</dd>
+      </dl></div></details>
+      <details><summary>Стойка «Уклонение»</summary><div><p>Заявите в начале раунда: <strong>+2 ПЗ</strong> до следующего раунда. Скорость вдвое, Рывок невозможен; нельзя атаковать и использовать Реакции.</p></div></details>
+      <details><summary>При смерти и стабилизация</summary><div><p>При 0 Тела персонаж «При смерти». Если не стабилизировать за 6 раундов, в следующем он погибает.</p><p>Стабилизация обычно занимает два хода. Каждый восстанавливает d4 Тела, максимум 6 за сцену. После второго хода персонаж приходит в сознание с Инициативой 1 и ПЗ 6 на этот раунд.</p></div></details>
+    </article>
+
+    <article class="reference-card wide accent-green" data-reference-card data-reference-topics="field combat">
+      <header><span class="reference-number">05</span><div><p>1 гекс ≈ 3 метра</p><h2>Гексагональное поле</h2></div></header>
+      <div class="distance-track"><div><span>0</span><strong>Касание</strong><small>тот же гекс</small></div><div><span>1</span><strong>Ближняя</strong><small>соседний</small></div><div><span>2–4</span><strong>Средняя</strong><small>гекса</small></div><div><span>5–10</span><strong>Дальняя</strong><small>гексов</small></div></div>
+      <div class="reference-split">
+        <details><summary>Местность и движение</summary><div><ul><li><strong>Обычный:</strong> вход 1 очко.</li><li><strong>Труднопроходимый:</strong> вход 1, выход ещё 1.</li><li><strong>Непроходимый:</strong> обычным движением войти нельзя.</li><li><strong>Окружение:</strong> все 6 соседних гексов трудные или непроходимые — ПЗ −1.</li></ul></div></details>
+        <details><summary>Дальность оружия</summary><div><ul><li><strong>Ближнее:</strong> тот же или соседний гекс.</li><li><strong>Метательное:</strong> соседний +0, средняя +2 Т, дальняя недоступна.</li><li><strong>Пистолет / арбалет:</strong> средняя +0, соседний −1 ЭФ, тот же −2 ЭФ.</li><li><strong>Карабин / мушкет / ружьё:</strong> тот же недоступен, соседний −1 ЭФ, средняя и дальняя +0.</li></ul></div></details>
+      </div>
+      <p class="reference-callout">Труднопроходимый гекс на линии стрельбы может считаться за два; непроходимый блокирует линию. Соседний непроходимый гекс в зоне взрыва уменьшает урон на 1.</p>
+    </article>
+
+    <article class="reference-card wide accent-yellow" data-reference-card data-reference-topics="states combat">
+      <header><span class="reference-number">06</span><div><p>Быстрая расшифровка</p><h2>Состояния</h2></div></header>
+      <div class="reference-state-grid">
+        <div><strong>Ослепление</strong><p>Дальняя атака −3, ближняя −1; нельзя выполнять требующие зрения действия по цели.</p></div><div><strong>Ошеломление</strong><p>Пропуск следующей активации: без движения, действия и Реакций.</p></div><div><strong>Дезориентация</strong><p>Нет Реакций; передвижение вдвое.</p></div><div><strong>Испуг</strong><p>Нельзя добровольно сближаться с источником страха.</p></div><div><strong>Замедление</strong><p>10 м / 3 гекса → 5 м / 2 гекса.</p></div><div><strong>Связан</strong><p>Не дальше 2 м; Помеха на физические действия руками.</p></div><div><strong>Пониженная видимость</strong><p>Все задачи, требующие зрения, с Помехой.</p></div><div><strong>Кашель / Удушье</strong><p>−2 ЭФ ко всем проверкам; нельзя говорить.</p></div><div><strong>Упал</strong><p>Подняться — 3 очка передвижения.</p></div><div><strong>Отравление</strong><p>Дольше раунда; повторно после окончания текущего.</p></div>
+      </div>
+    </article>
+
+    <article class="reference-card accent-blue" data-reference-card data-reference-topics="recovery character">
+      <header><span class="reference-number">07</span><div><p>Между сценами</p><h2>Отдых и починка</h2></div></header>
+      <dl class="reference-definition-list">
+        <dt>Короткий отдых</dt><dd>2 часа, не более 2 раз в день: d6 Тела, d2 Основного Нерва, Броня до половины максимума.</dd>
+        <dt>Долгий отдых</dt><dd>Весь Основной и бонусный Нерв, 3d6 Тела, Броня до половины максимума.</dd>
+        <dt>Починка снаряжения</dt><dd>1 час и инструменты: снизить Т на 1 или восстановить 1 Прочность с равным шансом.</dd>
+        <dt>Починка брони</dt><dd>Только починка возвращает Броню полностью.</dd>
+      </dl>
+      <p class="reference-callout">Релаксация добавляет +1 восстановления Основного Нерва во время ближайшего отдыха. Только одна Релаксация за отдых.</p>
+    </article>
+
+    <article class="reference-card accent-red" data-reference-card data-reference-topics="recovery rolls">
+      <header><span class="reference-number">08</span><div><p>Дольше одного броска</p><h2>Протяжённые действия</h2></div></header>
+      <div class="reference-dark-formula"><span>Пункты прогресса</span><strong>ПП = ⌊ЭФ / 3⌋</strong><small>Прорыв +1 ПП, Осложнение −1 ПП.</small></div>
+      <div class="progress-thresholds"><span><b>3 ПП</b> простое, но долгое</span><span><b>5 ПП</b> обычное сложное</span><span><b>8 ПП</b> трудное</span><span><b>12 ПП</b> очень трудное</span></div>
+      <p>Раунд протяжённого действия обычно занимает 1 час. В проекте дольше суток с разными специалистами один раунд занимает 1 день.</p>
+    </article>
+
+    <details class="reference-card wide accent-green reference-section-spoiler" data-reference-card data-reference-topics="equipment recovery character">
+      <summary><header><span class="reference-number">09</span><div><p>Еженедельные расходы</p><h2>Обслуживание снаряжения</h2></div></header><span class="reference-section-toggle" aria-hidden="true"></span></summary>
+      <div class="reference-section-spoiler-body">
+      <div class="maintenance-summary">
+        <div><span>Активные вещи</span><strong>Стоимость обслуживания суммируется</strong><p>Оружие, броня, наборы и устройства, которые персонаж носит или держит готовыми.</p></div>
+        <div><span>Вещи на хранении</span><strong>Не требуют оплаты</strong><p>Только в безопасном месте; их нельзя считать готовыми к немедленному использованию.</p></div>
+        <div><span>Обслуживание на день</span><strong>⌈недельная цена / 6⌉</strong><p>Материалы на один день, с округлением вверх до целого фаранта.</p></div>
+      </div>
+      <p class="reference-callout"><strong>Если активная вещь используется без оплаченного обслуживания:</strong> каждый день бросьте d2 отдельно для каждой вещи. На 1 вещь ухудшается, на 2 — держится ещё день.</p>
+      <div class="maintenance-effects">
+        <div><strong>Техническое оружие / устройство</strong><p>Текущая Т +1, максимум — удвоенная базовая Т.</p></div>
+        <div><strong>КК- или СК-предмет</strong><p>Прочность −1. При 0 использовать нельзя до ремонта или обслуживания.</p></div>
+        <div><strong>Набор</strong><p>Надёжность падает на ступень: Нормальная 0 ЭФ → Пониженная −2 ЭФ → Недостаточная −5 ЭФ. Ниже — набор недоступен.</p></div>
+        <div><strong>Броня</strong><p>Максимальный Показатель брони уменьшается на 1.</p></div>
+      </div>
+      <details><summary>Что восстанавливает возвращение к обслуживанию</summary><div><ul><li>техническое оружие и устройства возвращают текущую Т к базовой;</li><li>наборы возвращаются к Нормальной Надёжности;</li><li>броня возвращает половину максимального запаса;</li><li>вещь снова считается обслуженной.</li></ul><p>Обслуживание не возвращает уничтоженную, потерянную или сломанную особым сюжетным эффектом вещь.</p></div></details>
+      <details><summary>Средние цены ремонта оружия и брони</summary><div>
+        <div class="repair-price-grid">
+          <div><strong>Правка простого оружия</strong><span>10–20 ф</span><small>Затупление, изгиб, сюжетное повреждение</small></div>
+          <div><strong>Чистка огнестрела</strong><span>15 ф</span><small>Мелкий дефект после боя или Осложнения</small></div>
+          <div><strong>Пороховое оружие</strong><span>40–100 ф</span><small>Клин или поломка</small></div>
+          <div><strong>Механическое оружие</strong><span>50–120 ф</span><small>Арбалет, гвоздомёт, пружинный механизм</small></div>
+          <div><strong>Кристаллический фокус</strong><span>60–150 ф</span><small>+1 Прочность; нужен ювелирный набор или специалист</small></div>
+          <div><strong>Броня 2 / 3</strong><span>30 / 60 ф</span><small>Полностью восстановить Броню</small></div>
+          <div><strong>Броня 4 / 5</strong><span>140 / 300 ф</span><small>Полностью восстановить Броню</small></div>
+          <div><strong>Экспериментальная броня</strong><span>от 600 ф</span><small>Требует специалиста</small></div>
+        </div>
+        <p class="repair-note">Восстановление Надёжности набора стоит его недельное обслуживание.</p>
+      </div></details>
+      </div>
+    </details>
+  </div>
+
+  <div id="referenceEmptyState" class="reference-empty-state" hidden><span aria-hidden="true">⌕</span><h2>Ничего не найдено</h2><p>Попробуйте другое слово или сбросьте тему.</p><button type="button" class="secondary-button" onclick="resetRulesReferenceFilters()">Показать всю памятку</button></div>
+  <footer class="reference-footer">Сжатая памятка помогает во время игры, но не заменяет полную книгу правил.</footer>
+</div>

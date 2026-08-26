@@ -108,7 +108,7 @@
   const maxStartingPrimarySkillGroupTotal = 5;
 
   const startingMoney = 1000;
-  const maxStartingAbilities = 3;
+  const maxStartingAbilities = 6;
 
   const maxAdvancedAttributeValue = 3;
   const maxAdvancedSkillValue = 3;
@@ -411,7 +411,8 @@
     const allowedModes = [
       'edit',
       'view',
-      'rolls'
+      'rolls',
+      'reference'
     ];
 
     const mode =
@@ -419,14 +420,14 @@
         ? requestedMode
         : 'edit';
 
-    const currentValidationErrors = mode !== 'edit' && typeof validateCharacterOnClient === 'function' && typeof collectCharacterForSave === 'function'
+    const currentValidationErrors = (mode === 'view' || mode === 'rolls') && typeof validateCharacterOnClient === 'function' && typeof collectCharacterForSave === 'function'
       ? validateCharacterOnClient(collectCharacterForSave())
       : [];
     if (currentValidationErrors.length && typeof setCharacterCompletionStatus === 'function') {
       setCharacterCompletionStatus(false);
     }
     const requiresSavedCharacter = mode === 'view' && !currentCharacterId;
-    if (mode !== 'edit' && (requiresSavedCharacter || currentValidationErrors.length)) {
+    if ((mode === 'view' || mode === 'rolls') && (requiresSavedCharacter || currentValidationErrors.length)) {
       const message = requiresSavedCharacter
         ? 'Для перехода в «Просмотр» сначала сохраните законченного персонажа.'
         : 'Этот персонаж не закончен. ' + (currentValidationErrors[0] || 'Завершите создание персонажа.') + ' После этого можно открыть «' + (mode === 'rolls' ? 'Броски' : 'Просмотр') + '».';
@@ -451,6 +452,11 @@
       rolls:
         document.getElementById(
           'rollsMode'
+        ),
+
+      reference:
+        document.getElementById(
+          'referenceMode'
         )
     };
 
@@ -468,6 +474,11 @@
       rolls:
         document.getElementById(
           'rollsModeButton'
+        ),
+
+      reference:
+        document.getElementById(
+          'referenceModeButton'
         )
     };
 
@@ -525,6 +536,11 @@
       );
     });
 
+    const draftBanner = document.getElementById('characterDraftBanner');
+    if (draftBanner) {
+      draftBanner.hidden = mode === 'reference' || currentCharacterIsComplete;
+    }
+
     if (
       mode === 'view' &&
       typeof renderCharacterViewer ===
@@ -561,6 +577,13 @@
       ) {
         refreshRollLog(false);
       }
+    }
+
+    if (
+      mode === 'reference' &&
+      typeof initializeRulesReference === 'function'
+    ) {
+      initializeRulesReference();
     }
   }
 
