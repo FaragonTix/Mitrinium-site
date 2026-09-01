@@ -37,11 +37,16 @@ export const DEFAULT_TUNING_POLICY = Object.freeze({
 
 export const GENERATOR_DEFAULTS = Object.freeze({
   topN: 5,
-  beamWidth: 18,
-  candidateLimit: 18,
+  beamWidth: 60,
+  candidateLimit: 48,
   weights: { win: 1, ko: 1, rounds: 0, body: 0, deviation: ARCHETYPE_TUNING_CONFIG.lambda },
   tolerances: { probability: 0.01, rounds: 0.25, body: 0.02 },
 });
+
+const MAX_ACCEPTABLE_TARGET_ERROR = 0.35;
+const MAX_PREDICTOR_EVALUATIONS = 2800;
+const ADAPTIVE_TUNING_ITERATIONS = 6;
+const ADAPTIVE_TUNING_BEAM = 2;
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, Number(value)));
 const array = (value) => Array.isArray(value) ? value : [];
@@ -293,16 +298,15 @@ export function objectiveScore(prediction, settings) {
   const target = settings.targets;
   const weights = settings.weights;
   return weights.win * distanceToRange(prediction.party_win_probability, target.win)
-    + weights.ko * distanceToRange(prediction.mean_pc_ko_fraction, target.ko)
-    + weights.rounds * distanceToRange(prediction.mean_rounds, target.rounds) / 10
-    + weights.body * distanceToRange(prediction.mean_party_body_loss_fraction, target.body);
+    + weights.ko * distanceToRange(prediction.mean_pc_ko_fraction, target.ko);
 }
 
 function scoredObjective(prediction, settings, entries) {
-  // Requested outcomes are primary. Pregen deviation only breaks close ties;
-  // it must never make a visibly wrong difficulty preferable to a tuned fit.
-  return objectiveScore(prediction, settings) * 10
-    + (Number(settings.weights.deviation) || 0) * pregenDeviation(entries);
+  // This is deliberately lexicographic: every in-range result beats every
+  // fallback. Diversity/deviation can only break ties inside the same class.
+  const targetError = objectiveScore(prediction, settings);
+  const deviationTie = Math.min(0.099999, (Number(settings.weights.deviation) || 0) * pregenDeviation(entries));
+  return targetError === 0 ? deviationTie : 1 + targetError * 10 + deviationTie;
 }
 
 export function matchesDifficultyPreset(key, prediction) {
@@ -412,6 +416,28 @@ function structuralSignature(entries) {
   return entries.map((entry) => entry.baseId || entry.archetype || entry.role).sort().join("|");
 }
 
+function diverseBeam(nodes, limit) {
+  const sorted = [...nodes].sort((a, b) => a.score - b.score || a.tie - b.tie);
+  if (sorted.length <= limit) return sorted;
+  const bestCount = Math.ceil(limit * 0.6);
+  const selected = sorted.slice(0, bestCount);
+  const selectedKeys = new Set(selected.map((node) => structuralSignature(node.entries)));
+  const remainder = sorted.slice(bestCount).sort((a, b) => a.tie - b.tie || a.score - b.score);
+  for (const node of remainder) {
+    const signature = structuralSignature(node.entries);
+    if (selectedKeys.has(signature)) continue;
+    selected.push(node);
+    selectedKeys.add(signature);
+    if (selected.length >= limit) return selected;
+  }
+  for (const node of sorted) {
+    if (selected.includes(node)) continue;
+    selected.push(node);
+    if (selected.length >= limit) break;
+  }
+  return selected;
+}
+
 function prepareLibrary(library, settings, random) {
   const eligible = library.map(makeLibraryEntry);
   const buckets = new Map();
@@ -435,7 +461,7 @@ function prepareLibrary(library, settings, random) {
   };
   const groups = [...buckets.values()].map(tuningSpread);
   const selected = [];
-  const baseLimit = Math.min(eligible.length, Math.max(groups.length, Math.ceil(settings.candidateLimit / 2)));
+  const baseLimit = Math.min(eligible.length, Math.max(groups.length, settings.candidateLimit));
   for (let depth = 0; selected.length < baseLimit && groups.some((group) => group[depth]); depth += 1) {
     for (const group of groups) {
       if (group[depth]) selected.push(group[depth].entry);
@@ -453,33 +479,95 @@ function prepareLibrary(library, settings, random) {
       selectedIds.add(required.id);
     }
   }
-  const variants = selected.flatMap((entry) => archetypeVariants(entry));
-  const variantGroups = new Map();
-  variants.forEach((entry) => {
-    const key = entry.archetype || entry.role || "other";
-    if (!variantGroups.has(key)) variantGroups.set(key, []);
-    variantGroups.get(key).push({ entry, order: random() });
-  });
-  const spreadGroups = [...variantGroups.values()].map(tuningSpread);
-  const preselected = [];
-  const requiredIds = new Set(settings.slots.map((slot) => slot?.npcId).filter(Boolean));
-  for (const id of requiredIds) {
-    const required = variants.find((entry) => entry.id === id || entry.baseId === id);
-    if (required && !preselected.some((entry) => entry.variantKey === required.variantKey)) preselected.push(required);
-  }
-  for (let depth = 0; preselected.length < settings.candidateLimit && spreadGroups.some((group) => group[depth]); depth += 1) {
-    for (const group of spreadGroups) {
-      const entry = group[depth]?.entry;
-      if (entry && !preselected.some((item) => item.variantKey === entry.variantKey)) preselected.push(entry);
-      if (preselected.length >= settings.candidateLimit) break;
-    }
-  }
-  return { candidates: preselected, candidateVariants: variants.length };
+  // Composition search sees one preferred centre per identity. Numeric
+  // variants are created only after a structurally diverse composition has
+  // survived the beam, so a convenient stat profile cannot crowd out baseIds.
+  const candidates = selected.map((entry) => entry.usage === "archetype"
+    ? resolvedArchetypeVariant(entry, {}, "ideal")
+    : { ...entry, variantKey: `${entry.baseId}@exact` });
+  return { candidates, candidateVariants: candidates.length };
 }
 
 function outcomeTargetsUnrestricted(settings) {
   const coversUnit = (range) => range === null || range[0] <= 0 && range[1] >= 1;
   return coversUnit(settings.targets.win) && coversUnit(settings.targets.ko) && settings.targets.rounds === null && settings.targets.body === null;
+}
+
+function currentTuningDeltas(entry) {
+  const ideal = entry.idealProfile || entry.profile;
+  const profile = entry.profile || ideal;
+  return {
+    body: (Number(profile.body) || 0) - (Number(ideal.body) || 0),
+    armor: (Number(profile.armor) || 0) - (Number(ideal.armor) || 0),
+    pool: (Number(profile.pool) || 0) - (Number(ideal.pool) || 0),
+    damage: damageIndex(profile.damage) - damageIndex(ideal.damage),
+    penetration: (Number(profile.penetration) || 0) - (Number(ideal.penetration) || 0),
+  };
+}
+
+function adaptiveNeighbours(entries) {
+  const neighbours = [];
+  const steps = {
+    body: [-2, -1, 1, 2],
+    armor: [-1, 1],
+    pool: [-1, 1],
+    damage: [-1, 1],
+    penetration: [-1, 1],
+  };
+  entries.forEach((entry, index) => {
+    if (entry.usage !== "archetype") return;
+    const current = currentTuningDeltas(entry);
+    for (const [key, deltas] of Object.entries(steps)) {
+      if (entry.tuningPolicy?.tunable?.[key] !== true) continue;
+      for (const delta of deltas) {
+        const tuned = resolvedArchetypeVariant(entry, { ...current, [key]: current[key] + delta }, "hard");
+        if (tuned.variantKey === entry.variantKey) continue;
+        const next = [...entries];
+        next[index] = tuned;
+        neighbours.push(next);
+      }
+    }
+  });
+  return neighbours;
+}
+
+function adaptiveTuneNode(node, settings, evaluateEntries, random) {
+  if (!node.evaluation) return node;
+  let best = node;
+  let beam = [node];
+  for (let iteration = 0; iteration < ADAPTIVE_TUNING_ITERATIONS; iteration += 1) {
+    const next = new Map();
+    for (const source of beam) {
+      for (const entries of adaptiveNeighbours(source.entries)) {
+        const identity = canonicalIdentity(entries);
+        if (next.has(identity)) continue;
+        const evaluation = evaluateEntries(entries);
+        if (!evaluation) continue;
+        const score = scoredObjective(evaluation.prediction, settings, entries);
+        // Each accepted local step must improve the requested outcomes (with
+        // authored deviation acting only as the existing small tie-breaker).
+        if (score >= source.score - 1e-12) continue;
+        next.set(identity, { entries, evaluation, score, tie: random() });
+      }
+    }
+    if (!next.size) break;
+    beam = [...next.values()].sort((a, b) => a.score - b.score || a.tie - b.tie).slice(0, ADAPTIVE_TUNING_BEAM);
+    if (beam[0].score < best.score) best = beam[0];
+  }
+  return best;
+}
+
+function diverseFinalSeeds(nodes, limit) {
+  const selected = [];
+  const signatures = new Set();
+  for (const node of nodes) {
+    const signature = structuralSignature(node.entries);
+    if (signatures.has(signature)) continue;
+    selected.push(node);
+    signatures.add(signature);
+    if (selected.length >= limit) break;
+  }
+  return selected;
 }
 
 export function generateEncounterOptions({ library, locked = [], settings: rawSettings, evaluate }) {
@@ -503,7 +591,10 @@ export function generateEncounterOptions({ library, locked = [], settings: rawSe
   const evaluated = new Map();
   const evaluateEntries = (entries) => {
     const key = canonicalIdentity(entries);
-    if (!evaluated.has(key)) evaluated.set(key, evaluate(entries.map((entry) => entry.profile)));
+    if (!evaluated.has(key)) {
+      if (evaluated.size >= MAX_PREDICTOR_EVALUATIONS) return null;
+      evaluated.set(key, evaluate(entries.map((entry) => entry.profile)));
+    }
     diagnosticCounts.v15Evaluations = evaluated.size;
     return evaluated.get(key);
   };
@@ -522,9 +613,10 @@ export function generateEncounterOptions({ library, locked = [], settings: rawSe
         if (next.has(key)) continue;
         if (entries.length === desired) diagnosticCounts.structuralCandidates += 1;
         const evaluation = fastPath ? null : evaluateEntries(entries);
+        if (!fastPath && !evaluation) continue;
         next.set(key, { entries, evaluation, score: evaluation ? scoredObjective(evaluation.prediction, settings, entries) : pregenDeviation(entries), tie: random() });
       }
-      beam = [...next.values()].sort((a, b) => a.score - b.score || a.tie - b.tie).slice(0, settings.beamWidth);
+      beam = diverseBeam([...next.values()], settings.beamWidth);
     }
     for (const node of beam) {
       if (!finalStructuralAllowed(node.entries, settings)) continue;
@@ -532,21 +624,29 @@ export function generateEncounterOptions({ library, locked = [], settings: rawSe
       finalNodes.push(node);
     }
   }
-  diagnosticCounts.finalAccepted = finalNodes.length;
   finalNodes.sort((a, b) => a.score - b.score || canonicalIdentity(a.entries).localeCompare(canonicalIdentity(b.entries)));
+  const seedLimit = Math.max(6, settings.topN * 2);
+  const tunedNodes = fastPath
+    ? diverseFinalSeeds(finalNodes, seedLimit)
+    : diverseFinalSeeds(finalNodes, seedLimit).map((node) => adaptiveTuneNode(node, settings, evaluateEntries, random));
+  tunedNodes.sort((a, b) => a.score - b.score || canonicalIdentity(a.entries).localeCompare(canonicalIdentity(b.entries)));
+  diagnosticCounts.finalAccepted = tunedNodes.length;
   const options = [];
   const identities = new Set(), signatures = new Map();
-  for (const node of finalNodes) {
+  for (const node of tunedNodes) {
     const identity = canonicalIdentity(node.entries), signature = structuralSignature(node.entries);
     if (identities.has(identity)) continue;
     const signatureUses = signatures.get(signature) || 0;
-    if (signatureUses >= 2 && finalNodes.some((other) => structuralSignature(other.entries) !== signature && !identities.has(canonicalIdentity(other.entries)))) continue;
+    if (signatureUses >= 1) continue;
     const evaluation = node.evaluation || evaluateEntries(node.entries);
+    if (!evaluation) continue;
+    const targetError = objectiveScore(evaluation.prediction, settings);
+    if (!fastPath && targetError > MAX_ACCEPTABLE_TARGET_ERROR) continue;
     const option = {
       entries: node.entries,
       evaluation,
       score: scoredObjective(evaluation.prediction, settings, node.entries),
-      targetError: objectiveScore(evaluation.prediction, settings),
+      targetError,
       pregenDeviation: pregenDeviation(node.entries),
       identity,
       signature,
@@ -564,7 +664,8 @@ export function generateEncounterOptions({ library, locked = [], settings: rawSe
   }
   if (!options.length) {
     const bossesAvailable = candidates.some((entry) => tagsOf(entry).has("boss")) || lockedEntries.some((entry) => tagsOf(entry).has("boss"));
-    if (["required", "exactly1"].includes(settings.boss.mode) && !bossesAvailable) diagnostics.push("Не найден босс, хотя он обязателен.");
+    if (finalNodes.length && !fastPath) diagnostics.push("Не найден подходящий бой: даже после расширенного поиска отклонение от заданной сложности слишком велико.");
+    else if (["required", "exactly1"].includes(settings.boss.mode) && !bossesAvailable) diagnostics.push("Не найден босс, хотя он обязателен.");
     else if (settings.composition !== "any") diagnostics.push("Невозможно выполнить выбранный состав при текущем количестве и банке NPC.");
     else diagnostics.push("Невозможно сформировать бой заданного размера.");
   } else if (options[0].targetError > 1e-9) diagnostics.push("Точного совпадения с целевыми исходами не найдено; показаны ближайшие структурно допустимые варианты.");

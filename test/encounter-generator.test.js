@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   ARCHETYPE_TUNING_CONFIG,
   DIFFICULTY_PRESETS,
+  averageDamage,
   archetypeVariants,
   finiteMax,
   generateEncounterOptions,
@@ -341,6 +342,92 @@ test("поиск предпочитает попадание в обе цели 
   assert.ok(result.options[0].entries[0].profile.pool < 6);
 });
 
+test("adaptive tuner меняет только разрешённые числа и сохраняет hard identity", () => {
+  const hardIdentity = { name: "Страж", type: "beast", attacks: [{ name: "Пика" }], reactions: [{ name: "Парирование" }], passives: [{ name: "Строй" }] };
+  const source = [{
+    id: "adaptive-guard", baseId: "adaptive-guard", name: "Страж", usage: "archetype", archetype: "standard", role: "standard", hardIdentity,
+    profile: { body: 12, armor: 1, pz: 5, nerve: 9, pool: 3, damage: "d6", penetration: 0, archetype: "standard" },
+  }];
+  const evaluate = ([item]) => {
+    const strength = item.body + item.armor * 2 + item.pool * 2 + averageDamage(item.damage) + item.penetration * 2;
+    return { prediction: { party_win_probability: Math.max(0, 1 - strength / 55), mean_pc_ko_fraction: Math.min(1, strength / 55), mean_rounds: 3, mean_party_body_loss_fraction: .2 } };
+  };
+  const make = (win, ko) => generateEncounterOptions({ library: source, settings: { count: { mode: "exact", exact: 1 }, targets: { win: { mode: "exact", exact: win }, ko: { mode: "exact", exact: ko } }, topN: 1 }, evaluate });
+  const easier = make(.7, .3).options[0];
+  const harder = make(.35, .65).options[0];
+  assert.ok(easier && harder);
+  assert.notDeepEqual(easier.entries[0].profile, harder.entries[0].profile);
+  for (const option of [easier, harder]) {
+    assert.equal(option.entries[0].profile.pz, 5);
+    assert.equal(option.entries[0].profile.nerve, 9);
+    assert.deepEqual(option.entries[0].hardIdentity, hardIdentity);
+  }
+});
+
+test("широкий identity sampler ротирует baseId по seed, а topN не повторяет структуру", () => {
+  const source = Array.from({ length: 80 }, (_, index) => ({ id: `identity-${index}`, baseId: `identity-${index}`, name: `Identity ${index}`, usage: "exact", archetype: "standard", profile: profile(2, "standard") }));
+  const ids = new Set();
+  for (const seed of [1, 2, 3, 4]) {
+    const result = generateEncounterOptions({ library: source, settings: { seed, count: { mode: "exact", exact: 1 }, targets: { win: { mode: "ignore" }, ko: { mode: "ignore" } }, candidateLimit: 48, topN: 5 }, evaluate: fakeEvaluate });
+    assert.equal(result.diagnosticCounts.candidateVariants, 48);
+    assert.equal(new Set(result.options.map((option) => option.signature)).size, result.options.length);
+    result.options.forEach((option) => ids.add(option.entries[0].baseId));
+  }
+  assert.ok(ids.size > 5);
+});
+
+test("сильно неверный fallback не выдаётся как подходящий бой", () => {
+  const result = generateEncounterOptions({
+    library: [{ id: "deadly-only", usage: "exact", archetype: "boss", role: "boss", profile: profile(5, "boss", 30) }],
+    settings: { difficulty: "medium", targets: presetTargets("medium"), count: { mode: "exact", exact: 1 }, topN: 1 },
+    evaluate: () => ({ prediction: { party_win_probability: .1, mean_pc_ko_fraction: .95, mean_rounds: 2, mean_party_body_loss_fraction: .9 } }),
+  });
+  assert.equal(result.options.length, 0);
+  assert.match(result.diagnostics.join(" "), /отклонение|не найден подходящий/i);
+});
+
+test("fallback в пределах 0.35 сохраняется со статусом ближайшего варианта", () => {
+  const result = generateEncounterOptions({
+    library: [{ id: "nearby", usage: "exact", archetype: "standard", profile: profile(2, "standard") }],
+    settings: { difficulty: "medium", targets: presetTargets("medium"), count: { mode: "exact", exact: 1 }, topN: 1 },
+    evaluate: () => ({ prediction: { party_win_probability: .70, mean_pc_ko_fraction: .5, mean_rounds: 3, mean_party_body_loss_fraction: .2 } }),
+  });
+  assert.equal(result.options.length, 1);
+  assert.ok(result.options[0].targetError > 0 && result.options[0].targetError <= .35);
+  assert.equal(result.options[0].status.win.ok, false);
+  assert.equal(result.options[0].status.ko.ok, true);
+  assert.match(result.diagnostics.join(" "), /ближайшие/i);
+});
+
+test("попадание в target box всегда выше красивого fallback вне диапазона", () => {
+  const source = [
+    { id: "pretty-fallback", baseId: "pretty-fallback", usage: "exact", archetype: "standard", profile: { ...profile(2, "standard"), body: 10 } },
+    { id: "tunable-fit", baseId: "tunable-fit", usage: "archetype", archetype: "standard", profile: { ...profile(2, "standard"), body: 10 } },
+  ];
+  const result = generateEncounterOptions({
+    library: source,
+    settings: { difficulty: "medium", targets: presetTargets("medium"), count: { mode: "exact", exact: 1 }, topN: 2 },
+    evaluate: ([item]) => ({ prediction: { party_win_probability: .74 + (item.body - 10) * .006, mean_pc_ko_fraction: .5, mean_rounds: 3, mean_party_body_loss_fraction: .2 } }),
+  });
+  assert.ok(result.options.length >= 1);
+  assert.equal(result.options[0].entries[0].baseId, "tunable-fit");
+  assert.equal(result.options[0].targetError, 0);
+  assert.ok(result.options[0].entries[0].deviation > 0);
+});
+
+test("общий deterministic evaluate budget никогда не превышает 2800", () => {
+  let calls = 0;
+  const source = Array.from({ length: 80 }, (_, index) => ({ id: `budget-${index}`, baseId: `budget-${index}`, usage: "exact", archetype: "standard", profile: { ...profile(2, "standard"), body: 8 + index % 12 } }));
+  const result = generateEncounterOptions({
+    library: source,
+    settings: { count: { mode: "exact", exact: 5 }, candidateLimit: 60, beamWidth: 80, topN: 5, targets: { win: { mode: "exact", exact: .5 }, ko: { mode: "exact", exact: .5 } } },
+    evaluate: profiles => { calls += 1; return fakeEvaluate(profiles); },
+  });
+  assert.ok(calls <= 2800);
+  assert.equal(result.diagnosticCounts.v15Evaluations, calls);
+  assert.equal(result.evaluatedCount, calls);
+});
+
 test("Replace random меняет только выбранный unlocked slot и сохраняет locked", () => {
   const entries = library.slice(0, 3).map((entry, index) => ({ ...entry, locked: index === 0 }));
   const result = replaceGeneratedSlot({ entries, index: 1, library, settings: { count: { mode: "exact", exact: 3 }, heterogeneity: { mode: "any", extremeAllowed: true } }, evaluate: fakeEvaluate });
@@ -495,14 +582,18 @@ test("production V15 matrix показывает smooth tuning без измен
         settings: { difficulty, targets: presetTargets(difficulty), count: { mode: "exact", exact: 1 }, composition: "any", boss: { mode: "any" }, topN: 1, candidateLimit: 25, beamWidth: 25 },
         evaluate: enemies => predictEncounter(bundle, party, enemies),
       });
-      assert.ok(result.options.length, `${archetype}/${difficulty}`);
+      if (!result.options.length) {
+        assert.match(result.diagnostics.join(" "), /не найден подходящий|отклонение/i, `${archetype}/${difficulty}`);
+        matrix[archetype][difficulty] = { unavailable: true };
+        continue;
+      }
       const selected = result.options[0].entries[0].profile;
       assert.equal(selected.nerve, expectedNerve);
       assert.equal(selected.pz, authored.pz);
       matrix[archetype][difficulty] = selected;
     }
   }
-  const compact = Object.fromEntries(Object.entries(matrix).map(([name, rows]) => [name, Object.fromEntries(Object.entries(rows).map(([key, item]) => [key, {
+  const compact = Object.fromEntries(Object.entries(matrix).map(([name, rows]) => [name, Object.fromEntries(Object.entries(rows).map(([key, item]) => [key, item.unavailable ? item : {
     body: item.body, armor: item.armor, pz: item.pz, pool: item.pool, damage: item.damage, penetration: item.penetration, nerve: item.nerve,
   }]))]));
   t.diagnostic(`V15 archetype tuning matrix ${JSON.stringify(compact)}`);
