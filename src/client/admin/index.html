@@ -143,13 +143,18 @@
             <input id="characterLevel" type="number" min="1" max="20"
               step="1" value="1" required>
           </label>
-          <label><span>Google email владельца *</span>
+          <label><span>Google email основного владельца *</span>
             <input id="ownerEmail" type="email" required>
           </label>
           <label><span>Папка dashboard</span>
             <select id="characterFolder">
               <option value="">Без папки</option>
             </select>
+          </label>
+          <label class="shared-access-field">
+            <span>Дополнительные игроки</span>
+            <textarea id="sharedEmails" rows="3" placeholder="По одному Google email в строке"></textarea>
+            <small>Эти игроки смогут открывать и редактировать персонажа. Основной владелец сохраняется отдельно.</small>
           </label>
         </div>
 
@@ -172,7 +177,7 @@
 
         <label class="check">
           <input id="hidden" type="checkbox">
-          <span>Скрыть персонажа от игрока</span>
+          <span>Скрыть персонажа от всех игроков</span>
         </label>
 
         <details>

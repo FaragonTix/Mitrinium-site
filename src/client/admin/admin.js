@@ -4,7 +4,7 @@ const elements = Object.fromEntries(
     "visibilityFilter", "refreshButton", "createButton", "characterDialog",
     "characterForm", "cancelButton", "dialogEyebrow", "dialogTitle",
     "characterId", "characterName", "playerName", "className",
-    "characterLevel", "ownerEmail",
+    "characterLevel", "ownerEmail", "sharedEmails",
     "characterFolder",
     "currentBody", "currentMainNerve", "currentBonusNerve", "currentArmor",
     "maxArmor", "gold", "farthings", "pekkels", "notes", "hidden",
@@ -64,6 +64,7 @@ function filteredCharacters() {
       item.name,
       item.player,
       item.ownerEmail,
+      ...(item.sharedEmails || []),
       item.className,
       item.level,
     ]
@@ -118,7 +119,10 @@ function render() {
           · игрок: ${escapeHtml(item.player || "не указан")}</div>
       </div>
       <div class="owner">
-        <div>${escapeHtml(item.ownerEmail)}</div>
+        <div><span class="owner-label">Владелец:</span> ${escapeHtml(item.ownerEmail)}</div>
+        ${(item.sharedEmails || []).length
+          ? `<div class="shared-players"><span class="owner-label">Доп. игроки:</span> ${item.sharedEmails.map(escapeHtml).join(", ")}</div>`
+          : '<div class="meta">Дополнительных игроков нет</div>'}
         <div class="meta">Изменён ${new Date(item.updatedAt).toLocaleString("ru-RU")}</div>
         <label class="card-folder-select">
           <span>Папка</span>
@@ -193,6 +197,7 @@ function openDialog(character = null) {
   elements.className.value = character?.className || "Рекрут";
   elements.characterLevel.value = character?.level || data.level || 1;
   elements.ownerEmail.value = character?.ownerEmail || "";
+  elements.sharedEmails.value = (character?.sharedEmails || []).join("\n");
   elements.characterFolder.innerHTML = folderOptions(character?.folderId || "");
   elements.characterFolder.value = character?.folderId || "";
   elements.hidden.checked = Boolean(character?.hidden);
@@ -247,6 +252,10 @@ elements.characterForm.addEventListener("submit", async (event) => {
       className: elements.className.value,
       level: numberValue(elements.characterLevel),
       ownerEmail: elements.ownerEmail.value,
+      sharedEmails: elements.sharedEmails.value
+        .split(/[\s,;]+/)
+        .map((email) => email.trim())
+        .filter(Boolean),
       folderId: elements.characterFolder.value,
       hidden: elements.hidden.checked,
       data,
@@ -298,8 +307,8 @@ elements.characterList.addEventListener("click", async (event) => {
       await rpc("adminSetCharacterVisibility", character.id, !character.hidden);
       await loadCharacters();
       showNotice(character.hidden
-        ? "Персонаж снова виден игроку."
-        : "Персонаж скрыт от игрока, но остаётся доступен в dashboard.");
+        ? "Персонаж снова виден всем назначенным игрокам."
+        : "Персонаж скрыт от всех игроков, но остаётся доступен в dashboard.");
     }
     if (button.dataset.action === "delete") {
       const confirmed = window.confirm(

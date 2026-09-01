@@ -343,6 +343,30 @@ function sanitizeEquipmentConditions(value) {
   return result;
 }
 
+function sanitizeAbilityUses(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const result = {};
+
+  for (const [rawId, rawUses] of Object.entries(value).slice(0, 100)) {
+    const id = String(rawId || "").slice(0, 120);
+    if (!id || !Number.isFinite(Number(rawUses))) continue;
+    result[id] = clamp(Math.round(Number(rawUses)), 0, 99);
+  }
+
+  return result;
+}
+
+function sanitizeTurnTracker(value) {
+  const source = value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
+  return {
+    moved: Boolean(source.moved),
+    reaction: source.reaction !== false,
+    action: source.action !== false,
+  };
+}
+
 export function sanitizeState(state, resources) {
   const safeState = state || {};
   const safeResources = resources || {};
@@ -378,6 +402,8 @@ export function sanitizeState(state, resources) {
     equipmentConditions: sanitizeEquipmentConditions(
       safeState.equipmentConditions,
     ),
+    abilityUses: sanitizeAbilityUses(safeState.abilityUses),
+    turnTracker: sanitizeTurnTracker(safeState.turnTracker),
     notes: String(safeState.notes || "").slice(0, 10000),
     initialized: true,
   };
@@ -393,11 +419,26 @@ async function getRecord(db, id) {
     .first();
 }
 
-function assertOwner(record, user, message) {
+function assertPrimaryOwner(record, user, message) {
   if (!record) throw new Error("Персонаж не найден.");
   if (record.owner_email !== user.email && !user.isAdmin) {
     throw new Error(message);
   }
+}
+
+async function assertCharacterAccess(db, record, user, message) {
+  if (!record) throw new Error("Персонаж не найден.");
+  if (user.isAdmin || record.owner_email === user.email) return;
+
+  const share = await db
+    .prepare(
+      `SELECT character_id
+       FROM character_shares
+       WHERE character_id = ?1 AND user_email = ?2`,
+    )
+    .bind(String(record.id), user.email)
+    .first();
+  if (!share) throw new Error(message);
 }
 
 function assertPlayerCanAccess(record, user) {
@@ -415,9 +456,25 @@ function assertAdmin(user) {
 function normalizeEmail(value) {
   const email = String(value || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new Error("Укажите корректный email владельца.");
+    throw new Error("Укажите корректный Google email.");
   }
   return email;
+}
+
+function normalizeSharedEmails(value, ownerEmail) {
+  const values = Array.isArray(value) ? value : [];
+  const result = [];
+
+  for (const rawEmail of values) {
+    const email = normalizeEmail(rawEmail);
+    if (email === ownerEmail || result.includes(email)) continue;
+    result.push(email);
+    if (result.length > 20) {
+      throw new Error("К одному персонажу можно добавить не больше 20 игроков.");
+    }
+  }
+
+  return result;
 }
 
 export function normalizeCharacterFolderName(value) {
@@ -439,7 +496,7 @@ export async function saveCharacter(db, user, input) {
   const id = String(input.id || crypto.randomUUID());
   const existing = await getRecord(db, id);
   if (existing) {
-    assertOwner(existing, user, "Нельзя редактировать чужого персонажа.");
+    await assertCharacterAccess(db, existing, user, "Нельзя редактировать чужого персонажа.");
     assertPlayerCanAccess(existing, user);
   }
 
@@ -516,7 +573,12 @@ export async function listVisibleCharacters(db, user) {
        FROM characters c
        LEFT JOIN character_list_preferences p
          ON p.character_id = c.id AND p.user_email = ?1
-       WHERE c.hidden = 0 AND c.owner_email = ?1
+       WHERE c.hidden = 0 AND (
+         c.owner_email = ?1 OR EXISTS (
+           SELECT 1 FROM character_shares cs
+           WHERE cs.character_id = c.id AND cs.user_email = ?1
+         )
+       )
        ORDER BY c.updated_at DESC`;
 
   const { results = [] } = await db.prepare(query).bind(user.email).all();
@@ -533,6 +595,7 @@ export async function listVisibleCharacters(db, user) {
       className: row.class_name,
       level: normalizeCharacterLevel(row.level),
       ownerEmail: row.owner_email,
+      canDelete: user.isAdmin || row.owner_email === user.email,
       folderId: row.folder_id || "",
       folderName: row.folder_name || "",
       isComplete: data.isComplete !== false,
@@ -565,7 +628,7 @@ export async function listVisibleCharacters(db, user) {
 
 export async function deleteOwnCharacter(db, user, id) {
   const record = await getRecord(db, id);
-  assertOwner(record, user, "Нельзя удалить чужого персонажа.");
+  assertPrimaryOwner(record, user, "Удалить персонажа может только основной владелец.");
   assertPlayerCanAccess(record, user);
   const policy = await getCharacterDeletionPolicy(db);
   if (policy === "forbidden" && !user.isAdmin) {
@@ -584,7 +647,7 @@ export async function deleteOwnCharacter(db, user, id) {
 
 export async function loadCharacter(db, user, id) {
   const record = await getRecord(db, id);
-  assertOwner(record, user, "Нельзя открыть чужого персонажа.");
+  await assertCharacterAccess(db, record, user, "Нельзя открыть чужого персонажа.");
   assertPlayerCanAccess(record, user);
 
   let character;
@@ -630,7 +693,7 @@ export async function loadCharacter(db, user, id) {
 
 export async function saveCharacterState(db, user, id, state) {
   const record = await getRecord(db, id);
-  assertOwner(record, user, "Нельзя менять состояние чужого персонажа.");
+  await assertCharacterAccess(db, record, user, "Нельзя менять состояние чужого персонажа.");
   assertPlayerCanAccess(record, user);
 
   const character = JSON.parse(record.data_json);
@@ -656,7 +719,7 @@ export async function saveCharacterState(db, user, id, state) {
 
 export async function hideCharacter(db, user, id) {
   const record = await getRecord(db, id);
-  assertOwner(record, user, "Нельзя скрыть чужого персонажа.");
+  await assertCharacterAccess(db, record, user, "Нельзя скрыть чужого персонажа.");
   assertPlayerCanAccess(record, user);
 
   await db
@@ -675,7 +738,12 @@ export async function hideCharacter(db, user, id) {
        FROM character_list_preferences p
        JOIN characters c ON c.id = p.character_id
        WHERE p.user_email = ?1
-         AND (?2 = 1 OR (c.owner_email = ?1 AND c.hidden = 0))`,
+         AND (?2 = 1 OR (c.hidden = 0 AND (
+           c.owner_email = ?1 OR EXISTS (
+             SELECT 1 FROM character_shares cs
+             WHERE cs.character_id = c.id AND cs.user_email = ?1
+           )
+         )))`,
     )
     .bind(user.email, user.isAdmin ? 1 : 0)
     .first();
@@ -692,7 +760,7 @@ export async function restoreHiddenCharacters(db, user) {
 
 export async function restoreHiddenCharacter(db, user, id) {
   const record = await getRecord(db, id);
-  assertOwner(record, user, "Нельзя вернуть чужого персонажа.");
+  await assertCharacterAccess(db, record, user, "Нельзя вернуть чужого персонажа.");
   assertPlayerCanAccess(record, user);
   await db
     .prepare(
@@ -719,6 +787,19 @@ export async function adminListCharacters(db, user) {
        ORDER BY c.updated_at DESC`,
     )
     .all();
+  const { results: shareRows = [] } = await db
+    .prepare(
+      `SELECT character_id, user_email
+       FROM character_shares
+       ORDER BY user_email COLLATE NOCASE ASC`,
+    )
+    .all();
+  const sharedEmailsByCharacter = new Map();
+  shareRows.forEach((row) => {
+    const emails = sharedEmailsByCharacter.get(row.character_id) || [];
+    emails.push(row.user_email);
+    sharedEmailsByCharacter.set(row.character_id, emails);
+  });
   const { results: folderRows = [] } = await db
     .prepare(
       `SELECT f.id, f.name, f.created_at, f.updated_at, f.created_by,
@@ -747,6 +828,7 @@ export async function adminListCharacters(db, user) {
         className: row.class_name,
         level,
         ownerEmail: row.owner_email,
+        sharedEmails: sharedEmailsByCharacter.get(row.id) || [],
         hidden: Boolean(row.hidden),
         folderId: row.folder_id || "",
         folderName: row.folder_name || "",
@@ -801,6 +883,7 @@ async function setCharacterFolder(db, characterId, folderId) {
 export async function adminSaveCharacter(db, user, input = {}) {
   assertAdmin(user);
   const ownerEmail = normalizeEmail(input.ownerEmail);
+  const sharedEmails = normalizeSharedEmails(input.sharedEmails, ownerEmail);
   const id = String(input.id || crypto.randomUUID());
   const existing = await getRecord(db, id);
   const currentData = existing?.data_json
@@ -865,13 +948,33 @@ export async function adminSaveCharacter(db, user, input = {}) {
     )
     .run();
 
+  await db
+    .prepare("DELETE FROM character_shares WHERE character_id = ?1")
+    .bind(id)
+    .run();
+  for (const email of sharedEmails) {
+    await db
+      .prepare(
+        `INSERT INTO character_shares (character_id, user_email, created_at, created_by)
+         VALUES (?1, ?2, ?3, ?4)`,
+      )
+      .bind(id, email, timestamp, user.email)
+      .run();
+  }
+
   if (input.state && typeof input.state === "object") {
     await saveCharacterState(db, user, id, input.state);
   }
 
   await setCharacterFolder(db, id, input.folderId);
 
-  return { success: true, id, ownerEmail, folderId: String(input.folderId || "") };
+  return {
+    success: true,
+    id,
+    ownerEmail,
+    sharedEmails,
+    folderId: String(input.folderId || ""),
+  };
 }
 
 export async function adminSetCharacterVisibility(db, user, id, hidden) {

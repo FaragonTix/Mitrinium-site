@@ -1,4 +1,5 @@
 import { V15_DIFFICULTY_PRESETS } from "./difficulty-presets-v15.js";
+import { finalizeGeneratedNpc } from "./generated-npc-invariants.js";
 
 export const DIFFICULTY_PRESETS = Object.freeze(Object.fromEntries(
   Object.entries(V15_DIFFICULTY_PRESETS).map(([key, preset]) => [key, Object.freeze({
@@ -10,15 +11,15 @@ export const DIFFICULTY_PRESETS = Object.freeze(Object.fromEntries(
 
 export const ARCHETYPE_TUNING_CONFIG = Object.freeze({
   lambda: 0.015,
-  damageSteps: ["d4", "d4+1", "d6", "d6+1", "d8", "d8+1", "d10", "d10+1", "d12"],
+  damageSteps: ["d4", "d4+1", "d6", "d6+1", "d8", "d8+1", "d10", "d10+1"],
   weights: { body: 1, pool: 2, damage: 2, armor: 4, penetration: 5, pz: 8 },
   defaults: {
-    body: { preferred: 3, hard: 10, min: 1, max: 60 },
+    body: { preferred: 3, hard: 10, min: 4, max: 60 },
     pool: { preferred: 1, hard: 3, min: 1, max: 8 },
     damage: { preferred: 1, hard: 3 },
     armor: { preferred: 1, hard: 2, min: 0, max: 8 },
     penetration: { preferred: 1, hard: 1, min: 0, max: 3 },
-    pz: { preferred: 1, hard: 2, min: 2, max: 6 },
+    pz: { preferred: 1, hard: 2, min: 3, max: 6 },
   },
 });
 
@@ -80,11 +81,18 @@ export function normalizeTuningPolicy(input = {}) {
 }
 
 export function makeLibraryEntry(input, index = 0) {
-  const profile = { ...(input.profile || input) };
-  const idealProfile = { ...(input.idealProfile || profile) };
-  const archetype = String(input.archetype || profile.archetype || "standard");
+  const sourceProfile = { ...(input.profile || input) };
+  const sourceIdeal = { ...(input.idealProfile || sourceProfile) };
+  const archetype = String(input.archetype || sourceProfile.archetype || "standard");
   const role = String(input.role || input.tagKey || archetype);
   const usage = input.usage === "archetype" ? "archetype" : "exact";
+  const type = input.typeKey || input.creatureType || input.hardIdentity?.type;
+  if (usage === "archetype") {
+    sourceProfile.damage = generatedDamage(sourceProfile.damage);
+    sourceIdeal.damage = generatedDamage(sourceIdeal.damage);
+  }
+  const profile = usage === "archetype" ? finalizeGeneratedNpc(sourceProfile, type) : sourceProfile;
+  const idealProfile = usage === "archetype" ? finalizeGeneratedNpc(sourceIdeal, type) : sourceIdeal;
   const id = String(input.id || `npc-${index}`);
   return {
     ...input,
@@ -115,6 +123,10 @@ function damageIndex(value) {
   return index < 0 ? ARCHETYPE_TUNING_CONFIG.damageSteps.indexOf("d6") : index;
 }
 
+function generatedDamage(value) {
+  return ARCHETYPE_TUNING_CONFIG.damageSteps.includes(String(value)) ? String(value) : ARCHETYPE_TUNING_CONFIG.damageSteps.at(-1);
+}
+
 function tuningLimit(input, key) {
   return { ...ARCHETYPE_TUNING_CONFIG.defaults[key], ...(input.tuningLimits?.[key] || {}) };
 }
@@ -141,22 +153,23 @@ function resolvedArchetypeVariant(entry, changes, phase) {
       profile[key] = tuneNumber(ideal[key], delta, limit, phase);
     }
   }
+  const finalizedProfile = finalizeGeneratedNpc(profile, entry.typeKey || entry.creatureType || entry.hardIdentity?.type);
   const tuningDiff = [];
   let deviation = 0;
   for (const key of ["body", "pool", "damage", "penetration", "armor", "pz"]) {
     if (entry.tuningPolicy?.tunable?.[key] !== true) continue;
-    if (ideal[key] === undefined && profile[key] === undefined) continue;
+    if (ideal[key] === undefined && finalizedProfile[key] === undefined) continue;
     const before = key === "damage" ? damageIndex(ideal[key]) : Number(ideal[key]) || 0;
-    const after = key === "damage" ? damageIndex(profile[key]) : Number(profile[key]) || 0;
+    const after = key === "damage" ? damageIndex(finalizedProfile[key]) : Number(finalizedProfile[key]) || 0;
     const delta = Math.abs(after - before);
     if (!delta) continue;
     const hardLimit = tuningLimit(entry, key).hard;
     const hard = Math.max(1, Array.isArray(hardLimit) ? Math.abs((key === "damage" ? damageIndex(hardLimit[1]) - damageIndex(hardLimit[0]) : Number(hardLimit[1]) - Number(hardLimit[0]))) : Number(hardLimit) || 1);
     deviation += ARCHETYPE_TUNING_CONFIG.weights[key] * delta / hard;
-    tuningDiff.push({ key, from: ideal[key], to: profile[key] });
+    tuningDiff.push({ key, from: ideal[key], to: finalizedProfile[key] });
   }
   const suffix = tuningDiff.map((item) => `${item.key}:${item.to}`).join(",") || "ideal";
-  return { ...entry, profile, bs: individualBs(profile), deviation, tuningDiff, tuningPhase: phase, variantKey: `${entry.baseId}@${suffix}` };
+  return { ...entry, profile: finalizedProfile, bs: individualBs(finalizedProfile), deviation, tuningDiff, tuningPhase: phase, variantKey: `${entry.baseId}@${suffix}` };
 }
 
 export function archetypeVariants(rawEntry) {

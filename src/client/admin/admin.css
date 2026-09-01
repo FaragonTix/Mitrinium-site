@@ -22,6 +22,7 @@ body {
   font: 15px/1.5 Inter, system-ui, sans-serif;
 }
 button, input, select, textarea { font: inherit; }
+button { text-align: center; line-height: 1.2; }
 a { color: inherit; }
 
 .topbar {
@@ -105,6 +106,7 @@ h2 { font-size: 30px; }
 .policy-description { margin: 8px 0 0; color: var(--muted); }
 
 .button {
+  display: inline-flex; align-items: center; justify-content: center; text-align: center;
   min-height: 42px; padding: 9px 16px; border: 1px solid var(--line);
   border-radius: 8px; color: var(--ink); background: var(--panel-2);
   cursor: pointer;
@@ -148,6 +150,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--gold-dark); }
 .character-name { margin: 0 0 4px; font: 500 22px Georgia, serif; }
 .meta { color: var(--muted); font-size: 13px; }
 .owner { overflow-wrap: anywhere; }
+.owner-label { color: var(--muted); font-size: 12px; }
+.shared-players { margin-top: 4px; font-size: 13px; }
 .card-folder-select { display: block; margin-top: 9px; }
 .card-folder-select select { padding: 7px 9px; font-size: 12px; }
 .folder-badge { border-color: #65552d; color: #e8c979; }
@@ -184,6 +188,12 @@ dialog form { padding: 24px; overflow: auto; }
   background: transparent; font-size: 28px; cursor: pointer;
 }
 .form-grid, .state-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.shared-access-field { grid-column: 1 / -1; }
+.shared-access-field small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+}
 fieldset {
   margin: 22px 0; padding: 16px; border: 1px solid var(--line);
   border-radius: 9px;

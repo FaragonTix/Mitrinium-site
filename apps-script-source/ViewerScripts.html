@@ -116,6 +116,45 @@
     );
   }
 
+  function normalizeViewerAbilityUses(abilityIds, savedUses) {
+    const result = {};
+    const source = savedUses && typeof savedUses === 'object'
+      ? savedUses
+      : {};
+
+    if (typeof getAbilityById !== 'function') return result;
+
+    [...new Set(abilityIds || [])].forEach(function(abilityId) {
+      const ability = getAbilityById(abilityId);
+      const maximum = Math.max(0, Math.round(NumberOrDefault(ability?.charges, 0)));
+      if (!ability || ability.category !== 'favorite' || maximum === 0) return;
+
+      const savedValue = Object.prototype.hasOwnProperty.call(source, abilityId)
+        ? source[abilityId]
+        : maximum;
+      result[abilityId] = clampViewerNumber(savedValue, 0, maximum);
+    });
+
+    return result;
+  }
+
+  function syncViewerAbilityUses(abilityIds) {
+    if (!viewerState) return;
+    viewerState.abilityUses = normalizeViewerAbilityUses(
+      abilityIds,
+      viewerState.abilityUses
+    );
+  }
+
+  function normalizeViewerTurnTracker(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    return {
+      moved: Boolean(source.moved),
+      reaction: source.reaction !== false,
+      action: source.action !== false
+    };
+  }
+
   /* =========================
      Состояние персонажа
   ========================= */
@@ -216,6 +255,13 @@
         savedState.equipmentConditions
       ),
 
+      abilityUses: normalizeViewerAbilityUses(
+        character.abilities || [],
+        savedState.abilityUses
+      ),
+
+      turnTracker: normalizeViewerTurnTracker(savedState.turnTracker),
+
       notes: String(savedState.notes || ''),
       initialized: true
     };
@@ -280,6 +326,7 @@
     } else {
       syncViewerResourceMaximums(character || {});
       syncViewerEquipmentConditions(character?.equipment || []);
+      syncViewerAbilityUses(character?.abilities || []);
     }
 
     return viewerState;
@@ -374,6 +421,11 @@
             <div class="viewer-state-static-value">
               ${NumberOrDefault(resources.protection, 0)}
             </div>
+          </div>
+
+          <div class="viewer-state-counter viewer-state-static">
+            <div class="viewer-state-label">Скорость</div>
+            <div class="viewer-state-static-value">3</div>
           </div>
         </div>
       </section>
@@ -510,12 +562,14 @@
         </div>
 
         <div class="viewer-state-value">
-          <button
-            type="button"
-            onclick="changeViewerStateValue('${key}', -5)"
-          >
-            −5
-          </button>
+          ${key === 'currentBody' ? `
+            <button
+              type="button"
+              onclick="changeViewerStateValue('${key}', -5)"
+            >
+              −5
+            </button>
+          ` : ''}
 
           <button
             type="button"
@@ -1047,21 +1101,22 @@
     `;
   }
 
-  function renderViewerAbilities(abilityIds) {
-    if (!abilityIds || abilityIds.length === 0) {
-      return `
-        <p class="empty-note">
-          Способности не выбраны.
-        </p>
-      `;
-    }
+  function renderViewerAbility(ability) {
+    const maximumUses = Math.max(
+      0,
+      Math.round(NumberOrDefault(ability.charges, 0))
+    );
+    const tracksUses = ability.category === 'favorite' && maximumUses > 0;
+    const remainingUses = tracksUses
+      ? clampViewerNumber(
+          viewerState?.abilityUses?.[ability.id],
+          0,
+          maximumUses
+        )
+      : 0;
 
-    return abilityIds
-      .map(abilityId =>
-        getAbilityById(abilityId)
-      )
-      .filter(Boolean)
-      .map(ability => `
+    return `
+      <div class="viewer-ability-item">
         <details class="viewer-ability">
           <summary>
             <strong>
@@ -1089,8 +1144,88 @@
             ${ability.complications ? `<div class="ability-description-row"><strong>Осложнения:</strong><p>${escapeViewerHtml(ability.complications)}</p></div>` : ''}
           </div>
         </details>
-      `)
-      .join('');
+
+        ${tracksUses ? `
+          <div class="viewer-ability-uses">
+            <strong>Осталось использований</strong>
+            <button type="button" onclick="changeViewerAbilityUses('${escapeViewerHtml(ability.id)}', -1)" aria-label="Отметить использование">−</button>
+            <input id="viewer-ability-uses-${escapeViewerHtml(ability.id)}" type="number" min="0" max="${maximumUses}" value="${remainingUses}" readonly>
+            <span class="viewer-ability-uses-limit">из ${maximumUses}</span>
+            <button type="button" onclick="changeViewerAbilityUses('${escapeViewerHtml(ability.id)}', 1)" aria-label="Вернуть использование">+</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  function setViewerAbilityUses(abilityId, value) {
+    if (!viewerState || typeof getAbilityById !== 'function') return;
+    const ability = getAbilityById(abilityId);
+    const maximum = Math.max(0, Math.round(NumberOrDefault(ability?.charges, 0)));
+    if (!ability || ability.category !== 'favorite' || maximum === 0) return;
+
+    viewerState.abilityUses = viewerState.abilityUses || {};
+    viewerState.abilityUses[abilityId] = clampViewerNumber(value, 0, maximum);
+
+    const input = document.getElementById(`viewer-ability-uses-${abilityId}`);
+    if (input) input.value = viewerState.abilityUses[abilityId];
+    markViewerStateUnsaved();
+  }
+
+  function changeViewerAbilityUses(abilityId, delta) {
+    if (!viewerState) return;
+    const ability = typeof getAbilityById === 'function'
+      ? getAbilityById(abilityId)
+      : null;
+    const maximum = Math.max(0, Math.round(NumberOrDefault(ability?.charges, 0)));
+    const current = Object.prototype.hasOwnProperty.call(
+      viewerState.abilityUses || {},
+      abilityId
+    )
+      ? viewerState.abilityUses[abilityId]
+      : maximum;
+    setViewerAbilityUses(
+      abilityId,
+      NumberOrDefault(current, maximum) + NumberOrDefault(delta, 0)
+    );
+  }
+
+  function renderViewerAbilities(abilityIds) {
+    const abilities = (abilityIds || [])
+      .map(abilityId => getAbilityById(abilityId))
+      .filter(Boolean);
+
+    if (abilities.length === 0) {
+      return `
+        <p class="empty-note">
+          Способности не выбраны.
+        </p>
+      `;
+    }
+
+    const categoryOrder = ['ultimate', 'favorite', 'common', 'situational'];
+
+    return `<div class="viewer-ability-groups">${categoryOrder
+      .map(category => {
+        const categoryAbilities = abilities.filter(
+          ability => ability.category === category
+        );
+
+        if (categoryAbilities.length === 0) return '';
+
+        return `
+          <section class="viewer-ability-group">
+            <h4>${escapeViewerHtml(
+              abilityCategoryLabels[category] || category
+            )}</h4>
+
+            <div class="viewer-ability-group-list">
+              ${categoryAbilities.map(renderViewerAbility).join('')}
+            </div>
+          </section>
+        `;
+      })
+      .join('')}</div>`;
   }
 
   /* =========================

@@ -117,6 +117,7 @@
   .reference-card > header .reference-number { background: var(--accent); }
   .reference-card h2 { font-size: clamp(21px, 3vw, 28px); line-height: 1.08; }
   .reference-critical-grid, .reference-formulas, .reference-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .reference-split { align-items: start; }
   .reference-critical-grid > div, .reference-formulas > div, .reference-state-grid > div {
     border: 1px solid var(--border-soft); border-radius: 11px;
     background: var(--panel-light); padding: 12px;
@@ -220,6 +221,37 @@
   .repair-price-grid span { color: var(--accent); font-weight: 900; white-space: nowrap; }
   .repair-price-grid small { grid-column: 1 / -1; opacity: .72; }
   .repair-note { margin: 10px 0 0; font-size: 13px; }
+  .reference-ability-lead { margin: -4px 0 14px; line-height: 1.45; }
+  .reference-ability-toolbar {
+    display: grid; grid-template-columns: minmax(240px, 1.5fr) minmax(150px, .7fr) minmax(180px, .8fr) auto;
+    align-items: end; gap: 10px; border: 1px solid var(--border-soft); border-radius: 12px;
+    background: #eadcc2; padding: 12px;
+  }
+  .reference-ability-toolbar label { display: grid; gap: 6px; min-width: 0; }
+  .reference-ability-toolbar label > span {
+    color: var(--ref-blue); font-size: 11px; font-weight: 900;
+    letter-spacing: .08em; text-transform: uppercase;
+  }
+  .reference-ability-toolbar input, .reference-ability-toolbar select { width: 100%; min-height: 42px; }
+  .reference-ability-toolbar button { min-height: 42px; }
+  .reference-ability-status { min-height: 20px; margin: 10px 2px; color: #6f604e; font-size: 13px; }
+  .reference-ability-results { display: grid; gap: 18px; }
+  .reference-ability-class { display: grid; gap: 9px; }
+  .reference-ability-class > header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .reference-ability-class h3 { margin: 0; font-size: 20px; }
+  .reference-ability-class > header span { color: var(--ref-blue); font-size: 12px; font-weight: 900; }
+  .reference-ability-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 9px; }
+  .reference-ability-grid details { --accent: var(--ref-blue); margin-top: 0; min-width: 0; }
+  .reference-ability-grid summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+  .reference-ability-name { min-width: 0; }
+  .reference-ability-category {
+    border-radius: 999px; background: #d7e4ec; color: #2e5b7b;
+    padding: 4px 8px; font-size: 10px; font-weight: 900; white-space: nowrap;
+  }
+  .reference-ability-body { display: grid; gap: 9px; }
+  .reference-ability-body p { margin: 0; }
+  .reference-ability-body p strong { color: #2e5b7b; }
+  .reference-ability-empty { border: 1px dashed var(--border-soft); border-radius: 11px; padding: 26px 14px; text-align: center; }
   .reference-empty-state { padding: 40px 20px; text-align: center; }
   .reference-empty-state > span { display: block; color: var(--ref-blue); font-size: 56px; }
   .reference-empty-state p { margin: 8px 0 18px; }
@@ -229,6 +261,8 @@
     .reference-pool-grid { grid-template-columns: 1fr 1fr; }
     .scene-selector { grid-column: 1 / -1; }
     .reference-algorithm, .combat-timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .reference-ability-toolbar { grid-template-columns: 1fr 1fr; }
+    .reference-ability-search { grid-column: 1 / -1; }
   }
   @media (max-width: 680px) {
     .reference-hero { grid-template-columns: 1fr; }
@@ -243,6 +277,7 @@
     .reference-card.wide { grid-column: auto; }
     .reference-list-columns p { grid-column: 1; }
     .reference-state-grid > div { grid-template-columns: 1fr; gap: 4px; }
+    .reference-ability-grid { grid-template-columns: 1fr; }
   }
   @media (max-width: 470px) {
     .scene-selector, .reference-algorithm, .combat-timeline, .difficulty-strip, .progress-thresholds, .reference-state-grid { grid-template-columns: 1fr; }
@@ -250,6 +285,11 @@
     .distance-track { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .reference-card dl { grid-template-columns: 1fr; gap: 4px; }
     .reference-card dt { border-bottom: 0; padding-bottom: 0; }
+    .reference-ability-toolbar { grid-template-columns: 1fr; }
+    .reference-ability-search { grid-column: 1; }
+    .reference-ability-toolbar button { width: 100%; }
+    .reference-ability-grid summary { grid-template-columns: minmax(0, 1fr); padding-right: 38px; }
+    .reference-ability-category { width: fit-content; white-space: normal; }
   }
   @media print { #referenceMode { display: none !important; } }
 </style>

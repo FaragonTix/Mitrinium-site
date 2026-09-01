@@ -2,6 +2,7 @@
   // Атрибуты, навыки, ресурсы, биография, форма персонажа и клиентская проверка.
 
   let currentBiography = createEmptyBiography();
+  let skillTypeFilter = 'all';
 
   /* =========================
      Атрибуты
@@ -206,6 +207,8 @@
   function renderSkills() {
     const grid = document.getElementById('skillsGrid');
     const pointsLeft = document.getElementById('skillPointsLeft');
+    const mobilePointsLeft = document.getElementById('skillMobilePointsLeft');
+    const mobileTypeProgress = document.getElementById('skillMobileTypeProgress');
     const secondaryProgress = document.getElementById('secondarySkillPointsProgress');
     const recommendationToggle = document.getElementById('showRecommendedSkills');
     const recommendationLegend = document.getElementById('skillRecommendationLegend');
@@ -226,12 +229,15 @@
       usefulLegend.hidden = !recommendationToggle?.checked;
     }
 
-    pointsLeft.textContent = advancedEditMode
+    const pointsLeftText = advancedEditMode
       ? 'режим развития'
       : getSkillPointsLeft();
+    pointsLeft.textContent = pointsLeftText;
+    if (mobilePointsLeft) mobilePointsLeft.textContent = pointsLeftText;
+
+    const spentSecondary = getSpentSecondarySkillPoints();
+    const spentPrimary = getSpentPrimarySkillPoints();
     if (secondaryProgress) {
-      const spentSecondary = getSpentSecondarySkillPoints();
-      const spentPrimary = getSpentPrimarySkillPoints();
       secondaryProgress.textContent = advancedEditMode
         ? 'Ограничения создания отключены'
         : `Второстепенные: ${spentSecondary} / минимум ${requiredSecondarySkillPoints} · Основные: ${spentPrimary} / максимум ${maxStartingPrimarySkillPoints}`;
@@ -240,8 +246,20 @@
         advancedEditMode || spentSecondary >= requiredSecondarySkillPoints
       );
     }
+    if (mobileTypeProgress) {
+      mobileTypeProgress.textContent = advancedEditMode
+        ? 'Режим развития'
+        : `Вторичные: ${spentSecondary} / ${requiredSecondarySkillPoints} · Первичные: ${spentPrimary} / ${maxStartingPrimarySkillPoints}`;
+    }
+
+    document.querySelectorAll('[data-skill-type-filter]').forEach(function(button) {
+      const active = button.dataset.skillTypeFilter === skillTypeFilter;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
 
     grid.innerHTML = '';
+    grid.dataset.skillTypeFilter = skillTypeFilter;
 
     Object.entries(skills).forEach(function(groupEntry) {
       const groupKey = groupEntry[0];
@@ -255,8 +273,11 @@
         const skillKey = skillEntry[0];
         const skill = skillEntry[1];
         const path = `${groupKey}:${skillKey}`;
-        const isRecommended = showRecommended && primarySkills.has(path);
         const isSecondary = isSecondarySkill(groupKey, skillKey);
+        if (skillTypeFilter === 'secondary' && !isSecondary) return;
+        if (skillTypeFilter === 'primary' && isSecondary) return;
+
+        const isRecommended = showRecommended && primarySkills.has(path);
         const isUseful = showSkillGuidance && usefulSkillPaths.includes(path);
         const skillMaximum = advancedEditMode ? 3 : 2;
         const canDecrease = Number(skill.value) > 0;
@@ -312,6 +333,12 @@
       column.innerHTML = html;
       grid.appendChild(column);
     });
+  }
+
+  function setSkillTypeFilter(nextFilter) {
+    if (!['all', 'primary', 'secondary'].includes(nextFilter)) return;
+    skillTypeFilter = nextFilter;
+    renderSkills();
   }
 
   function handleSkillInfoToggle(currentDetails) {
@@ -761,8 +788,8 @@
     }
 
     if (!advancedEditMode) {
-      if (character.abilities.length !== 6) {
-        errors.push('Выберите ровно 6 способностей.');
+      if (character.abilities.length !== 8) {
+        errors.push('Выберите ровно 8 способностей.');
       }
 
       const selectedCategories = character.abilities
@@ -782,10 +809,11 @@
       if (
         categoryCounts.ultimate !== 2 ||
         categoryCounts.favorite !== 2 ||
-        categoryCounts.common !== 2
+        categoryCounts.common !== 2 ||
+        categoryCounts.situational !== 2
       ) {
         errors.push(
-          'На старте выберите по две способности из каждой категории: Ультимативные, Любимые приёмы, Обычные дела.'
+          'На старте выберите по две способности из каждой категории: Ультимативные, Любимые приёмы, Обычные дела, Ситуативные способности.'
         );
       }
     }

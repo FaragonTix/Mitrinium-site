@@ -65,7 +65,7 @@
   const maxSkillValue = 2;
   const totalExtraSkillPoints = 6;
   const startingMoney = 1000;
-  const maxStartingAbilities = 6;
+  const maxStartingAbilities = 8;
   const maxAdvancedAttributeValue = 5;
   const maxAdvancedSkillValue = 5;
 
@@ -465,7 +465,7 @@
   }
 
   if (!advancedEditMode && selectedAbilities.length >= maxStartingAbilities) {
-    showAbilitiesWarning('На старте можно выбрать только 6 способностей.');
+    showAbilitiesWarning('На старте можно выбрать только 8 способностей.');
     return;
   }
 
@@ -567,7 +567,7 @@
       return;
     }
 
-    const abilitiesByCategory = { ultimate: [], favorite: [], common: [] };
+    const abilitiesByCategory = { ultimate: [], favorite: [], common: [], situational: [] };
     abilities.forEach(ability => {
       if (!abilitiesByCategory[ability.category]) abilitiesByCategory[ability.category] = [];
       abilitiesByCategory[ability.category].push(ability);
@@ -641,8 +641,8 @@
     if (!advancedEditMode && getAttributePointsLeft() !== 0) errors.push('Распределите все очки Атрибутов.');
     if (!advancedEditMode && getSkillPointsLeft() !== 0) errors.push('Распределите все очки Навыков.');
     if (!advancedEditMode) {
-  if (character.abilities.length !== 6) {
-    errors.push('Выберите ровно 6 способностей.');
+  if (character.abilities.length !== 8) {
+    errors.push('Выберите ровно 8 способностей.');
   }
 
   const selectedCategories = character.abilities
@@ -658,9 +658,10 @@
   if (
     categoryCounts.ultimate !== 2 ||
     categoryCounts.favorite !== 2 ||
-    categoryCounts.common !== 2
+    categoryCounts.common !== 2 ||
+    categoryCounts.situational !== 2
   ) {
-    errors.push('На старте выберите по две способности из каждой категории: Ультимативные, Любимые приёмы, Обычные дела.');
+    errors.push('На старте выберите по две способности из каждой категории: Ультимативные, Любимые приёмы, Обычные дела, Ситуативные способности.');
   }
 }
     if (character.equipmentSpent > startingMoney) errors.push('Стоимость снаряжения превышает 1000 ф.');

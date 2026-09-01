@@ -12,6 +12,22 @@
     </div>
   </div>
 
+  <section class="roll-turn-tracker roll-subpanel" aria-labelledby="rollTurnTrackerTitle">
+    <div class="roll-turn-tracker-heading">
+      <div>
+        <h3 id="rollTurnTrackerTitle">Состояние хода</h3>
+        <p class="helper-note">Отметки сохраняются вместе с состоянием персонажа.</p>
+      </div>
+      <button type="button" class="secondary-button" onclick="resetRollTurnTracker()">Новый раунд</button>
+    </div>
+
+    <div class="roll-turn-tracker-buttons" role="group" aria-label="Состояние хода персонажа">
+      <button id="rollMovementState" type="button" onclick="toggleRollTurnTracker('moved')">Передвижение —</button>
+      <button id="rollReactionState" type="button" onclick="toggleRollTurnTracker('reaction')">Реакция +</button>
+      <button id="rollActionState" type="button" onclick="toggleRollTurnTracker('action')">Действие +</button>
+    </div>
+  </section>
+
   <div class="rolls-layout">
     <div class="roll-panel">
       <!-- =========================
@@ -202,29 +218,18 @@
 
             <p class="helper-note">
               Можно выбрать не более двух компонентов
-              из любой таблицы: два Атрибута,
+              из списка: два Атрибута,
               два Навыка или Атрибут и Навык.
             </p>
 
             <div class="roll-component-table">
-              <h5>Атрибуты</h5>
+              <h5>Атрибуты и соответствующие навыки</h5>
 
               <div
-                id="rollAttributeComponentTable"
-                class="roll-component-table-grid"
+                id="rollComponentGroups"
+                class="roll-component-groups"
                 role="group"
-                aria-label="Атрибуты броска"
-              ></div>
-            </div>
-
-            <div class="roll-component-table">
-              <h5>Навыки</h5>
-
-              <div
-                id="rollSkillComponentTable"
-                class="roll-component-table-grid roll-skill-table-grid"
-                role="group"
-                aria-label="Навыки броска"
+                aria-label="Атрибуты и соответствующие им навыки броска"
               ></div>
             </div>
           </div>

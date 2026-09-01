@@ -128,7 +128,7 @@
             <button onclick="tuneGenerator('fewer')">Уменьшить число врагов</button><button onclick="tuneGenerator('more')">Увеличить число врагов</button>
           </div></details>
           <div id="v8CalibrationWarning" class="callout v8-warning hidden"></div>
-          <div class="callout"><b>Production-модель Mitrinium V15</b><p>Весь состав рассчитывается одновременно по профилям Тела, Брони, ПЗ, пула, Expl, урона и Пробития. Основные оси сложности — P(win) и средняя доля PC в KO; P(any KO) показана только как дополнительный риск.</p></div>
+          <div class="callout"><b>Production-модель Mitrinium V15</b><p>Весь состав рассчитывается одновременно по профилям Тела, Брони, ПЗ, пула, T оружия, урона и Пробития. Основные оси сложности — P(win) и средняя доля PC в KO; P(any KO) показана только как дополнительный риск.</p></div>
         </section>
         <section id="generatorAlternativesPanel" class="panel hidden">
           <h2>Варианты генератора</h2>
@@ -157,7 +157,10 @@
       <aside class="combat-sidebar">
         <section class="panel">
           <div class="toolbar compact"><h2 class="no-margin">Бой</h2><button class="small" onclick="showScreen('prep')">← Противники</button></div>
-          <div class="round-box">Раунд <span id="roundNumber">1</span></div>
+          <div class="round-box">
+            <span>Раунд <span id="roundNumber">1</span></span>
+            <small id="roundPhaseLabel">Передвижение</small>
+          </div>
           <div id="encounterMeta" class="help"></div>
           <label class="top-gap">ПЗ выбранной цели
             <input id="combatTargetPz" type="number" min="2" max="20" value="4" oninput="setCombatTargetPz(this.value)">
@@ -178,7 +181,7 @@
           <div id="initiativeList" class="initiative-list"></div>
           <div class="buttons vertical">
             <button class="primary" onclick="nextInitiativeTurn()">Следующий ход</button>
-            <button onclick="nextRound()">Следующий раунд</button>
+            <button id="initiativePhaseButton" onclick="advanceInitiativePhase()">Перейти к действиям</button>
             <button onclick="resetInitiative()">Сбросить инициативу</button>
             <button onclick="addPlayer()">+ Добавить игрока</button>
           </div>
@@ -226,6 +229,20 @@
           <div id="enemyGrid" class="enemy-grid"><div class="empty">Сначала сформируйте бой.</div></div>
           <div id="enemyDetail" class="enemy-detail"><div class="empty">Выберите противника в списке.</div></div>
         </div>
+
+        <section class="combat-roll-log-section">
+          <div class="toolbar compact">
+            <div>
+              <h2 class="no-margin">Общий лог бросков</h2>
+              <div class="help">Тот же журнал, который отображается игрокам в режиме «Броски».</div>
+            </div>
+            <button class="small" onclick="refreshCalculatorRollLog(false)">Обновить</button>
+          </div>
+          <div id="calculatorRollLogStatus" class="help" aria-live="polite"></div>
+          <div id="calculatorRollLogList" class="combat-roll-log-list">
+            <div class="empty">Лог ещё не загружен.</div>
+          </div>
+        </section>
       </section>
     </div>
   </section>
@@ -330,10 +347,12 @@
   import * as MitriniumEncounterGenerator from "./encounter-generator.js";
   import * as MitriniumTacticalPregens from "./tactical-pregens.js";
   import * as MitriniumCreaturePregens from "./creature-pregens.js";
+  import * as MitriniumGeneratedNpc from "./generated-npc-invariants.js";
   window.MitriniumV8 = MitriniumV8;
   window.MitriniumEncounterGenerator = MitriniumEncounterGenerator;
   window.MitriniumTacticalPregens = MitriniumTacticalPregens;
   window.MitriniumCreaturePregens = MitriniumCreaturePregens;
+  window.MitriniumGeneratedNpc = MitriniumGeneratedNpc;
   window.mitriniumV8Ready = MitriniumV8.loadMitriniumV15();
   window.mitriniumTacticalBankReady = MitriniumTacticalPregens.loadTacticalPregenBank();
   window.mitriniumCreatureBankReady = MitriniumCreaturePregens.loadCreaturePregenBank();

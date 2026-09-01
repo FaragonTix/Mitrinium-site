@@ -62,7 +62,7 @@
   }
 
   if (!advancedEditMode && selectedAbilities.length >= maxStartingAbilities) {
-    showAbilitiesWarning('На старте можно выбрать только 6 способностей.');
+    showAbilitiesWarning('На старте можно выбрать только 8 способностей.');
     return;
   }
 
@@ -199,7 +199,7 @@
       return;
     }
 
-    const abilitiesByCategory = { ultimate: [], favorite: [], common: [] };
+    const abilitiesByCategory = { ultimate: [], favorite: [], common: [], situational: [] };
     abilities.forEach(ability => {
       if (!abilitiesByCategory[ability.category]) abilitiesByCategory[ability.category] = [];
       abilitiesByCategory[ability.category].push(ability);

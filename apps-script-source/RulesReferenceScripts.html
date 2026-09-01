@@ -16,6 +16,7 @@
 
   function initializeRulesReference() {
     updateRulesReferencePool();
+    initializeRulesReferenceAbilityDirectory();
     filterRulesReference();
   }
 
@@ -105,5 +106,125 @@
     const input = document.getElementById('referenceSearch');
     if (input) input.value = '';
     setRulesReferenceTopic('all');
+  }
+
+  function escapeRulesReferenceHtml(value) {
+    return String(value === null || value === undefined ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function initializeRulesReferenceAbilityDirectory() {
+    const classSelect = document.getElementById('referenceAbilityClass');
+    const categorySelect = document.getElementById('referenceAbilityCategory');
+    if (!classSelect || !categorySelect || typeof abilityData === 'undefined') return;
+
+    const classes = Array.from(new Set(abilityData.map(function (ability) {
+      return ability.className;
+    })));
+
+    classSelect.innerHTML = '<option value="all">Все классы</option>' + classes
+      .map(function (className) {
+        return '<option value="' + escapeRulesReferenceHtml(className) + '">' + escapeRulesReferenceHtml(className) + '</option>';
+      })
+      .join('');
+
+    categorySelect.innerHTML = '<option value="all">Все категории</option>' + Object.entries(abilityCategoryLabels || {})
+      .map(function (entry) {
+        return '<option value="' + escapeRulesReferenceHtml(entry[0]) + '">' + escapeRulesReferenceHtml(entry[1]) + '</option>';
+      })
+      .join('');
+
+    filterRulesReferenceAbilities();
+  }
+
+  function getRulesReferenceAbilitySearchText(ability) {
+    return normalizeRulesReferenceText([
+      ability.name,
+      ability.className,
+      ability.type,
+      ability.pool,
+      ability.effect,
+      ability.breakthrough,
+      ability.complications,
+      ability.control,
+      ability.prerequisite,
+      ability.reaction
+    ].filter(Boolean).join(' '));
+  }
+
+  function renderRulesReferenceAbilityFact(label, value) {
+    if (value === null || value === undefined || value === '') return '';
+    return '<p><strong>' + escapeRulesReferenceHtml(label) + ':</strong> ' + escapeRulesReferenceHtml(value) + '</p>';
+  }
+
+  function renderRulesReferenceAbility(ability) {
+    const categoryLabel = abilityCategoryLabels[ability.category] || ability.category;
+    return '<details>' +
+      '<summary><span class="reference-ability-name">' + escapeRulesReferenceHtml(ability.name) + '</span>' +
+      '<span class="reference-ability-category">' + escapeRulesReferenceHtml(categoryLabel) + '</span></summary>' +
+      '<div class="reference-ability-body">' +
+      renderRulesReferenceAbilityFact('Тип', ability.type) +
+      renderRulesReferenceAbilityFact('Пул', ability.pool) +
+      renderRulesReferenceAbilityFact('Эффект', ability.effect) +
+      renderRulesReferenceAbilityFact('Прорыв', ability.breakthrough) +
+      renderRulesReferenceAbilityFact('Осложнение', ability.complications) +
+      renderRulesReferenceAbilityFact('Контроль', ability.control) +
+      renderRulesReferenceAbilityFact('Требование', ability.prerequisite) +
+      renderRulesReferenceAbilityFact('Применений', ability.charges) +
+      renderRulesReferenceAbilityFact('Реакция', ability.reaction) +
+      '</div></details>';
+  }
+
+  function filterRulesReferenceAbilities() {
+    const results = document.getElementById('referenceAbilityResults');
+    const status = document.getElementById('referenceAbilityStatus');
+    if (!results || typeof abilityData === 'undefined') return;
+
+    const query = normalizeRulesReferenceText(document.getElementById('referenceAbilitySearch')?.value || '');
+    const queryParts = query ? query.split(/\s+/) : [];
+    const selectedClass = document.getElementById('referenceAbilityClass')?.value || 'all';
+    const selectedCategory = document.getElementById('referenceAbilityCategory')?.value || 'all';
+    const filtered = abilityData.filter(function (ability) {
+      const searchText = getRulesReferenceAbilitySearchText(ability);
+      const matchesQuery = queryParts.every(function (part) { return searchText.includes(part); });
+      return matchesQuery &&
+        (selectedClass === 'all' || ability.className === selectedClass) &&
+        (selectedCategory === 'all' || ability.category === selectedCategory);
+    });
+
+    const categoryOrder = ['ultimate', 'favorite', 'common', 'situational'];
+    const classOrder = Array.from(new Set(abilityData.map(function (ability) { return ability.className; })));
+    results.innerHTML = classOrder.map(function (className) {
+      const classAbilities = filtered
+        .filter(function (ability) { return ability.className === className; })
+        .sort(function (left, right) {
+          return categoryOrder.indexOf(left.category) - categoryOrder.indexOf(right.category);
+        });
+      if (!classAbilities.length) return '';
+      return '<section class="reference-ability-class">' +
+        '<header><h3>' + escapeRulesReferenceHtml(className) + '</h3><span>' + classAbilities.length + '</span></header>' +
+        '<div class="reference-ability-grid">' + classAbilities.map(renderRulesReferenceAbility).join('') + '</div>' +
+        '</section>';
+    }).join('');
+
+    if (!filtered.length) {
+      results.innerHTML = '<div class="reference-ability-empty"><strong>Способности не найдены</strong><p>Измените запрос или сбросьте фильтры.</p></div>';
+    }
+    if (status) status.textContent = 'Найдено способностей: ' + filtered.length + ' из ' + abilityData.length;
+  }
+
+  function resetRulesReferenceAbilityFilters() {
+    const search = document.getElementById('referenceAbilitySearch');
+    const classSelect = document.getElementById('referenceAbilityClass');
+    const categorySelect = document.getElementById('referenceAbilityCategory');
+    if (search) search.value = '';
+    if (classSelect) classSelect.value = 'all';
+    if (categorySelect) categorySelect.value = 'all';
+    filterRulesReferenceAbilities();
+    if (search) search.focus();
   }
 </script>

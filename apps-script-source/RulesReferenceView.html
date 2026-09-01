@@ -26,6 +26,7 @@
     <button type="button" data-reference-topic="states" aria-pressed="false" onclick="setRulesReferenceTopic('states')">Состояния</button>
     <button type="button" data-reference-topic="equipment" aria-pressed="false" onclick="setRulesReferenceTopic('equipment')">Снаряжение</button>
     <button type="button" data-reference-topic="recovery" aria-pressed="false" onclick="setRulesReferenceTopic('recovery')">Отдых</button>
+    <button type="button" data-reference-topic="abilities" aria-pressed="false" onclick="setRulesReferenceTopic('abilities')">Способности</button>
   </nav>
 
   <section class="reference-pool-lab" data-reference-card data-reference-topics="rolls">
@@ -170,6 +171,19 @@
       </div></details>
       </div>
     </details>
+
+    <article class="reference-card wide accent-blue reference-ability-directory" data-reference-card data-reference-topics="abilities character">
+      <header><span class="reference-number">10</span><div><p>Все классы · единый каталог</p><h2>Справочник способностей</h2></div></header>
+      <p class="reference-ability-lead">Ищите по названию, эффекту, пулу, Контролю, Прорыву или требованию. Результаты можно сузить до одного класса и категории.</p>
+      <div class="reference-ability-toolbar">
+        <label class="reference-ability-search"><span>Поиск</span><input id="referenceAbilitySearch" type="search" placeholder="Например: реакция, яд, Стрельба" autocomplete="off" oninput="filterRulesReferenceAbilities()"></label>
+        <label><span>Класс</span><select id="referenceAbilityClass" onchange="filterRulesReferenceAbilities()"><option value="all">Все классы</option></select></label>
+        <label><span>Категория</span><select id="referenceAbilityCategory" onchange="filterRulesReferenceAbilities()"><option value="all">Все категории</option></select></label>
+        <button type="button" class="secondary-button" onclick="resetRulesReferenceAbilityFilters()">Сбросить</button>
+      </div>
+      <p id="referenceAbilityStatus" class="reference-ability-status" aria-live="polite"></p>
+      <div id="referenceAbilityResults" class="reference-ability-results"></div>
+    </article>
   </div>
 
   <div id="referenceEmptyState" class="reference-empty-state" hidden><span aria-hidden="true">⌕</span><h2>Ничего не найдено</h2><p>Попробуйте другое слово или сбросьте тему.</p><button type="button" class="secondary-button" onclick="resetRulesReferenceFilters()">Показать всю памятку</button></div>

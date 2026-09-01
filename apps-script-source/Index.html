@@ -417,10 +417,23 @@
               </p>
             </div>
 
-            <div class="points-badge">
+            <div class="points-badge skill-heading-points">
               Осталось:
               <strong id="skillPointsLeft">20</strong>
               <small id="secondarySkillPointsProgress">Второстепенные: 0 / 4</small>
+            </div>
+          </div>
+
+          <div class="skill-sticky-controls">
+            <div class="skill-mobile-progress" aria-live="polite">
+              <span>Осталось: <strong id="skillMobilePointsLeft">20</strong></span>
+              <small id="skillMobileTypeProgress">Вторичные: 0 / 4 · Первичные: 0 / 16</small>
+            </div>
+
+            <div class="skill-type-filters" role="group" aria-label="Показывать навыки по типу">
+              <button type="button" class="active" data-skill-type-filter="all" aria-pressed="true" onclick="setSkillTypeFilter('all')">Все</button>
+              <button type="button" data-skill-type-filter="primary" aria-pressed="false" onclick="setSkillTypeFilter('primary')">Первичные</button>
+              <button type="button" data-skill-type-filter="secondary" aria-pressed="false" onclick="setSkillTypeFilter('secondary')">Вторичные</button>
             </div>
           </div>
 
@@ -449,14 +462,15 @@
               <p class="helper-note">
                 В стартовом режиме выберите по две способности
                 из каждой категории: Ультимативные,
-                Любимые приёмы и Обычные дела.
+                Любимые приёмы, Обычные дела и
+                Ситуативные способности.
               </p>
             </div>
 
             <div class="points-badge">
               Выбрано:
               <strong id="abilitiesSelectedCount">
-                0 / 6
+                0 / 8
               </strong>
             </div>
           </div>

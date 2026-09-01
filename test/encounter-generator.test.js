@@ -483,9 +483,11 @@ test("production V15 matrix показывает smooth tuning без измен
   const party = Array(3).fill(bundle.unit_library.find(unit => unit.archetype === "standard"));
   const matrix = {};
   for (const archetype of ["standard", "brute", "boss"]) {
+    const typeKey = archetype === "boss" ? "beast" : "humanoid";
     const authored = { ...bundle.unit_library.find(unit => unit.archetype === archetype), nerve: archetype === "boss" ? 18 : 12 };
-    const source = [{ id: `matrix-${archetype}`, name: archetype, usage: "archetype", profile: authored, archetype, role: archetype, tags: [archetype] }];
-    matrix[archetype] = { ideal: authored };
+    const expectedNerve = typeKey === "humanoid" ? 6 : authored.nerve;
+    const source = [{ id: `matrix-${archetype}`, name: archetype, usage: "archetype", profile: authored, typeKey, archetype, role: archetype, tags: [archetype] }];
+    matrix[archetype] = { ideal: { ...authored, nerve: expectedNerve } };
     for (const difficulty of ["easy", "medium", "hard"]) {
       const result = generateEncounterOptions({
         library: source,
@@ -494,7 +496,7 @@ test("production V15 matrix показывает smooth tuning без измен
       });
       assert.ok(result.options.length, `${archetype}/${difficulty}`);
       const selected = result.options[0].entries[0].profile;
-      assert.equal(selected.nerve, authored.nerve);
+      assert.equal(selected.nerve, expectedNerve);
       assert.equal(selected.pz, authored.pz);
       matrix[archetype][difficulty] = selected;
     }

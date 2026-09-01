@@ -108,7 +108,7 @@
   const maxStartingPrimarySkillGroupTotal = 5;
 
   const startingMoney = 1000;
-  const maxStartingAbilities = 6;
+  const maxStartingAbilities = 8;
 
   const maxAdvancedAttributeValue = 3;
   const maxAdvancedSkillValue = 3;
@@ -246,6 +246,10 @@
   function setCharacterControl(value, className) {
     characterControl = normalizeCharacterControl(value, className);
     renderControlEditor();
+
+    if (typeof applyCharacterControlMethodToRoll === 'function') {
+      applyCharacterControlMethodToRoll();
+    }
   }
 
   function collectCharacterControl() {
@@ -558,6 +562,13 @@
       }
 
       if (
+        typeof applyCharacterControlMethodToRoll ===
+        'function'
+      ) {
+        applyCharacterControlMethodToRoll();
+      }
+
+      if (
         typeof syncRollBuilderControls ===
         'function'
       ) {
@@ -569,6 +580,13 @@
         'function'
       ) {
         toggleRollControlFields();
+      }
+
+      if (
+        typeof renderRollTurnTracker ===
+        'function'
+      ) {
+        renderRollTurnTracker();
       }
 
       if (

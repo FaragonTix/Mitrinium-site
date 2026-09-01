@@ -70,6 +70,54 @@
     };
   }
 
+  function getRollTurnTracker() {
+    const character = typeof getViewerCharacter === 'function'
+      ? getViewerCharacter()
+      : (typeof collectCharacterForSave === 'function' ? collectCharacterForSave() : {});
+    const currentState = typeof ensureViewerState === 'function'
+      ? ensureViewerState(character || {})
+      : null;
+
+    if (!currentState) return { moved: false, reaction: true, action: true };
+    currentState.turnTracker = normalizeViewerTurnTracker(currentState.turnTracker);
+    return currentState.turnTracker;
+  }
+
+  function renderRollTurnTracker() {
+    const tracker = getRollTurnTracker();
+    const controls = [
+      { id: 'rollMovementState', key: 'moved', label: 'Передвижение', active: tracker.moved, activeText: '✓', inactiveText: '—' },
+      { id: 'rollReactionState', key: 'reaction', label: 'Реакция', active: tracker.reaction, activeText: '+', inactiveText: '−' },
+      { id: 'rollActionState', key: 'action', label: 'Действие', active: tracker.action, activeText: '+', inactiveText: '−' }
+    ];
+
+    controls.forEach(function(control) {
+      const button = document.getElementById(control.id);
+      if (!button) return;
+      button.textContent = control.label + ' ' + (control.active ? control.activeText : control.inactiveText);
+      button.setAttribute('aria-pressed', String(Boolean(control.active)));
+      button.classList.toggle('available', Boolean(control.active));
+      button.classList.toggle('spent', !control.active);
+    });
+  }
+
+  function toggleRollTurnTracker(key) {
+    if (!['moved', 'reaction', 'action'].includes(key)) return;
+    const tracker = getRollTurnTracker();
+    tracker[key] = !tracker[key];
+    markViewerStateUnsaved();
+    renderRollTurnTracker();
+  }
+
+  function resetRollTurnTracker() {
+    const tracker = getRollTurnTracker();
+    tracker.moved = false;
+    tracker.reaction = true;
+    tracker.action = true;
+    markViewerStateUnsaved();
+    renderRollTurnTracker();
+  }
+
   function applyCharacterControlMethodToRoll() {
     const typeSelect = document.getElementById('rollControlType');
     const methodSelect = document.getElementById('rollControlMethod');
@@ -151,6 +199,9 @@
             skillEntry[0],
 
           group: 'skills',
+
+          attributeKey:
+            groupKey,
 
           attributeName:
             group.attributeName,
@@ -389,56 +440,78 @@
   }
 
   function renderRollComponentTables() {
-    const attributeTable =
+    const componentGroups =
       document.getElementById(
-        'rollAttributeComponentTable'
+        'rollComponentGroups'
       );
 
-    const skillTable =
-      document.getElementById(
-        'rollSkillComponentTable'
-      );
-
-    if (
-      !attributeTable ||
-      !skillTable
-    ) {
+    if (!componentGroups) {
       return;
     }
 
     const definitions =
       getRollComponentDefinitions();
 
-    attributeTable.innerHTML =
-      definitions
-        .filter(function (item) {
-          return (
-            item.group ===
-            'attributes'
-          );
-        })
-        .map(renderRollComponentSquare)
-        .join('');
+    const attributeDefinitions =
+      definitions.filter(function (item) {
+        return item.group === 'attributes';
+      });
 
-    skillTable.innerHTML =
-      definitions
-        .filter(function (item) {
-          return (
-            item.group ===
-            'skills'
-          );
+    const skillDefinitions =
+      definitions.filter(function (item) {
+        return item.group === 'skills';
+      });
+
+    componentGroups.innerHTML =
+      attributeDefinitions
+        .map(function (attribute) {
+          const groupKey =
+            attribute.key.replace(
+              'attribute:',
+              ''
+            );
+
+          const relatedSkills =
+            skillDefinitions.filter(
+              function (skill) {
+                return (
+                  skill.attributeKey ===
+                  groupKey
+                );
+              }
+            );
+
+          return `
+            <div class="roll-component-group">
+              ${renderRollComponentSquare(
+                attribute,
+                'roll-attribute-square'
+              )}
+
+              <div class="roll-component-skill-list">
+                ${relatedSkills
+                  .map(function (skill) {
+                    return renderRollComponentSquare(
+                      skill,
+                      'roll-skill-square'
+                    );
+                  })
+                  .join('')}
+              </div>
+            </div>
+          `;
         })
-        .map(renderRollComponentSquare)
         .join('');
   }
 
   function renderRollComponentSquare(
-    definition
+    definition,
+    extraClass
   ) {
     return `
       <button
         type="button"
-        class="roll-component-square"
+        class="roll-component-square ${extraClass || ''}"
         data-component-key="${rollEscapeHtml(
           definition.key
         )}"
@@ -998,6 +1071,8 @@
 
       return;
     }
+
+    applyCharacterControlMethodToRoll();
 
     const context =
       getRollCharacterContext();
@@ -2109,6 +2184,7 @@
     'DOMContentLoaded',
     function () {
       renderRollComponentOptions();
+      renderRollTurnTracker();
       toggleRollControlFields();
       setRollEditorMode('select');
       applyCharacterControlMethodToRoll();

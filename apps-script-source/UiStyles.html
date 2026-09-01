@@ -299,6 +299,49 @@
     margin-bottom: 0;
   }
 
+  .roll-turn-tracker {
+    margin-bottom: 18px;
+  }
+
+  .roll-turn-tracker-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .roll-turn-tracker-heading h3,
+  .roll-turn-tracker-heading p {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .roll-turn-tracker-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .roll-turn-tracker-buttons button {
+    min-height: 44px;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-small);
+    padding: 8px;
+    font-weight: 800;
+  }
+
+  .roll-turn-tracker-buttons button.available {
+    border-color: #285c38;
+    background: #dbeedc;
+    color: #204b2d;
+  }
+
+  .roll-turn-tracker-buttons button.spent {
+    background: #e5d8c2;
+    color: #6f5940;
+  }
+
   .roll-subpanel-heading {
     display: grid;
 
@@ -553,16 +596,37 @@
     opacity: 0.72;
   }
 
-  .roll-component-table-grid {
+  .roll-component-groups {
     display: grid;
-
     grid-template-columns:
-      repeat(
-        5,
-        minmax(0, 1fr)
-      );
-
+      repeat(5, minmax(0, 1fr));
     gap: 7px;
+    align-items: start;
+  }
+
+  .roll-component-group {
+    display: grid;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .roll-component-skill-list {
+    display: grid;
+    gap: 7px;
+  }
+
+  .roll-attribute-square {
+    border-color: #a96b2f;
+    background:
+      linear-gradient(
+        145deg,
+        #ffe9bd,
+        #e8b56c
+      );
+  }
+
+  .roll-skill-square {
+    min-height: 58px;
   }
 
   .roll-component-square {
@@ -1277,7 +1341,7 @@
         );
     }
 
-    .roll-component-table-grid {
+    .roll-component-groups {
       grid-template-columns:
         repeat(
           3,
@@ -1310,7 +1374,7 @@
   }
 
   @media (max-width: 400px) {
-    .roll-component-table-grid {
+    .roll-component-groups {
       grid-template-columns:
         repeat(
           2,

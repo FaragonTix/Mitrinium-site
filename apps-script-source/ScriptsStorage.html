@@ -431,7 +431,9 @@
               </button>
             `;
 
-          const deleteButton = !savedCharactersListIsAdmin && characterDeletionPolicy !== 'forbidden'
+          const deleteButton = !savedCharactersListIsAdmin &&
+            characterDeletionPolicy !== 'forbidden' &&
+            character.canDelete !== false
             ? `
               <button
                 type="button"

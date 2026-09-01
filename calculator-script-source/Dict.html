@@ -73,6 +73,7 @@ const PLAYER_LEVEL_PROFILES = [
 ];
 
 const DAMAGE_PROFILES = ['d4','d6','d6+1','d8','d8+1','d10','d10+1','d12'];
+const GENERATED_DAMAGE_PROFILES = DAMAGE_PROFILES.filter(value=>value!=='d12');
 const DIFFICULTY_BANDS = {
   easy:{min:0,max:750,label:'Легко'},
   medium:{min:751,max:1150,label:'Средне'},
@@ -1133,7 +1134,71 @@ const ATTACK_LIBRARY = {
   ]
 };
 
-const REACTION_LIBRARY = {
+const npcAction = (id,name,effect,uses,kind,mechanic={},options={}) => ({
+  id,name,range:options.range||'По оружию',category:options.category||'Особое действие',effect,
+  limitText:uses?`${uses} раз(а) за бой.`:'Без ограничений.',zoneSize:options.zoneSize||'',uses,
+  poolModifier:Number(options.poolModifier)||0,damageStep:Number(options.damageStep)||0,
+  penetrating:Boolean(options.penetrating),technical:false,tags:options.tags||['special'],
+  power:uses===1?'strong':'medium',mechanic:{kind,uses,maxTargets:1,...mechanic}
+});
+
+const SPECIAL_ACTION_LIBRARY = {
+  humanoid:[
+    npcAction('humanoid_special_quick_burst','Быстрая очередь','Совершает две отдельные дальние атаки тем же оружием; обе используют сцену 3d4.',1,'multiattack',{attacks:2,scene:'hindrance'}),
+    npcAction('humanoid_action_suppressing_fire','Подавляющий огонь','Атака с 3d4 не наносит Body damage; при успехе Speed цели снижается на 2 и Рывок недоступен до конца её следующего хода.',2,'movement_debuff',{scene:'hindrance',bodyDamage:0,speedDelta:-2,disableDash:true,duration:'end_of_target_next_turn'}),
+    npcAction('humanoid_special_fencing_lunge','Фехтовальный выпад','Одна ближняя атака с повышением damage profile на один шаг.',1,'power_attack',{damageStep:1},{range:'Ближняя',damageStep:1}),
+    npcAction('humanoid_special_dirty_trick','Грязный приём','После попадания выбрать: дополнительный d4 damage или потеря целью 1 Нерва.',1,'nerve_damage',{choices:[{extraDamage:'d4'},{nerveDamage:1}]}),
+    npcAction('humanoid_special_trip','Свалить с ног','Обычная ближняя атака; после Body damage цель при провале встречной физической проверки падает.',2,'movement_debuff',{requiresBodyDamage:true,requiresCheck:'physical',condition:'prone'},{range:'Ближняя'})
+  ],
+  mechanism:[
+    npcAction('mechanism_special_emergency_burst','Аварийная очередь','Совершает две отдельные атаки основным оружием; обе используют сцену 3d4.',1,'multiattack',{attacks:2,scene:'hindrance'}),
+    npcAction('mechanism_special_calculated_shot','Расчётный выстрел','Одна атака оружием со сценой 3d8.',2,'advantage_attack',{scene:'advantage'}),
+    npcAction('mechanism_special_overloaded_shot','Перегруженный выстрел','При попадании добавляет d6 damage; после атаки оружие теряет 1 Прочность.',1,'power_attack',{extraDamage:'d6',durabilityCost:1}),
+    npcAction('mechanism_special_arc_discharge','Дуговой разряд','Ближняя атака d4, T 2; после Body damage следующее действие цели получает Помеху 3d4.',2,'accuracy_debuff',{fixedDamage:'d4',targetScene:'hindrance',consumeOnNextAction:true},{range:'Ближняя'}),
+    npcAction('mechanism_special_tracer_shot','Трассирующий выстрел','После попадания следующая атака механизма по этой цели получает сцену 3d8; затем метка снимается.',1,'advantage_attack',{markNextAttack:true,nextScene:'advantage',consumeOnNextAttack:true}),
+    npcAction('mechanism_action_self_repair','Саморемонт','Восстанавливает d6 Body; до начала следующего хода механизм не использует реакции.',1,'heal_action',{healing:'d6',disableReactionsUntil:'next_turn'},{category:'Действие'})
+  ],
+  animal:[
+    npcAction('animal_special_knockdown_pounce','Сбивающий бросок','Обычная ближняя атака; после Body damage цель при провале встречной физической проверки падает.',2,'movement_debuff',{requiresBodyDamage:true,requiresCheck:'physical',condition:'prone'},{range:'Ближняя'}),
+    npcAction('animal_special_finisher','Добивание','Только против цели с Body не выше половины: одна ближняя атака со сценой 3d8.',2,'advantage_attack',{scene:'advantage',targetBodyFractionMax:.5},{range:'Ближняя'}),
+    npcAction('animal_special_maul','Терзать','Против лежащей, удерживаемой или обездвиженной цели: обычная атака и дополнительный d4 damage.',2,'power_attack',{extraDamage:'d4',targetConditionAny:['prone','grappled','immobilized']},{range:'Ближняя'})
+  ],
+  beast:[
+    npcAction('beast_special_blood_drinker','Кровопийца','Обычная ближняя атака; после Body damage восстанавливает 2 Body, не выше максимума.',2,'heal_attack',{healing:2,requiresBodyDamage:true},{range:'Ближняя'}),
+    npcAction('beast_action_stitch_flesh','Сшивание плоти','При Body не выше половины восстанавливает d6 Body; в следующий ход доступны только обычные атаки.',1,'heal_action',{healing:'d6',selfBodyFractionMax:.5,disableSpecialUntil:'after_next_turn'},{category:'Действие'}),
+    npcAction('beast_special_enraged_strike','Разъярённый удар','Если с конца прошлого хода потеряно не менее 5 Body: одна ближняя атака с damage +1 step.',1,'power_attack',{damageStep:1,requiresBodyLostSinceLastTurn:5},{range:'Ближняя',damageStep:1}),
+    npcAction('beast_special_double_strike','Двойной удар','Одно действие: две отдельные ближние атаки, каждая с pool −1.',1,'multiattack',{attacks:2,poolDelta:-1},{range:'Ближняя',poolModifier:-1}),
+    npcAction('beast_special_crush','Сокрушение','Одна ближняя атака с damage +1 step и Пробитием 1.',1,'power_attack',{damageStep:1,penetration:1},{range:'Ближняя',damageStep:1,penetrating:true}),
+    npcAction('beast_special_rend_armor','Разорвать доспех','После Body damage Armor цели снижается на 2 до начала следующего хода бестии.',1,'armor_break',{armorDelta:-2,requiresBodyDamage:true,duration:'until_attacker_next_turn',stacking:'strongest'},{range:'Ближняя'}),
+    npcAction('beast_action_monster_roar','Чудовищный рёв','До двух живых PC проходят mental resistance; при провале следующая атака получает сцену 3d4.',1,'accuracy_debuff',{targetScene:'hindrance',consumeOnNextAttack:true,requiresCheck:'mental',maxTargets:2},{category:'Контроль',zoneSize:'Малая зона'}),
+    npcAction('beast_special_sweeping_blow','Размашистый удар','Атакует до двух соседних целей отдельными бросками; damage на шаг ниже основной атаки.',1,'aoe_attack',{maxTargets:2,damageStep:-1,separateRolls:true},{range:'Ближняя',zoneSize:'До 2 соседних целей',damageStep:-1}),
+    npcAction('beast_action_mark_weakness','Почувствовать слабость','До начала следующего хода бестии выбранный PC получает +1 Body damage от её успешных атак.',1,'vulnerability',{incomingBodyDamageDelta:1,duration:'until_attacker_next_turn',stacking:'none'},{category:'Контроль'})
+  ],
+  undead:[
+    npcAction('undead_special_bone_lunge','Костяной выпад','Одна ближняя атака с damage +1 step.',1,'power_attack',{damageStep:1},{range:'Ближняя',damageStep:1}),
+    npcAction('undead_special_devour','Пожирание','Только против живой цели: ближняя атака; после Body damage восстанавливает 2 Body.',2,'heal_attack',{healing:2,requiresBodyDamage:true,target:'living'},{range:'Ближняя'}),
+    npcAction('undead_special_deadening_blow','Мертвящий удар','После Body damage следующая атака PC наносит damage на шаг ниже; затем эффект заканчивается.',2,'damage_debuff',{damageStep:-1,requiresBodyDamage:true,consumeOnNextAttack:true},{range:'Ближняя'}),
+    npcAction('undead_special_decay','Разложение','После Body damage Armor цели снижается на 1 до начала следующего хода нежити.',2,'armor_break',{armorDelta:-1,requiresBodyDamage:true,duration:'until_attacker_next_turn',stacking:'strongest'},{range:'Ближняя'}),
+    npcAction('undead_action_death_seal','Печать смерти','До начала следующего хода нежити выбранный живой PC получает +1 Body damage от её атак.',1,'vulnerability',{incomingBodyDamageDelta:1,duration:'until_attacker_next_turn',target:'living',stacking:'none'},{category:'Контроль'}),
+    npcAction('undead_action_grave_grip','Хватка могилы','После успешной встречной физической проверки Speed цели снижается на 2 и Рывок недоступен до конца её следующего хода.',2,'movement_debuff',{requiresCheck:'physical',speedDelta:-2,disableDash:true,minSpeed:1,duration:'end_of_target_next_turn'},{category:'Контроль'}),
+    npcAction('undead_action_dead_force_burst','Всплеск мёртвой силы','До двух PC проходят отдельный effect roll; при успехе получают d4 damage и Помеху 3d4 на следующую атаку.',1,'aoe_attack',{maxTargets:2,separateRolls:true,fixedDamage:'d4',targetScene:'hindrance',consumeOnNextAttack:true},{category:'Контроль',zoneSize:'Малая зона'})
+  ]
+};
+
+for(const typeKey of Object.keys(ATTACK_LIBRARY)) {
+  ATTACK_LIBRARY[typeKey]=ATTACK_LIBRARY[typeKey].map(item=>({...item,mechanic:item.mechanic||{kind:Number(item.uses)>0?(item.zoneSize?'aoe_attack':'power_attack'):'normal_attack',uses:Number(item.uses)||0,scene:'normal',damageStep:Number(item.damageStep)||0,maxTargets:item.zoneSize?2:1}}));
+  ATTACK_LIBRARY[typeKey].push(...SPECIAL_ACTION_LIBRARY[typeKey]);
+}
+
+const REACTION_MIGRATION_MAP = {
+  humanoid_1:{kind:'attack',templateId:'humanoid_special_quick_burst'},humanoid_2:{kind:'attack',templateId:'humanoid_action_suppressing_fire'},humanoid_8:{kind:'passive',templateId:'humanoid_trait_forced_dash'},humanoid_9:{kind:'attack',templateId:'humanoid_special_fencing_lunge'},humanoid_10:{kind:'attack',templateId:'humanoid_special_dirty_trick'},humanoid_11:{kind:'passive',templateId:'humanoid_trait_emergency_reload'},humanoid_13:{kind:'attack',templateId:'humanoid_special_trip'},humanoid_14:{kind:'passive',templateId:'humanoid_trait_last_strength'},
+  mechanism_1:{kind:'attack',templateId:'mechanism_special_emergency_burst'},mechanism_2:{kind:'passive',templateId:'mechanism_trait_overdrive'},mechanism_3:{kind:'attack',templateId:'mechanism_special_calculated_shot'},mechanism_7:{kind:'attack',templateId:'mechanism_action_self_repair'},mechanism_9:{kind:'attack',templateId:'mechanism_special_overloaded_shot'},mechanism_10:{kind:'attack',templateId:'mechanism_special_arc_discharge'},mechanism_13:{kind:'attack',templateId:'mechanism_special_tracer_shot'},mechanism_15:{kind:'passive',templateId:'mechanism_trait_last_protocol'},
+  animal_1:{kind:'delete'},animal_3:{kind:'attack',templateId:'animal_special_knockdown_pounce'},animal_4:{kind:'passive',templateId:'animal_trait_pack_dash'},animal_10:{kind:'attack',templateId:'animal_special_finisher'},animal_11:{kind:'attack',templateId:'animal_special_maul'},animal_12:{kind:'delete'},
+  beast_2:{kind:'passive',templateId:'beast_trait_chaotic_step'},beast_3:{kind:'attack',templateId:'beast_special_blood_drinker'},beast_4:{kind:'attack',templateId:'beast_action_stitch_flesh'},beast_8:{kind:'attack',templateId:'beast_special_enraged_strike'},beast_10:{kind:'attack',templateId:'beast_special_double_strike'},beast_12:{kind:'passive',templateId:'beast_trait_unstable_blood'},beast_15:{kind:'passive',templateId:'beast_trait_storm_aftermath'},
+  undead_3:{kind:'delete'},undead_8:{kind:'passive',templateId:'undead_trait_dead_dash'},undead_9:{kind:'attack',templateId:'undead_special_bone_lunge'},undead_12:{kind:'attack',templateId:'undead_special_devour'},undead_14:{kind:'passive',templateId:'undead_trait_grave_call'}
+};
+
+const LEGACY_REACTION_LIBRARY = {
   "humanoid": [
     {
       "id": "humanoid_1",
@@ -2081,6 +2146,86 @@ const REACTION_LIBRARY = {
         "healing"
       ]
     }
+  ]
+};
+
+const npcReaction = (id,name,trigger,effect,uses,kind,mechanic={},tags=[]) => ({
+  id,name,trigger,effect,limitText:uses?`${uses} раз(а) за бой.`:'Без ограничений.',zoneSize:'',uses,
+  power:uses===1?'strong':'medium',tags,mechanic:{kind,uses,...mechanic}
+});
+
+/* Curated defensive/control reactions. No entry below creates a free attack or Body DPR. */
+const REACTION_LIBRARY = {
+  humanoid:[
+    npcReaction('humanoid_3','Сбить прицел','Противник объявляет атаку.','Кубы сцены атакующего становятся 3d4 только для этой атаки.',2,'hindrance_defense',{targetScene:'hindrance',duration:'one_attack'},['control','defense']),
+    npcReaction('humanoid_4','Резкий уклон','После броска атаки, но до определения результата.','Атакующий перебрасывает одну из двух наибольших костей и обязан принять новый результат.',1,'reroll_defense',{reroll:'one_of_two_highest'},['defense']),
+    npcReaction('humanoid_5','Подставить укрытие','Гуманоид получает физический урон рядом с укрытием.','Укрытие уменьшает входящий урон; после этого может быть разрушено.',1,'damage_reduction',{reductionDie:'d6',environmental:true},['defense']),
+    npcReaction('humanoid_6','Стиснуть зубы','Гуманоид получает урон Телу.','Уменьшает входящий урон на 2, но не ниже 0.',2,'damage_reduction',{reduction:2,minDamage:0},['defense']),
+    npcReaction('humanoid_7','Поднять воротник','Гуманоид становится целью дальней атаки.','Получает +2 Брони против одной объявленной атаки.',1,'temporary_armor',{armorDelta:2,duration:'one_attack'},['defense']),
+    npcReaction('humanoid_12','Команда пригнуться','Союзник в средней дистанции становится целью видимой атаки.','Союзник получает +1 ПЗ против этой атаки.',1,'intercept',{allyProtection:'pz',pzDelta:1,duration:'one_attack'},['ally_protection']),
+    npcReaction('humanoid_intercept','Перехват','Соседний союзник становится целью видимой атаки.','Гуманоид становится новой целью, если физически может закрыть союзника.',1,'intercept',{range:'adjacent'},['ally_protection']),
+    npcReaction('humanoid_retreat_step','Отступающий шаг','Гуманоид получает Body damage.','Перемещается на 1 клетку без провоцированной атаки.',2,'forced_movement',{self:true,distance:1,provokes:false},['movement'])
+  ],
+  mechanism:[
+    npcReaction('mechanism_4','Дымовой выброс','По механизму объявляют атаку.','Кубы сцены атакующего становятся 3d4 только для этой атаки.',2,'hindrance_defense',{targetScene:'hindrance',duration:'one_attack'},['control','defense']),
+    npcReaction('mechanism_5','Сдвиг бронепластин','Механизм получает физический урон.','Получает +1 Брони до конца раунда.',2,'temporary_armor',{armorDelta:1,duration:'end_of_round'},['defense']),
+    npcReaction('mechanism_6','Энергетический буфер','Механизм получает Body damage.','Уменьшает входящий урон на 2, но не ниже 0.',2,'damage_reduction',{reduction:2,minDamage:0},['defense']),
+    npcReaction('mechanism_8','Запасная бронепластина','Броня механизма должна уменьшиться.','Отменяет одно снижение Брони.',1,'temporary_armor',{cancelArmorLoss:true},['defense']),
+    npcReaction('mechanism_11','Гироскопическая стабилизация','Механизм подвергается принудительному перемещению или падению.','Уменьшает перемещение на 1 клетку и получает Преимущество на проверку против падения.',2,'forced_movement',{distanceDelta:-1,checkScene:'advantage'},['movement']),
+    npcReaction('mechanism_12','Резервный контур','Оружие или модуль теряет последнюю единицу Прочности.','Остаётся с 2 Прочности; проверки модуля до конца следующего хода идут с Помехой.',1,'condition_resistance',{equipmentDurability:2,selfScene:'hindrance'},['defense']),
+    npcReaction('mechanism_14','Сброс давления','Противник входит в ближнюю дистанцию.','После успешной физической проверки отталкивает его на 1 клетку без урона.',2,'forced_movement',{distance:1,damage:0,requiresCheck:'physical'},['movement','control']),
+    npcReaction('mechanism_magnetic_grip','Магнитный захват','PC пытается покинуть ближнюю дистанцию.','При успехе во встречной физической проверке оставшееся перемещение PC заканчивается.',2,'movement_denial',{requiresCheck:'physical',damage:0},['movement','control'])
+  ],
+  animal:[
+    npcReaction('animal_2','Прыжок хищника','Видимый противник в двух клетках завершает действие.','Животное перемещается к нему на расстояние до двух клеток; урона не наносит.',2,'forced_movement',{self:true,distance:2,damage:0},['movement','control']),
+    npcReaction('animal_5','Зигзагообразный бег','По животному объявляют дальнюю атаку.','Кубы сцены атакующего становятся 3d4 только для этой атаки.',2,'hindrance_defense',{targetScene:'hindrance',duration:'one_attack'},['defense']),
+    npcReaction('animal_6','Резкий скачок','После броска атаки, до определения попадания.','Атакующий перебрасывает одну из двух наибольших костей и принимает новый результат.',1,'reroll_defense',{reroll:'one_of_two_highest'},['movement','defense']),
+    npcReaction('animal_7','Толстая шкура','Животное получает Body damage.','Уменьшает входящий урон на 2, но не ниже 0.',2,'damage_reduction',{reduction:2,minDamage:0},['defense']),
+    npcReaction('animal_8','Яростная хватка','PC пытается покинуть ближнюю дистанцию.','При успехе во встречной физической проверке Speed PC становится 1 и перемещение заканчивается. Урон не наносится.',2,'movement_denial',{requiresCheck:'physical',speedSet:1,damage:0},['movement','control']),
+    npcReaction('animal_9','Защитить детёныша','Союзное животное рядом становится целью атаки.','Животное становится новой целью и получает +1 Брони против этой атаки.',1,'intercept',{range:'adjacent',armorDelta:1},['ally_protection']),
+    npcReaction('animal_13','Инстинктивное уклонение','Животное получает урон от атаки по площади.','Уменьшает полученный урон вдвое, округляя вниз.',1,'damage_reduction',{multiplier:.5,round:'down'},['defense']),
+    npcReaction('animal_under_strike','Уход под ударом','Атака по животному промахивается.','Животное перемещается на 1 клетку.',2,'forced_movement',{self:true,distance:1,provokes:false},['movement'])
+  ],
+  beast:[
+    npcReaction('beast_1','Разрыв пространства','Бестия становится целью видимой атаки или эффекта.','До броска телепортируется в свободную точку на расстоянии до двух клеток.',1,'forced_movement',{self:true,distance:2,teleport:true},['movement','control']),
+    npcReaction('beast_5','Неправильный угол','Противник объявляет атаку по бестии.','Кубы сцены атакующего становятся 3d4 только для этой атаки.',2,'hindrance_defense',{targetScene:'hindrance',duration:'one_attack'},['defense','control']),
+    npcReaction('beast_6','Складка пространства','После попадания, но до определения урона.','Уменьшает входящий урон на d6.',1,'damage_reduction',{reductionDie:'d6',minDamage:0},['defense']),
+    npcReaction('beast_7','Чужая броня','Бестия получает физический урон.','Уменьшает входящий урон на 1 до конца следующего раунда.',1,'damage_reduction',{reduction:1,duration:'end_of_next_round'},['defense']),
+    npcReaction('beast_9','Эхо боли','Бестия теряет 5 или больше Тела от одной атаки.','Нападающий теряет 2 Нерва; Body damage не наносится.',1,'condition_resistance',{nerveRetaliation:2,bodyDamage:0},['control','nerve']),
+    npcReaction('beast_14','Временная линька','Бестия должна получить состояние.','Отменяет состояние, но теряет 2 Body, игнорируя Armor.',1,'condition_resistance',{selfBodyCost:2,ignoreArmor:true},['defense']),
+    npcReaction('beast_push_away','Отбросить','PC входит в ближнюю дистанцию.','При успехе во встречной физической проверке отталкивает PC на 1 клетку без урона.',2,'forced_movement',{requiresCheck:'physical',distance:1,damage:0},['movement','control'])
+  ],
+  undead:[
+    npcReaction('undead_1','Не замечает раны','Нежить получает Body damage.','Уменьшает входящий урон на 2, но не ниже 0.',2,'damage_reduction',{reduction:2,minDamage:0},['defense']),
+    npcReaction('undead_2','Мёртвая плоть','После попадания, но до определения урона.','Получает +2 Брони против этой атаки.',1,'temporary_armor',{armorDelta:2,duration:'one_attack'},['defense']),
+    npcReaction('undead_5','Мёртвая хватка','PC пытается покинуть ближнюю дистанцию.','При успехе во встречной физической проверке перемещение заканчивается. Урон не наносится.',2,'movement_denial',{requiresCheck:'physical',damage:0},['movement','control']),
+    npcReaction('undead_6','Холод могилы','Противник наносит нежити урон в ближней дистанции.','При провале проверки Дисциплины противник теряет 1 Нерв; Body damage не наносится.',2,'condition_resistance',{targetNerveLoss:1,bodyDamage:0},['control','nerve']),
+    npcReaction('undead_7','Гаснущий взгляд','Видимый живой противник объявляет атаку.','Кубы сцены атакующего становятся 3d4 только для этой атаки.',2,'hindrance_defense',{targetScene:'hindrance',duration:'one_attack'},['defense','control']),
+    npcReaction('undead_11','Отдать конечность','Нежить должна получить 5 или больше урона.','Уменьшает входящий урон вдвое ценой постоянного тактического ограничения.',1,'damage_reduction',{multiplier:.5,permanentCost:'speed_or_attack'},['defense']),
+    npcReaction('undead_13','Пустой разум','Нежить должна получить состояние вне обычных иммунитетов.','Проверка сопротивления проходит с Преимуществом; при успехе состояние отменяется.',2,'condition_resistance',{checkScene:'advantage'},['defense']),
+    npcReaction('undead_corpse_shield','Трупный заслон','Соседняя нежить становится целью атаки.','Эта нежить становится новой целью, если физически может закрыть союзника.',1,'intercept',{range:'adjacent'},['ally_protection'])
+  ]
+};
+
+const PASSIVE_TRAITS = {
+  humanoid:[
+    {id:'humanoid_trait_forced_dash',name:'Форсированный рывок',text:'В свой ход может усилить перемещение; это не реакция.',mechanic:{kind:'movement_trait',speedDelta:2,duration:'end_of_turn'}},
+    {id:'humanoid_trait_last_strength',name:'На последних силах',text:'При первом снижении Body до половины получает краткий authored buff.',mechanic:{kind:'conditional_buff',threshold:.5,pzDelta:1,damageDelta:1,duration:'until_next_turn'}},
+    {id:'humanoid_trait_emergency_reload',name:'Неожиданная перезарядка',text:'Authored защита снаряжения; не занимает reaction slot.',mechanic:{kind:'equipment_trait',retainDurability:1,maxTriggers:1}}
+  ],
+  mechanism:[
+    {id:'mechanism_trait_overdrive',name:'Форсаж приводов',text:'В свой ход может усилить перемещение; это не реакция.',mechanic:{kind:'movement_trait',speedDelta:1,duration:'end_of_turn'}},
+    {id:'mechanism_trait_last_protocol',name:'Последний протокол',text:'Authored death effect; не занимает reaction slot.',mechanic:{kind:'death_effect',damage:'d6',area:'adjacent'}}
+  ],
+  animal:[{id:'animal_trait_pack_dash',name:'Рывок стаи',text:'Стайное перемещение является movement trait.',mechanic:{kind:'movement_trait',speedPerAlly:1}}],
+  beast:[
+    {id:'beast_trait_unstable_blood',name:'Нестабильная кровь',text:'Первое касательное ранение в раунде наносит источнику 2 damage; максимум 3 раза за бой.',mechanic:{kind:'contact_damage',damage:2,oncePerRound:true,maxTriggers:3}},
+    {id:'beast_trait_storm_aftermath',name:'Последствие бури',text:'Authored death-zone effect; не занимает reaction slot.',mechanic:{kind:'death_effect',damage:'d6',area:'adjacent'}},
+    {id:'beast_trait_chaotic_step',name:'Хаотический скачок',text:'После подходящей special attack бестия может сместиться на клетку.',mechanic:{kind:'movement_trait',distance:1}}
+  ],
+  undead:[
+    {id:'undead_trait_dead_dash',name:'Рывок мертвеца',text:'Ускорение в свой ход является movement trait.',mechanic:{kind:'movement_trait',speedDelta:2,duration:'end_of_turn'}},
+    {id:'undead_trait_grave_call',name:'Зов из могилы',text:'Падение союзной нежити даёт conditional buff; не занимает reaction slot.',mechanic:{kind:'conditional_buff',damageDelta:1,speedDelta:1,duration:'until_next_turn'}}
   ]
 };
 

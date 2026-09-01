@@ -1,6 +1,9 @@
+import { finalizeGeneratedNpc } from "./generated-npc-invariants.js";
+
 const array = (value) => Array.isArray(value) ? value : [];
 
 const CREATURE_DAMAGE_STEPS = ["d4", "d4+1", "d6", "d6+1", "d8", "d8+1", "d10", "d10+1", "d12"];
+const MAX_GENERATED_DAMAGE_INDEX = CREATURE_DAMAGE_STEPS.indexOf("d10+1");
 
 export const LEVEL_ONE_ARCHETYPE_PROFILES = Object.freeze({
   minion: Object.freeze({ body: 8, armor: 1, pool: 3, damage: "d6+1" }),
@@ -26,7 +29,7 @@ function damageStepIndex(value) {
 // projected onto the selected level baseline before difficulty tuning.
 // PZ and Nerve remain authored identity values; in particular Nerve is never
 // scaled together with durability or damage.
-export function scaleCreatureProfileForLevel(profile, archetype, level, levelBaselines) {
+export function scaleCreatureProfileForLevel(profile, archetype, level, levelBaselines, creatureType = profile?.creatureType || profile?.typeKey) {
   const source = { ...profile };
   const canonical = LEVEL_ONE_ARCHETYPE_PROFILES[archetype] || LEVEL_ONE_ARCHETYPE_PROFILES.standard;
   const baselines = array(levelBaselines);
@@ -38,19 +41,52 @@ export function scaleCreatureProfileForLevel(profile, archetype, level, levelBas
   const poolOffset = boundedRound((Number(source.pool) || canonical.pool) - canonical.pool, -1, 1);
   const damageOffset = boundedRound(damageStepIndex(source.damage) - damageStepIndex(canonical.damage), -1, 1);
   const levelDamageDelta = damageStepIndex(target.damage) - damageStepIndex(base.damage);
-  return {
+  return finalizeGeneratedNpc({
     ...source,
-    body: boundedRound(canonical.body * (Number(target.hp || base.hp) / Number(base.hp || 22)) + bodyOffset, 1, 60),
+    body: boundedRound(canonical.body * (Number(target.hp || base.hp) / Number(base.hp || 22)) + bodyOffset, 4, 60),
     armor: boundedRound(canonical.armor + (Number(target.armor) - Number(base.armor)) + armorOffset, 0, 8),
     pool: boundedRound(canonical.pool + (Number(target.pool) - Number(base.pool)) + poolOffset, 1, 8),
-    damage: CREATURE_DAMAGE_STEPS[boundedRound(damageStepIndex(canonical.damage) + levelDamageDelta + damageOffset, 0, CREATURE_DAMAGE_STEPS.length - 1)],
+    damage: CREATURE_DAMAGE_STEPS[boundedRound(damageStepIndex(canonical.damage) + levelDamageDelta + damageOffset, 0, MAX_GENERATED_DAMAGE_INDEX)],
     pz: Number(source.pz),
     nerve: Number(source.nerve) || 0,
-  };
+  }, creatureType);
 }
 
 export function flattenCreaturePregens(bank) {
   return array(bank?.creatureTypes).flatMap((group) => array(group.pregens));
+}
+
+export function migrateCreaturePregenBank(bank, catalogs = {}) {
+  const migrated = JSON.parse(JSON.stringify(bank));
+  for (const group of array(migrated?.creatureTypes)) {
+    const attacks = new Map(array(catalogs?.attacks?.[group.type]).map((item) => [item.id, item]));
+    const reactions = new Map(array(catalogs?.reactions?.[group.type]).map((item) => [item.id, item]));
+    const passives = new Map(array(catalogs?.passives?.[group.type]).map((item) => [item.id, item]));
+    for (const pregen of array(group.pregens)) {
+      const identity = pregen.hardIdentity ||= {};
+      const nextAttacks = [...array(identity.attacks)];
+      const nextReactions = [];
+      const nextPassives = [...array(identity.passives)];
+      for (const ref of array(identity.reactions)) {
+        if (reactions.has(ref.ref)) {
+          nextReactions.push(ref);
+          continue;
+        }
+        const migration = catalogs?.reactionMigrationMap?.[ref.ref];
+        if (migration?.kind === "attack") {
+          const item = attacks.get(migration.templateId);
+          if (item && !nextAttacks.some((entry) => entry.ref === item.id)) nextAttacks.push({ ref: item.id, name: item.name });
+        } else if (migration?.kind === "passive") {
+          const item = passives.get(migration.templateId);
+          if (item && !nextPassives.some((entry) => entry.ref === item.id)) nextPassives.push({ ref: item.id, name: item.name });
+        }
+      }
+      identity.attacks = nextAttacks;
+      identity.reactions = nextReactions.slice(0, 2);
+      identity.passives = nextPassives;
+    }
+  }
+  return migrated;
 }
 
 export function validateCreaturePregenBank(bank, catalogs = null) {
@@ -63,6 +99,7 @@ export function validateCreaturePregenBank(bank, catalogs = null) {
     if (array(group.pregens).length !== 25) errors.push(`${group.type}: expected 25 pregens`);
     const attacks = new Map(array(catalogs?.attacks?.[group.type]).map((item) => [item.id, item]));
     const reactions = new Map(array(catalogs?.reactions?.[group.type]).map((item) => [item.id, item]));
+    const passives = new Map(array(catalogs?.passives?.[group.type]).map((item) => [item.id, item]));
     for (const pregen of array(group.pregens)) {
       if (!pregen.id || ids.has(pregen.id)) errors.push(`duplicate or missing id: ${pregen.id || "unknown"}`);
       ids.add(pregen.id);
@@ -78,6 +115,11 @@ export function validateCreaturePregenBank(bank, catalogs = null) {
           const item = reactions.get(ref.ref);
           if (!item) errors.push(`${pregen.id}: missing reaction ${ref.ref}`);
           else if (item.name !== ref.name) errors.push(`${pregen.id}: reaction name drift ${ref.ref}`);
+        }
+        for (const ref of array(pregen.hardIdentity?.passives)) {
+          const item = passives.get(ref.ref);
+          if (!item) errors.push(`${pregen.id}: missing passive ${ref.ref}`);
+          else if (item.name !== ref.name) errors.push(`${pregen.id}: passive name drift ${ref.ref}`);
         }
       }
     }
@@ -115,16 +157,31 @@ export function inferCreatureArchetype(pregen, attacks = []) {
 
 export function resolveCreaturePregen(pregen, catalogs) {
   const type = pregen.creatureType;
-  const attacks = resolveRefs(pregen.hardIdentity?.attacks, catalogs?.attacks?.[type], "атака", pregen.id);
+  const authoredAttacks = resolveRefs(pregen.hardIdentity?.attacks, catalogs?.attacks?.[type], "атака", pregen.id);
   const reactions = resolveRefs(pregen.hardIdentity?.reactions, catalogs?.reactions?.[type], "реакция", pregen.id);
-  const archetype = inferCreatureArchetype(pregen, attacks);
+  const passives = resolveRefs(pregen.hardIdentity?.passives, catalogs?.passives?.[type], "пассив", pregen.id);
+  const archetype = inferCreatureArchetype(pregen, authoredAttacks);
+  const normalLimit = archetype === "minion" ? 1 : 2;
+  const specialLimit = archetype === "boss" || archetype === "elite" ? 2 : 1;
+  const normals = authoredAttacks.filter((item) => Number(item.uses) === 0).slice(0, normalLimit);
+  const migratedSpecial = (item) => /_(?:special|action)_/.test(String(item?.id || ""));
+  const authoredSpecials = authoredAttacks
+    .filter((entry) => Number(entry.uses) > 0)
+    .sort((left, right) => Number(migratedSpecial(right)) - Number(migratedSpecial(left)));
+  const specials = [];
+  for (const item of authoredSpecials) {
+    if (specials.length >= specialLimit) break;
+    if (!specials.some((entry) => entry.mechanic?.kind === item.mechanic?.kind)) specials.push(item);
+  }
+  const attacks = [...normals, ...specials].slice(0, 4);
   return {
     ...pregen,
     archetype,
     role: archetype,
     resolvedAttacks: attacks,
     resolvedReactions: reactions,
-    hardIdentity: { name: pregen.name, type, attacks, reactions },
+    resolvedPassives: passives,
+    hardIdentity: { name: pregen.name, type, attacks, reactions, passives },
   };
 }
 

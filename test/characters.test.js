@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   calculateCharacterResources,
+  adminSaveCharacter,
   normalizeCharacterControl,
   normalizeCharacterAttributes,
   normalizeCharacterFolderName,
@@ -9,8 +10,10 @@ import {
   normalizeCharacterSkills,
   hideCharacter,
   listVisibleCharacters,
+  loadCharacter,
   restoreHiddenCharacter,
   saveCharacter,
+  saveCharacterState,
   sanitizeState,
 } from "../src/characters.js";
 
@@ -86,6 +89,112 @@ test("список разделяет видимых и лично скрыты�
   assert.equal(result.characters[0].folderName, "Кампания");
   assert.deepEqual(result.folders, [{ id: "campaign", name: "Кампания" }]);
   assert.doesNotMatch(characterQuery, /WHERE c\.hidden = 0/);
+});
+
+test("дополнительный игрок может открыть персонажа и менять игровое состояние", async () => {
+  const statements = [];
+  const character = {
+    id: "shared-character",
+    owner_email: "owner@example.com",
+    hidden: 0,
+    level: 1,
+    data_json: JSON.stringify({
+      id: "shared-character",
+      name: "Общий герой",
+      className: "Рекрут",
+      level: 1,
+      attributes: {},
+      skills: {},
+      resources: { body: 8, mainNerve: 2, bonusNerve: 3 },
+    }),
+  };
+  const db = {
+    prepare(sql) {
+      statements.push(sql);
+      return {
+        bind() { return this; },
+        async first() {
+          if (sql.includes("FROM characters WHERE id")) return character;
+          if (sql.includes("FROM character_shares")) return { character_id: character.id };
+          return null;
+        },
+        async run() { return { meta: { changes: 1 } }; },
+      };
+    },
+  };
+  const user = { email: "friend@example.com", isAdmin: false };
+
+  const loaded = await loadCharacter(db, user, character.id);
+  assert.equal(loaded.name, "Общий герой");
+  const saved = await saveCharacterState(db, user, character.id, { currentBody: 4 });
+  assert.equal(saved.state.currentBody, 4);
+  assert.ok(statements.some((sql) => sql.includes("FROM character_shares")));
+  assert.ok(statements.some((sql) => sql.includes("INSERT INTO character_states")));
+});
+
+test("список игрока включает назначенных ему общих персонажей", async () => {
+  let characterQuery = "";
+  const db = {
+    prepare(sql) {
+      if (sql.includes("FROM characters c")) characterQuery = sql;
+      return {
+        bind() { return this; },
+        async first() { return null; },
+        async all() { return { results: [] }; },
+      };
+    },
+  };
+
+  await listVisibleCharacters(db, { email: "friend@example.com", isAdmin: false });
+  assert.match(characterQuery, /EXISTS[\s\S]*FROM character_shares/);
+  assert.match(characterQuery, /cs\.user_email = \?1/);
+});
+
+test("Dashboard сохраняет уникальный список дополнительных игроков", async () => {
+  const writes = [];
+  const db = {
+    prepare(sql) {
+      const statement = {
+        values: [],
+        bind(...values) {
+          this.values = values;
+          return this;
+        },
+        async first() { return null; },
+        async run() {
+          writes.push({ sql, values: this.values });
+          return { meta: { changes: 1 } };
+        },
+      };
+      return statement;
+    },
+  };
+
+  const result = await adminSaveCharacter(
+    db,
+    { email: "admin@example.com", isAdmin: true },
+    {
+      name: "Общий герой",
+      className: "Рекрут",
+      level: 1,
+      ownerEmail: "OWNER@example.com",
+      sharedEmails: [
+        "FRIEND@example.com",
+        "friend@example.com",
+        "owner@example.com",
+      ],
+      isComplete: false,
+      data: { attributes: {}, skills: {} },
+    },
+  );
+
+  assert.equal(result.ownerEmail, "owner@example.com");
+  assert.deepEqual(result.sharedEmails, ["friend@example.com"]);
+  const shareWrites = writes.filter((write) =>
+    write.sql.includes("INSERT INTO character_shares"),
+  );
+  assert.equal(shareWrites.length, 1);
+  assert.equal(shareWrites[0].values[1], "friend@example.com");
 });
 
 test("старый персонаж без уровня получает первый уровень", () => {
@@ -228,6 +337,35 @@ test("сервер сохраняет состояние Прочности и �
   assert.deepEqual(state.equipmentConditions.broken, {
     currentDurability: 0,
     currentExploitation: 99,
+  });
+});
+
+test("сервер сохраняет оставшиеся использования способностей", () => {
+  const state = sanitizeState({
+    abilityUses: {
+      "favorite-one": 2,
+      "favorite-empty": -5,
+      "favorite-overflow": 1000,
+      invalid: "нет",
+    },
+  }, {});
+
+  assert.deepEqual(state.abilityUses, {
+    "favorite-one": 2,
+    "favorite-empty": 0,
+    "favorite-overflow": 99,
+  });
+});
+
+test("сервер сохраняет состояние хода персонажа", () => {
+  const state = sanitizeState({
+    turnTracker: { moved: true, reaction: false, action: true },
+  }, {});
+
+  assert.deepEqual(state.turnTracker, {
+    moved: true,
+    reaction: false,
+    action: true,
   });
 });
 

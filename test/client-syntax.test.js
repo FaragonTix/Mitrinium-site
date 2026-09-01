@@ -57,6 +57,12 @@ test("памятка содержит актуальные правила 0.5.6 
   assert.ok(restIndex >= 0 && extendedIndex > restIndex && maintenanceIndex > extendedIndex);
   assert.match(view, /<details class="reference-card wide accent-green reference-section-spoiler"[\s\S]*?<h2>Обслуживание снаряжения<\/h2>/);
   assert.match(styles, /\.reference-topic-nav/);
+  assert.match(styles, /\.reference-split\s*\{\s*align-items:\s*start;\s*\}/);
+  assert.match(view, /id="referenceAbilitySearch"/);
+  assert.match(view, /id="referenceAbilityClass"/);
+  assert.match(view, /id="referenceAbilityCategory"/);
+  assert.match(view, /data-reference-topic="abilities"/);
+  assert.match(styles, /\.reference-ability-grid/);
 });
 
 test("главная страница содержит ссылки на правила и книгу сеттинга", async () => {
@@ -101,10 +107,14 @@ test("новое состояние просмотра начинается с �
     "getSelectedArmorTotal",
     "startingMoney",
     "getEquipmentById",
+    "getAbilityById",
     `${viewerSource}; return { normalizeViewerState };`,
   )(() => 4, 1000, (id) => ({
     crystal: { id: "crystal", durability: 2 },
     pistol: { id: "pistol", exploitation: 3 },
+  })[id], (id) => ({
+    favorite: { id: "favorite", category: "favorite", charges: 3 },
+    common: { id: "common", category: "common" },
   })[id]);
   const resources = { body: 12, mainNerve: 5, bonusNerve: 3 };
 
@@ -151,6 +161,13 @@ test("новое состояние просмотра начинается с �
     crystal: { currentDurability: 0 },
     pistol: { currentExploitation: 6 },
   });
+
+  const abilityState = api.normalizeViewerState({
+    resources,
+    abilities: ["favorite", "common"],
+    state: { initialized: true, abilityUses: { favorite: 99, common: 1 } },
+  });
+  assert.deepEqual(abilityState.abilityUses, { favorite: 3 });
 });
 
 test("просмотр начинает с имени и состояния, показывает атрибуты в навыках, а концепт оставляет внизу", async () => {
@@ -171,12 +188,13 @@ test("просмотр начинает с имени и состояния, п�
   assert.equal(viewer.indexOf("<h3>Атрибуты</h3>", state), -1);
 });
 
-test("личная видимость и админские папки разделены в интерфейсе", async () => {
-  const [storage, admin, adminView, migration] = await Promise.all([
+test("личная видимость, общий доступ и админские папки разделены в интерфейсе", async () => {
+  const [storage, admin, adminView, migration, sharingMigration] = await Promise.all([
     readFile(new URL("../apps-script-source/ScriptsStorage.html", import.meta.url), "utf8"),
     readFile(new URL("../src/client/admin/admin.js", import.meta.url), "utf8"),
     readFile(new URL("../src/client/admin/index.html", import.meta.url), "utf8"),
     readFile(new URL("../migrations/0007_character_visibility_folders.sql", import.meta.url), "utf8"),
+    readFile(new URL("../migrations/0008_character_shares.sql", import.meta.url), "utf8"),
   ]);
   assert.doesNotThrow(() => new Function(admin));
   assert.match(storage, /hiddenSavedCharactersCache/);
@@ -185,15 +203,19 @@ test("личная видимость и админские папки разд�
   assert.doesNotMatch(storage, /Скрыть персонажа только из вашего личного списка/);
   assert.match(storage, /mitriniumRestoreHiddenCharacter/);
   assert.match(storage, /Скрыто в моём списке/);
+  assert.match(storage, /character\.canDelete !== false/);
   assert.doesNotMatch(storage, /if \(\s*!savedCharactersListIsAdmin\s*\) \{\s*return;\s*\}/);
   assert.match(adminView, /Папки персонажей/);
-  assert.match(adminView, /Скрыть персонажа от игрока/);
+  assert.match(adminView, /Скрыть персонажа от всех игроков/);
   assert.match(admin, /adminSetCharacterFolder/);
   assert.match(admin, /adminCreateCharacterFolder/);
   assert.match(admin, /Скрыть от игрока/);
+  assert.match(adminView, /id="sharedEmails"/);
+  assert.match(admin, /sharedEmails/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS character_list_preferences/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS character_folders/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS character_folder_assignments/);
+  assert.match(sharingMigration, /CREATE TABLE IF NOT EXISTS character_shares/);
 });
 
 test("PDF содержит биографические черты, заголовки Атрибутов и полное название", async () => {
@@ -210,7 +232,7 @@ test("PDF содержит биографические черты, заголо
   assert.doesNotMatch(pdfSource, /'ур\. ' \+ entry\[1\]\.level/);
 });
 
-test("у каждой способности есть пререквизит, а теги больше не выводятся", async () => {
+test("каталог способностей соответствует редакции 0.5.7", async () => {
   const abilitySource = await readClassicScript(
     "../apps-script-source/AbilitiesData.html",
   );
@@ -220,11 +242,12 @@ test("у каждой способности есть пререквизит, а
     "utf8",
   );
 
-  assert.equal(abilities.length, 108);
+  assert.equal(abilities.length, 126);
   assert.equal(new Set(abilities.map((ability) => ability.id)).size, abilities.length);
+  const expectedCounts = { ultimate: 6, favorite: 6, common: 5, situational: 4 };
   for (const className of ["Психопат", "Кустарь", "Воротила", "Рекрут", "Менталист", "Натуралист"]) {
-    for (const category of ["ultimate", "favorite", "common"]) {
-      assert.equal(abilities.filter((ability) => ability.className === className && ability.category === category).length, 6);
+    for (const [category, count] of Object.entries(expectedCounts)) {
+      assert.equal(abilities.filter((ability) => ability.className === className && ability.category === category).length, count);
     }
   }
   assert.ok(abilities.every((ability) => ability.prerequisite));
@@ -256,12 +279,47 @@ test("у каждой способности есть пререквизит, а
   assert.equal(byName["Мастерство преображения"].pool, "Господство + Публика");
   assert.equal(
     byName["Липкий пол"].effect,
-    "Действие. Метни ёмкость с липким составом в один видимый незанятый гекс на Средней дистанции. При успехе гекс до конца сцены становится липким и считается труднопроходимым. Существо, входящее в гекс или выходящее из него, делает проверку Сноровка + Координация или Напор+Сила против сл. 7. При провале его движение заканчивается, а существо не может перемещаться до начала своего следующего хода.",
+    "Действие. Метни ёмкость с липким составом в один видимый незанятый гекс на Средней дистанции. При успехе гекс до конца сцены становится липким и считается труднопроходимым. Существо, входящее в гекс или выходящее из него, делает проверку Сноровка + Координация или Напор + Сила против сл. 7. При провале его движение заканчивается, а существо не может перемещаться до начала своего следующего хода.",
   );
+  assert.equal(byName["Липкий пол"].complications, "В случае провала Контроля, способность не срабатывает.");
   assert.equal(byName["Тяжёлый замах"].charges, 2);
   assert.equal(byName["Выстрел и перекат"].reaction, "после");
   assert.equal(byName["Две обезьяны"].breakthrough, "Наложи Глухоту и Немоту одновременно.");
   assert.equal(byName["Полевые дротики"].prerequisite, "Дротиковая трубка.");
+  assert.equal(byName["Пиротехнический сигнал"].category, "situational");
+  assert.equal(byName["Манипулятор поля"].category, "situational");
+  assert.equal(byName["Набор печатей"].category, "situational");
+  assert.equal(byName["Спрятанные клинки"].category, "situational");
+  assert.equal(byName["Резонатор"].category, "situational");
+  assert.equal(byName["Жучок"].category, "situational");
+  for (const name of ["Монтажная пена", "Третья рука", "Без следов", "Прыгун", "Должно быть, ветер", "Оценка"]) {
+    assert.equal(byName[name].category, "situational");
+  }
+});
+
+test("справочник памятки ищет способности всех классов и фильтрует категории", async () => {
+  const [abilitySource, referenceSource] = await Promise.all([
+    readClassicScript("../apps-script-source/AbilitiesData.html"),
+    readClassicScript("../apps-script-source/RulesReferenceScripts.html"),
+  ]);
+  const nodes = {
+    referenceAbilityResults: { innerHTML: "" },
+    referenceAbilityStatus: { textContent: "" },
+    referenceAbilitySearch: { value: "" },
+    referenceAbilityClass: { value: "Рекрут" },
+    referenceAbilityCategory: { value: "ultimate" },
+  };
+  const runFilter = new Function(
+    "document",
+    `${abilitySource}; ${referenceSource}; filterRulesReferenceAbilities();`,
+  );
+
+  runFilter({ getElementById: (id) => nodes[id] || null });
+
+  assert.equal(nodes.referenceAbilityStatus.textContent, "Найдено способностей: 6 из 126");
+  assert.match(nodes.referenceAbilityResults.innerHTML, /<h3>Рекрут<\/h3>/);
+  assert.match(nodes.referenceAbilityResults.innerHTML, /Ультимативные/);
+  assert.doesNotMatch(nodes.referenceAbilityResults.innerHTML, /<h3>Психопат<\/h3>/);
 });
 
 test("на старте выбираются две способности каждой категории", async () => {
@@ -281,7 +339,7 @@ test("на старте выбираются две способности ка�
     "abilityCategoryLabels",
     `
       const selectedAbilities = [];
-      const maxStartingAbilities = 6;
+      const maxStartingAbilities = 8;
       const advancedEditMode = false;
       let activeAbilityId = null;
       const warnings = [];
@@ -290,7 +348,7 @@ test("на старте выбираются две способности ка�
       renderAbilities = function() {};
       showAbilitiesWarning = function(message) { warnings.push(message); };
       const psychopat = abilityData.filter(ability => ability.className === "Психопат");
-      for (const category of ["ultimate", "favorite", "common"]) {
+      for (const category of ["ultimate", "favorite", "common", "situational"]) {
         const choices = psychopat.filter(ability => ability.category === category);
         toggleAbilitySelection(choices[0].id);
         toggleAbilitySelection(choices[1].id);
@@ -301,17 +359,19 @@ test("на старте выбираются две способности ка�
   );
   const result = runSelectionScenario(abilityData, abilityCategoryLabels);
 
-  assert.equal(result.selectedAbilities.length, 6);
-  assert.equal(result.warnings.length, 3);
+  assert.equal(result.selectedAbilities.length, 8);
+  assert.equal(result.warnings.length, 4);
   assert.ok(result.warnings.every((warning) => warning.includes("только две способности")));
-  assert.match(core, /const maxStartingAbilities = 6/);
+  assert.match(core, /const maxStartingAbilities = 8/);
   assert.match(characterScripts, /categoryCounts\.ultimate !== 2/);
   assert.match(characterScripts, /categoryCounts\.favorite !== 2/);
   assert.match(characterScripts, /categoryCounts\.common !== 2/);
-  assert.match(characterScripts, /Выберите ровно 6 способностей/);
+  assert.match(characterScripts, /categoryCounts\.situational !== 2/);
+  assert.match(characterScripts, /Выберите ровно 8 способностей/);
   assert.match(editor, /выберите по две способности/);
-  assert.match(editor, /0 \/ 6/);
-  assert.match(server, /abilities\.length !== 6/);
+  assert.match(editor, /Ситуативные способности/);
+  assert.match(editor, /0 \/ 8/);
+  assert.match(server, /abilities\.length !== 8/);
 });
 
 test("биографические факты соответствуют редакции 0.5.3", async () => {
@@ -499,6 +559,23 @@ test("одновременно открыта только одна подска
   assert.match(characterSource, /if \(details !== currentDetails\) details\.open = false/);
 });
 
+test("навыки фильтруются по типу, а мобильная сводка остаётся липкой", async () => {
+  const [editor, characterSource, styles] = await Promise.all([
+    readFile(new URL("../apps-script-source/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/ScriptsCharacter.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/Styles.html", import.meta.url), "utf8"),
+  ]);
+
+  for (const filter of ['all', 'primary', 'secondary']) {
+    assert.match(editor, new RegExp(`data-skill-type-filter="${filter}"`));
+  }
+  assert.match(characterSource, /skillTypeFilter === 'secondary' && !isSecondary/);
+  assert.match(characterSource, /skillTypeFilter === 'primary' && isSecondary/);
+  assert.match(characterSource, /mobileTypeProgress\.textContent/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*?\.skill-sticky-controls\s*\{[\s\S]*?position: sticky/);
+  assert.match(styles, /\.skills-grid\[data-skill-type-filter='secondary'\] \.skill-column/);
+});
+
 test("рекомендации классов и второстепенные навыки редакции 0.5.2 настроены отдельно", async () => {
   const [coreSource, editorSource, characterSource] = await Promise.all([
     readFile(new URL("../apps-script-source/ScriptsCore.html", import.meta.url), "utf8"),
@@ -626,6 +703,26 @@ test("интерфейс бросков использует новые дейс
   assert.doesNotMatch(`${view}\n${scripts}`, /замен(?:а|ить).*на 4/i);
 });
 
+test("бонус выбранной Методики автоматически попадает в бросок Контроля", async () => {
+  const [core, rolls] = await Promise.all([
+    readFile(new URL("../apps-script-source/ScriptsCore.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/RollsScripts.html", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(
+    core,
+    /function setCharacterControl[\s\S]*?applyCharacterControlMethodToRoll\(\)/,
+  );
+  assert.match(
+    core,
+    /if \(mode === 'rolls'\)[\s\S]*?applyCharacterControlMethodToRoll\(\)/,
+  );
+  assert.match(
+    rolls,
+    /function rollEfficiencyNow\(\)[\s\S]*?applyCharacterControlMethodToRoll\(\)[\s\S]*?flatBonus:/,
+  );
+});
+
 test("опции общего лога находятся в панели сохранения калькулятора", async () => {
   const [calculator, calculatorScripts] = await Promise.all([
     readFile(new URL("../calculator-script-source/Index.html", import.meta.url), "utf8"),
@@ -659,10 +756,18 @@ test("трекер инициативы сортируется только вр
   ]);
 
   assert.match(calculator, /onclick="sortInitiative\(\)"[^>]*>Отсортировать/);
-  assert.match(calculator, /onclick="nextRound\(\)"[^>]*>Следующий раунд/);
+  assert.match(calculator, /id="roundPhaseLabel"[^>]*>Передвижение/);
+  assert.match(calculator, /onclick="advanceInitiativePhase\(\)"[^>]*>Перейти к действиям/);
   assert.match(calculator, /id="enemyGrid"/);
   assert.match(calculator, /id="enemyDetail"/);
   assert.match(calculatorScripts, /function sortInitiative\(\)/);
+  assert.match(calculatorScripts, /function advanceInitiativePhase\(\)/);
+  assert.match(calculatorScripts, /phase:'movement'/);
+  assert.match(calculatorScripts, /statuses:\{\}/);
+  assert.match(calculatorScripts, /toggleInitiativeStatus/);
+  assert.match(calculatorScripts, /Походил/);
+  assert.match(calculatorScripts, /Реакция/);
+  assert.match(calculatorScripts, /Действие/);
   assert.match(calculatorScripts, /state\.initiative\.order=participants\.map/);
   const setInitiativeBody = calculatorScripts.slice(
     calculatorScripts.indexOf("function setInitiative("),
@@ -673,6 +778,50 @@ test("трекер инициативы сортируется только вр
   assert.match(calculatorScripts, /enemy-summary-card/);
   assert.match(calculatorStyles, /\.combat-enemy-workspace/);
   assert.match(calculatorStyles, /\.enemy-summary-card\.selected/);
+  assert.match(calculatorStyles, /\.initiative-statuses/);
+});
+
+test("у Нерва нет крупного шага −5, а у Тела он сохранён", async () => {
+  const viewerScripts = await readFile(
+    new URL("../apps-script-source/ViewerScripts.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(viewerScripts, /key === 'currentBody'/);
+  assert.match(viewerScripts, /changeViewerStateValue\('\$\{key\}', -5\)/);
+});
+
+test("игрок отслеживает передвижение, реакцию и действие в режиме бросков", async () => {
+  const [rollsView, rollsScripts, viewerScripts, styles] = await Promise.all([
+    readFile(new URL("../apps-script-source/RollsView.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/RollsScripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/ViewerScripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/UiStyles.html", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(rollsView, /id="rollMovementState"/);
+  assert.match(rollsView, /id="rollReactionState"/);
+  assert.match(rollsView, /id="rollActionState"/);
+  assert.match(rollsView, /onclick="resetRollTurnTracker\(\)"/);
+  assert.match(rollsScripts, /function toggleRollTurnTracker\(key\)/);
+  assert.match(rollsScripts, /markViewerStateUnsaved\(\)/);
+  assert.match(viewerScripts, /turnTracker: normalizeViewerTurnTracker/);
+  assert.match(styles, /\.roll-turn-tracker-buttons/);
+});
+
+test("калькулятор показывает общий лог бросков", async () => {
+  const [calculator, calculatorScripts, calculatorStyles] = await Promise.all([
+    readFile(new URL("../calculator-script-source/Index.html", import.meta.url), "utf8"),
+    readFile(new URL("../calculator-script-source/Script.html", import.meta.url), "utf8"),
+    readFile(new URL("../calculator-script-source/Styles.html", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(calculator, /id="calculatorRollLogList"/);
+  assert.match(calculator, /Общий лог бросков/);
+  assert.match(calculatorScripts, /serverCall\('mitriniumGetRollLog',100\)/);
+  assert.match(calculatorScripts, /function renderCalculatorRollLog\(entries\)/);
+  assert.match(calculatorScripts, /if\(state\.currentScreen==='combat'\)refreshCalculatorRollLog\(true\)/);
+  assert.match(calculatorStyles, /\.combat-roll-log-entry/);
 });
 
 test("выбор куба для переброса остаётся компактным", async () => {
@@ -755,4 +904,31 @@ test("просмотр показывает состояние, компактн
   assert.equal(viewer.indexOf('<h3>Атрибуты</h3>'), -1);
   assert.match(viewer, /renderViewerSkills\(character\.skills \|\| \{}, character\.attributes \|\| \{}\)/);
   assert.match(viewer, /class="viewer-skill-attribute-value"/);
+  assert.match(viewer, /viewer-state-label">Скорость<[\s\S]*?viewer-state-static-value">3</);
+});
+
+test("числовые поля просмотра не показывают встроенные стрелки браузера", async () => {
+  const styles = await readFile(
+    new URL("../apps-script-source/Styles.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(styles, /\.viewer input\[type='number'\]\s*\{[\s\S]*?appearance: textfield/);
+  assert.match(styles, /\.viewer input\[type='number'\]::-webkit-inner-spin-button/);
+  assert.match(styles, /-webkit-appearance: none/);
+});
+
+test("просмотр группирует способности по типу в фиксированном порядке", async () => {
+  const [viewer, styles, referenceScripts] = await Promise.all([
+    readFile(new URL("../apps-script-source/ViewerScripts.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/Styles.html", import.meta.url), "utf8"),
+    readFile(new URL("../apps-script-source/RulesReferenceScripts.html", import.meta.url), "utf8"),
+  ]);
+
+  const expectedOrder = /\['ultimate', 'favorite', 'common', 'situational'\]/;
+  assert.match(viewer, expectedOrder);
+  assert.match(viewer, /class="viewer-ability-group"/);
+  assert.match(viewer, /abilityCategoryLabels\[category\]/);
+  assert.match(styles, /\.viewer-ability-group h4/);
+  assert.match(referenceScripts, expectedOrder);
 });

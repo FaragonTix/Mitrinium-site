@@ -408,7 +408,9 @@ function ensureCharacterStatesHeader(sheet) {
     'Пеккели',
     'Заметки',
     'Текущая Броня',
-    'Максимальная Броня'
+    'Максимальная Броня',
+    'Использования способностей JSON',
+    'Состояние хода JSON'
   ];
 
   const currentHeaders = sheet
@@ -508,7 +510,9 @@ function saveCharacterState(characterId, state) {
     sanitizedState.money.pekkels,
     sanitizedState.notes,
     sanitizedState.currentArmor,
-    sanitizedState.maxArmor
+    sanitizedState.maxArmor,
+    JSON.stringify(sanitizedState.abilityUses || {}),
+    JSON.stringify(sanitizedState.turnTracker || {})
   ];
 
   if (rowToUpdate === -1) {
@@ -550,7 +554,7 @@ function getCharacterStateById_(
   }
 
   const values = sheet
-    .getRange(2, 1, lastRow - 1, 13)
+    .getRange(2, 1, lastRow - 1, 15)
     .getValues();
 
   for (let index = 0; index < values.length; index++) {
@@ -558,6 +562,20 @@ function getCharacterStateById_(
 
     if (String(row[0]) !== String(characterId)) {
       continue;
+    }
+
+    let abilityUses = {};
+    try {
+      abilityUses = JSON.parse(String(row[13] || '{}'));
+    } catch (error) {
+      abilityUses = {};
+    }
+
+    let turnTracker = {};
+    try {
+      turnTracker = JSON.parse(String(row[14] || '{}'));
+    } catch (error) {
+      turnTracker = {};
     }
 
     const savedState = sanitizeCharacterState_(
@@ -574,7 +592,9 @@ function getCharacterStateById_(
 
         notes: row[10],
         currentArmor: row[11],
-        maxArmor: row[12]
+        maxArmor: row[12],
+        abilityUses,
+        turnTracker
       },
       resources || {}
     );
@@ -629,6 +649,26 @@ function sanitizeCharacterState_(state, resources) {
     maxArmor
   );
 
+  const abilityUses = {};
+  const savedAbilityUses = state.abilityUses && typeof state.abilityUses === 'object'
+    ? state.abilityUses
+    : {};
+  Object.keys(savedAbilityUses).slice(0, 100).forEach(function(rawId) {
+    const id = String(rawId || '').slice(0, 120);
+    const uses = Number(savedAbilityUses[rawId]);
+    if (!id || !Number.isFinite(uses)) return;
+    abilityUses[id] = clampNumber_(Math.round(uses), 0, 99);
+  });
+
+  const savedTurnTracker = state.turnTracker && typeof state.turnTracker === 'object'
+    ? state.turnTracker
+    : {};
+  const turnTracker = {
+    moved: Boolean(savedTurnTracker.moved),
+    reaction: savedTurnTracker.reaction !== false,
+    action: savedTurnTracker.action !== false
+  };
+
   return {
     currentBody: clampNumber_(
       numberOrDefault_(state.currentBody, maxBody),
@@ -673,6 +713,9 @@ function sanitizeCharacterState_(state, resources) {
         numberOrDefault_(money.pekkels, 0)
       )
     },
+
+    abilityUses,
+    turnTracker,
 
     notes: String(state.notes || ''),
     initialized: true
@@ -849,10 +892,10 @@ function validateAbilities_(
 
   if (
     !isAdvancedEditMode &&
-    abilities.length !== 6
+    abilities.length !== 8
   ) {
     throw new Error(
-      'На старте нужно выбрать ровно 6 способностей.'
+      'На старте нужно выбрать ровно 8 способностей.'
     );
   }
 }
