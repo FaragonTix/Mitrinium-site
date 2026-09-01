@@ -1,0 +1,1898 @@
+{
+  "version": "mitrinium-mechanics-catalog-v18",
+  "schema": "mitrinium-v18-structured-mechanics",
+  "source": "calculator-script-source/Dict.html",
+  "runtime_contract": {
+    "production_predictor": "v15",
+    "generator_axes": [
+      "party_win_probability",
+      "mean_pc_ko_fraction"
+    ],
+    "enemy_nerve": {
+      "finite": true,
+      "spend": "normal_to_advantage_only",
+      "never_spend_for": [
+        "hindrance_to_normal",
+        "already_advantage"
+      ]
+    },
+    "pacing": {
+      "target_rounds": [
+        5,
+        6
+      ],
+      "heavy_fight_rounds_max": 7,
+      "pathological_rounds_over": 10,
+      "role": "quality_guardrail"
+    }
+  },
+  "actions": {
+    "humanoid": [
+      {
+        "id": "humanoid_1",
+        "type": "humanoid",
+        "name": "Удар голыми руками",
+        "description": "Совершите безоружную атаку. Эта атака использует пониженный пул и пониженный профиль урона относительно оружейных атак, но всегда остаётся доступной, пока гуманоид способен действовать.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": -1,
+        "max_targets": 1
+      },
+      {
+        "id": "humanoid_2",
+        "type": "humanoid",
+        "name": "Удар головой",
+        "description": "При попадании цель проходит проверку Стойкости. При провале цель получает Дезориентацию до конца своего следующего действия. При провале самой атаки с ЭФ 0 или меньше атакующий получает 1 урон, игнорирующий Броню.",
+        "kind": "power_attack",
+        "uses": 2,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "humanoid_6",
+        "type": "humanoid",
+        "name": "Рубящий удар",
+        "description": "Совершите обычную атаку холодным оружием",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "humanoid_11",
+        "type": "humanoid",
+        "name": "Выстрел на средней дистанции",
+        "description": "Совершите обычную атаку пистолем",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "humanoid_12",
+        "type": "humanoid",
+        "name": "Выстрел на дальней дистанции",
+        "description": "Совершите обычную атаку дальнобойным оружием",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "humanoid_20",
+        "type": "humanoid",
+        "name": "Дымовая шашка",
+        "description": "Выберите клетку в средней дистанции. В ней и соседних клетках возникает дым до конца следующего раунда. Атаки, требующие зрения через эту зону, совершаются с Помехой.",
+        "kind": "power_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "humanoid_21",
+        "type": "humanoid",
+        "name": "Ослепляющая шашка",
+        "description": "Все существа в выбранной небольшой зоне проходят проверку Стойкости. При провале получают Ослепление до конца своего следующего действия. Размер зоны: 2 соседних гекса.",
+        "kind": "aoe_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 2
+      },
+      {
+        "id": "humanoid_22",
+        "type": "humanoid",
+        "name": "Зажигательная смесь",
+        "description": "Нанесите урон всем существам в небольшой зоне. Зона (2 гекса) остаётся опасной до конца следующего раунда; первое вхождение или начало хода в ней наносит 2 урона.",
+        "kind": "power_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "humanoid_23",
+        "type": "humanoid",
+        "name": "Кислотная колба",
+        "description": "Нанесите урон всем существам в небольшой зоне. Размер зоны: 2 соседних гекса.",
+        "kind": "aoe_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 2
+      },
+      {
+        "id": "humanoid_24",
+        "type": "humanoid",
+        "name": "Отравленный клинок: продолжающийся урон",
+        "description": "Если после Брони прошёл хотя бы 1 урон, цель проходит проверку Стойкости. При провале она получает 2 урона в конце своего следующего хода. Повторное применение обновляет длительность, но не складывает урон.",
+        "kind": "power_attack",
+        "uses": 2,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "humanoid_special_quick_burst",
+        "type": "humanoid",
+        "name": "Быстрая очередь",
+        "description": "Совершает две отдельные дальние атаки тем же оружием; обе используют сцену 3d4.",
+        "kind": "multiattack",
+        "uses": 1,
+        "max_targets": 2,
+        "scene": "hindrance",
+        "multiattack": {
+          "attacks": 2,
+          "targeting": "split_or_focus",
+          "max_targets": 2
+        }
+      },
+      {
+        "id": "humanoid_action_suppressing_fire",
+        "type": "humanoid",
+        "name": "Подавляющий огонь",
+        "description": "Атака с 3d4 не наносит Body damage; при успехе Speed цели снижается на 2 и Рывок недоступен до конца её следующего хода.",
+        "kind": "movement_debuff",
+        "uses": 2,
+        "max_targets": 1,
+        "scene": "hindrance",
+        "body_damage": 0,
+        "speed_delta": -2,
+        "disable_dash": true,
+        "duration": "end_of_target_next_turn",
+        "deal_damage": false
+      },
+      {
+        "id": "humanoid_special_fencing_lunge",
+        "type": "humanoid",
+        "name": "Фехтовальный выпад",
+        "description": "Одна ближняя атака с повышением damage profile на один шаг.",
+        "kind": "power_attack",
+        "uses": 1,
+        "max_targets": 1,
+        "ultimate": true,
+        "damage_step": 1
+      },
+      {
+        "id": "humanoid_special_dirty_trick",
+        "type": "humanoid",
+        "name": "Грязный приём",
+        "description": "После попадания выбрать: дополнительный d4 damage или потеря целью 1 Нерва.",
+        "kind": "nerve_damage",
+        "uses": 1,
+        "max_targets": 1,
+        "choices": [
+          {
+            "extra_damage": "d4"
+          },
+          {
+            "nerve_damage": 1
+          }
+        ]
+      },
+      {
+        "id": "humanoid_special_trip",
+        "type": "humanoid",
+        "name": "Свалить с ног",
+        "description": "Обычная ближняя атака; после Body damage цель при провале встречной физической проверки падает.",
+        "kind": "movement_debuff",
+        "uses": 2,
+        "max_targets": 1,
+        "requires_body_damage": true,
+        "requires_check": "physical",
+        "condition": "prone"
+      }
+    ],
+    "mechanism": [
+      {
+        "id": "mechanism_1",
+        "type": "mechanism",
+        "name": "Удар манипулятором",
+        "description": "Совершите обычную атаку клешнёй, рукой, захватом или тяжёлым рабочим инструментом.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "mechanism_2",
+        "type": "mechanism",
+        "name": "Толчок поршнем",
+        "description": "При попадании цель проходит проверку Стойкости. При провале отталкивается на 1 клетку.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "mechanism_4",
+        "type": "mechanism",
+        "name": "Вращающиеся лезвия",
+        "description": "Совершите атаку встроенными ножами, пилами или дисками. Атака получает Пробитие 1.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "mechanism_6",
+        "type": "mechanism",
+        "name": "Захват клешнёй",
+        "description": "При попадании вместо обычного урона проведите встречную проверку. При победе механизма цель удерживается.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "mechanism_7",
+        "type": "mechanism",
+        "name": "Сдавливание",
+        "description": "Совершите атаку по цели, уже удерживаемой этим механизмом. Атака получает Пробитие 1.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "mechanism_8",
+        "type": "mechanism",
+        "name": "Встроенное орудие средней дистанции",
+        "description": "Совершите обычную атаку встроенным гвоздомётом, короткой турелью или метателем болтов.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "mechanism_9",
+        "type": "mechanism",
+        "name": "Дальнобойная турель",
+        "description": "Совершите обычную дальнюю атаку. Если механизм перемещался в этот ход, атака совершается с Помехой.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "mechanism_12",
+        "type": "mechanism",
+        "name": "Электрический разряд: потеря реакции",
+        "description": "При попадании цель проходит проверку Стойкости. При провале не может использовать реакции до начала своего следующего хода.",
+        "kind": "power_attack",
+        "uses": 2,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "mechanism_15",
+        "type": "mechanism",
+        "name": "Огнемётная линия",
+        "description": "Проведите линию длиной до указанной дальности. Все существа в линии проходят защитную проверку. При провале получают полный урон, при успехе - половину.",
+        "kind": "power_attack",
+        "uses": 2,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "mechanism_17",
+        "type": "mechanism",
+        "name": "Ядовитый газ",
+        "description": "Создайте газовую зону размером в 2 соседних гекса до конца следующего раунда. Живое существо, начинающее ход в зоне, проходит проверку Стойкости; при провале получает урон.",
+        "kind": "power_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "mechanism_18",
+        "type": "mechanism",
+        "name": "Ослепляющий пар",
+        "description": "Все существа в небольшой зоне проходят проверку Стойкости. При провале получают Ослепление до конца следующего действия. Размер зоны: 2 соседних гекса.",
+        "kind": "aoe_attack",
+        "uses": 2,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 2
+      },
+      {
+        "id": "mechanism_22",
+        "type": "mechanism",
+        "name": "Гарпун: притяжение",
+        "description": "При попадании цель проходит проверку Стойкости. При провале притягивается на 1 клетку к механизму. Чтобы освободиться нужно потратить действие. Пока гарпун активен механизм ничего не может делать.",
+        "kind": "power_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "mechanism_special_emergency_burst",
+        "type": "mechanism",
+        "name": "Аварийная очередь",
+        "description": "Совершает две отдельные атаки основным оружием; обе используют сцену 3d4.",
+        "kind": "multiattack",
+        "uses": 1,
+        "max_targets": 2,
+        "scene": "hindrance",
+        "multiattack": {
+          "attacks": 2,
+          "targeting": "split_or_focus",
+          "max_targets": 2
+        }
+      },
+      {
+        "id": "mechanism_special_calculated_shot",
+        "type": "mechanism",
+        "name": "Расчётный выстрел",
+        "description": "Одна атака оружием со сценой 3d8.",
+        "kind": "advantage_attack",
+        "uses": 2,
+        "max_targets": 1,
+        "scene": "advantage"
+      },
+      {
+        "id": "mechanism_special_overloaded_shot",
+        "type": "mechanism",
+        "name": "Перегруженный выстрел",
+        "description": "При попадании добавляет d6 damage; после атаки оружие теряет 1 Прочность.",
+        "kind": "power_attack",
+        "uses": 1,
+        "max_targets": 1,
+        "ultimate": true,
+        "durability_cost": 1,
+        "bonus_damage": "d6"
+      },
+      {
+        "id": "mechanism_special_arc_discharge",
+        "type": "mechanism",
+        "name": "Дуговой разряд",
+        "description": "Ближняя атака d4, T 2; после Body damage следующее действие цели получает Помеху 3d4.",
+        "kind": "accuracy_debuff",
+        "uses": 2,
+        "max_targets": 1,
+        "target_scene": "hindrance",
+        "consume_on_next_action": true,
+        "damage_override": "d4"
+      },
+      {
+        "id": "mechanism_special_tracer_shot",
+        "type": "mechanism",
+        "name": "Трассирующий выстрел",
+        "description": "После попадания следующая атака механизма по этой цели получает сцену 3d8; затем метка снимается.",
+        "kind": "advantage_attack",
+        "uses": 1,
+        "max_targets": 1,
+        "mark_next_attack": true,
+        "next_scene": "advantage",
+        "consume_on_next_attack": true
+      },
+      {
+        "id": "mechanism_action_self_repair",
+        "type": "mechanism",
+        "name": "Саморемонт",
+        "description": "Восстанавливает d6 Body; до начала следующего хода механизм не использует реакции.",
+        "kind": "heal_action",
+        "uses": 1,
+        "max_targets": 1,
+        "disable_reactions_until": "next_turn",
+        "heal": "d6"
+      }
+    ],
+    "animal": [
+      {
+        "id": "animal_1",
+        "type": "animal",
+        "name": "Укус",
+        "description": "Совершите обычную атаку зубами или клювом.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "animal_2",
+        "type": "animal",
+        "name": "Когти",
+        "description": "Совершите обычную режущую атаку лапой или когтями.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "animal_3",
+        "type": "animal",
+        "name": "Удар лапой: отталкивание",
+        "description": "При попадании цель проходит проверку Стойкости. При провале отталкивается на 1 клетку.",
+        "kind": "power_attack",
+        "uses": 2,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "animal_4",
+        "type": "animal",
+        "name": "Удар лапой: падение",
+        "description": "При попадании цель проходит проверку Стойкости. При провале падает.",
+        "kind": "power_attack",
+        "uses": 2,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "animal_5",
+        "type": "animal",
+        "name": "Удар рогами",
+        "description": "Если животное перед атакой переместилось по прямой хотя бы на 1 клетку, атака получает Пробитие 1.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "animal_9",
+        "type": "animal",
+        "name": "Двойной удар лапами",
+        "description": "Совершите две отдельные атаки с Помехой по одной или двум целям в дальности касания.",
+        "kind": "power_attack",
+        "uses": 2,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "animal_10",
+        "type": "animal",
+        "name": "Размашистый удар двумя лапами",
+        "description": "Совершите одну атаку по двум соседним целям. Для каждой цели отдельно определите попадание.",
+        "kind": "power_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "animal_12",
+        "type": "animal",
+        "name": "Вцепиться",
+        "description": "После успешного укуса цель проходит проверку Стойкости. При провале животное удерживает её. Пока удержание продолжается, этой пастью нельзя атаковать другие цели.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "animal_13",
+        "type": "animal",
+        "name": "Встряхнуть добычу: усиленный урон",
+        "description": "Совершите атаку по цели, удерживаемой этим животным. Атака получает дополнительно +2 урона. Попадание не требуется.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 1,
+        "max_targets": 1
+      },
+      {
+        "id": "animal_24",
+        "type": "animal",
+        "name": "Размашистый удар хвостом",
+        "description": "Совершите отдельную атаку по каждой цели в указанной боковой зоне. Все атаки совершаются с Помехой.",
+        "kind": "power_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "animal_special_knockdown_pounce",
+        "type": "animal",
+        "name": "Сбивающий бросок",
+        "description": "Обычная ближняя атака; после Body damage цель при провале встречной физической проверки падает.",
+        "kind": "movement_debuff",
+        "uses": 2,
+        "max_targets": 1,
+        "requires_body_damage": true,
+        "requires_check": "physical",
+        "condition": "prone"
+      },
+      {
+        "id": "animal_special_finisher",
+        "type": "animal",
+        "name": "Добивание",
+        "description": "Только против цели с Body не выше половины: одна ближняя атака со сценой 3d8.",
+        "kind": "advantage_attack",
+        "uses": 2,
+        "max_targets": 1,
+        "scene": "advantage",
+        "target_hp_fraction_max": 0.5
+      },
+      {
+        "id": "animal_special_maul",
+        "type": "animal",
+        "name": "Терзать",
+        "description": "Против лежащей, удерживаемой или обездвиженной цели: обычная атака и дополнительный d4 damage.",
+        "kind": "power_attack",
+        "uses": 2,
+        "max_targets": 1,
+        "target_condition_any": [
+          "prone",
+          "grappled",
+          "immobilized"
+        ],
+        "bonus_damage": "d4"
+      }
+    ],
+    "beast": [
+      {
+        "id": "beast_1",
+        "type": "beast",
+        "name": "Искажённый удар",
+        "description": "Совершите обычную атаку конечностью, отростком или изменённой частью тела.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "beast_2",
+        "type": "beast",
+        "name": "Когти чужой формы",
+        "description": "Совершите режущую атаку. Атака получает Пробитие 1.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "beast_6",
+        "type": "beast",
+        "name": "Размашистый удар отростками",
+        "description": "Совершите одну атаку по двум соседним целям. Для каждой цели отдельно определите попадание.",
+        "kind": "power_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "beast_8",
+        "type": "beast",
+        "name": "Негативный импульс: потеря Нерва",
+        "description": "При попадании нанесите обычный урон. Цель также теряет 1 Нерв.",
+        "kind": "power_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "beast_9",
+        "type": "beast",
+        "name": "Негативный импульс: дезориентация",
+        "description": "При попадании цель проходит проверку Дисциплины. При провале получает Дезориентацию до конца следующего действия.",
+        "kind": "power_attack",
+        "uses": 2,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "beast_11",
+        "type": "beast",
+        "name": "Луч разложения: снижение Брони",
+        "description": "Если после Брони прошёл хотя бы 1 урон, цель теряет 2 Брони.",
+        "kind": "power_attack",
+        "uses": 2,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "beast_13",
+        "type": "beast",
+        "name": "Луч разложения: продолжающийся урон",
+        "description": "Если после Брони прошёл хотя бы 1 урон, цель получает 2 урона в конце следующего хода. Эффект не складывается.",
+        "kind": "power_attack",
+        "uses": 2,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "beast_15",
+        "type": "beast",
+        "name": "Пространственный разрез",
+        "description": "Все существа в выбранной линии проходят защитную проверку. При провале получают полный урон, при успехе - половину. Атака получает Пробитие 1.",
+        "kind": "power_attack",
+        "uses": 2,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "beast_16",
+        "type": "beast",
+        "name": "Взрыв чужой энергии: отталкивание",
+        "description": "Все существа рядом проходят проверку Стойкости. При провале получают урон и отталкиваются на 1 клетку.",
+        "kind": "power_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "beast_18",
+        "type": "beast",
+        "name": "Поглощающий укус",
+        "description": "При нанесении хотя бы 1 урона Телу бестия восстанавливает 2 Тела.",
+        "kind": "power_attack",
+        "uses": 2,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "beast_26",
+        "type": "beast",
+        "name": "Пожирание пространства: притяжение",
+        "description": "Все существа в выбранной зоне проходят проверку Стойкости. При провале перемещаются на 1 клетку к центру зоны. Размер зоны: 2 соседних гекса.",
+        "kind": "aoe_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 2
+      },
+      {
+        "id": "beast_27",
+        "type": "beast",
+        "name": "Пожирание пространства: искажённая сцена",
+        "description": "До конца следующего раунда Кубы сцены всех существ в выбранной зоне считаются Помехой. Размер зоны: 2 соседних гекса.",
+        "kind": "aoe_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 2
+      },
+      {
+        "id": "beast_special_blood_drinker",
+        "type": "beast",
+        "name": "Кровопийца",
+        "description": "Обычная ближняя атака; после Body damage восстанавливает 2 Body, не выше максимума.",
+        "kind": "heal_attack",
+        "uses": 2,
+        "max_targets": 1,
+        "requires_body_damage": true,
+        "heal_flat": 2
+      },
+      {
+        "id": "beast_action_stitch_flesh",
+        "type": "beast",
+        "name": "Сшивание плоти",
+        "description": "При Body не выше половины восстанавливает d6 Body; в следующий ход доступны только обычные атаки.",
+        "kind": "heal_action",
+        "uses": 1,
+        "max_targets": 1,
+        "self_body_fraction_max": 0.5,
+        "disable_special_until": "after_next_turn",
+        "heal": "d6"
+      },
+      {
+        "id": "beast_special_enraged_strike",
+        "type": "beast",
+        "name": "Разъярённый удар",
+        "description": "Если с конца прошлого хода потеряно не менее 5 Body: одна ближняя атака с damage +1 step.",
+        "kind": "power_attack",
+        "uses": 1,
+        "max_targets": 1,
+        "damage_step": 1,
+        "requires_body_lost_since_last_turn": 5
+      },
+      {
+        "id": "beast_special_double_strike",
+        "type": "beast",
+        "name": "Двойной удар",
+        "description": "Одно действие: две отдельные ближние атаки, каждая с pool −1.",
+        "kind": "multiattack",
+        "uses": 1,
+        "max_targets": 2,
+        "multiattack": {
+          "attacks": 2,
+          "targeting": "split_or_focus",
+          "max_targets": 2
+        },
+        "pool_delta": -1
+      },
+      {
+        "id": "beast_special_crush",
+        "type": "beast",
+        "name": "Сокрушение",
+        "description": "Одна ближняя атака с damage +1 step и Пробитием 1.",
+        "kind": "power_attack",
+        "uses": 1,
+        "max_targets": 1,
+        "ultimate": true,
+        "damage_step": 1,
+        "penetration_bonus": 1
+      },
+      {
+        "id": "beast_special_rend_armor",
+        "type": "beast",
+        "name": "Разорвать доспех",
+        "description": "После Body damage Armor цели снижается на 2 до начала следующего хода бестии.",
+        "kind": "armor_break",
+        "uses": 1,
+        "max_targets": 1,
+        "armor_delta": -2,
+        "requires_body_damage": true,
+        "duration": "until_attacker_next_turn",
+        "stacking": "strongest"
+      },
+      {
+        "id": "beast_action_monster_roar",
+        "type": "beast",
+        "name": "Чудовищный рёв",
+        "description": "До двух живых PC проходят mental resistance; при провале следующая атака получает сцену 3d4.",
+        "kind": "accuracy_debuff",
+        "uses": 1,
+        "max_targets": 2,
+        "target_scene": "hindrance",
+        "consume_on_next_attack": true,
+        "requires_check": "mental"
+      },
+      {
+        "id": "beast_special_sweeping_blow",
+        "type": "beast",
+        "name": "Размашистый удар",
+        "description": "Атакует до двух соседних целей отдельными бросками; damage на шаг ниже основной атаки.",
+        "kind": "aoe_attack",
+        "uses": 1,
+        "max_targets": 2,
+        "damage_step": -1,
+        "separate_rolls": true
+      },
+      {
+        "id": "beast_action_mark_weakness",
+        "type": "beast",
+        "name": "Почувствовать слабость",
+        "description": "До начала следующего хода бестии выбранный PC получает +1 Body damage от её успешных атак.",
+        "kind": "vulnerability",
+        "uses": 1,
+        "max_targets": 1,
+        "duration": "until_attacker_next_turn",
+        "stacking": "none",
+        "bonus_body_damage": 1
+      }
+    ],
+    "undead": [
+      {
+        "id": "undead_1",
+        "type": "undead",
+        "name": "Удар мёртвой рукой",
+        "description": "Совершите обычную атаку рукой, кулаком или костяной конечностью.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "undead_2",
+        "type": "undead",
+        "name": "Укус мертвеца",
+        "description": "Совершите обычную атаку укусом.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "undead_7",
+        "type": "undead",
+        "name": "Удар ржавым оружием",
+        "description": "Совершите обычную атаку старым мечом, топором, копьём или инструментом.",
+        "kind": "normal_attack",
+        "uses": 0,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "undead_8",
+        "type": "undead",
+        "name": "Заражённое оружие",
+        "description": "Если после Брони прошёл хотя бы 1 урон, цель проходит проверку Стойкости. При провале получает Отравление. Эффект не складывается.",
+        "kind": "power_attack",
+        "uses": 2,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "undead_9",
+        "type": "undead",
+        "name": "Костяной метатель",
+        "description": "Совершите дальнюю атаку костяным шипом, зубом или обломком конечности. Атака получает Пробитие 1.",
+        "kind": "power_attack",
+        "uses": 3,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "undead_18",
+        "type": "undead",
+        "name": "Облако разложения: яд",
+        "description": "Создайте зону в 2 гекса до конца следующего раунда. Живое существо, начинающее ход в зоне, проходит проверку Стойкости. При провале получает Отравление.",
+        "kind": "power_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "undead_20",
+        "type": "undead",
+        "name": "Облако разложения: удушье",
+        "description": "Создайте зону 2 гекса до конца следующего раунда. Живое существо, начинающее ход в зоне, проходит проверку Стойкости. При провале получает Удушье.",
+        "kind": "power_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "undead_21",
+        "type": "undead",
+        "name": "Костяной взрыв",
+        "description": "Все существа рядом проходят защитную проверку. При провале получают полный урон, при успехе - половину. После применения нежить теряет 3 Тела, игнорируя Броню.",
+        "kind": "power_attack",
+        "uses": 1,
+        "scene": "normal",
+        "damage_step": 0,
+        "max_targets": 1
+      },
+      {
+        "id": "undead_special_bone_lunge",
+        "type": "undead",
+        "name": "Костяной выпад",
+        "description": "Одна ближняя атака с damage +1 step.",
+        "kind": "power_attack",
+        "uses": 1,
+        "max_targets": 1,
+        "ultimate": true,
+        "damage_step": 1
+      },
+      {
+        "id": "undead_special_devour",
+        "type": "undead",
+        "name": "Пожирание",
+        "description": "Только против живой цели: ближняя атака; после Body damage восстанавливает 2 Body.",
+        "kind": "heal_attack",
+        "uses": 2,
+        "max_targets": 1,
+        "requires_body_damage": true,
+        "target": "living",
+        "heal_flat": 2
+      },
+      {
+        "id": "undead_special_deadening_blow",
+        "type": "undead",
+        "name": "Мертвящий удар",
+        "description": "После Body damage следующая атака PC наносит damage на шаг ниже; затем эффект заканчивается.",
+        "kind": "damage_debuff",
+        "uses": 2,
+        "max_targets": 1,
+        "damage_step": -1,
+        "requires_body_damage": true,
+        "consume_on_next_attack": true
+      },
+      {
+        "id": "undead_special_decay",
+        "type": "undead",
+        "name": "Разложение",
+        "description": "После Body damage Armor цели снижается на 1 до начала следующего хода нежити.",
+        "kind": "armor_break",
+        "uses": 2,
+        "max_targets": 1,
+        "armor_delta": -1,
+        "requires_body_damage": true,
+        "duration": "until_attacker_next_turn",
+        "stacking": "strongest"
+      },
+      {
+        "id": "undead_action_death_seal",
+        "type": "undead",
+        "name": "Печать смерти",
+        "description": "До начала следующего хода нежити выбранный живой PC получает +1 Body damage от её атак.",
+        "kind": "vulnerability",
+        "uses": 1,
+        "max_targets": 1,
+        "duration": "until_attacker_next_turn",
+        "target": "living",
+        "stacking": "none",
+        "bonus_body_damage": 1
+      },
+      {
+        "id": "undead_action_grave_grip",
+        "type": "undead",
+        "name": "Хватка могилы",
+        "description": "После успешной встречной физической проверки Speed цели снижается на 2 и Рывок недоступен до конца её следующего хода.",
+        "kind": "movement_debuff",
+        "uses": 2,
+        "max_targets": 1,
+        "requires_check": "physical",
+        "speed_delta": -2,
+        "disable_dash": true,
+        "min_speed": 1,
+        "duration": "end_of_target_next_turn"
+      },
+      {
+        "id": "undead_action_dead_force_burst",
+        "type": "undead",
+        "name": "Всплеск мёртвой силы",
+        "description": "До двух PC проходят отдельный effect roll; при успехе получают d4 damage и Помеху 3d4 на следующую атаку.",
+        "kind": "aoe_attack",
+        "uses": 1,
+        "max_targets": 2,
+        "separate_rolls": true,
+        "target_scene": "hindrance",
+        "consume_on_next_attack": true,
+        "damage_override": "d4"
+      }
+    ]
+  },
+  "specials": {
+    "humanoid": [
+      {
+        "id": "humanoid_special_quick_burst",
+        "type": "humanoid",
+        "name": "Быстрая очередь",
+        "description": "Совершает две отдельные дальние атаки тем же оружием; обе используют сцену 3d4.",
+        "kind": "multiattack",
+        "uses": 1,
+        "max_targets": 2,
+        "scene": "hindrance",
+        "multiattack": {
+          "attacks": 2,
+          "targeting": "split_or_focus",
+          "max_targets": 2
+        }
+      },
+      {
+        "id": "humanoid_action_suppressing_fire",
+        "type": "humanoid",
+        "name": "Подавляющий огонь",
+        "description": "Атака с 3d4 не наносит Body damage; при успехе Speed цели снижается на 2 и Рывок недоступен до конца её следующего хода.",
+        "kind": "movement_debuff",
+        "uses": 2,
+        "max_targets": 1,
+        "scene": "hindrance",
+        "body_damage": 0,
+        "speed_delta": -2,
+        "disable_dash": true,
+        "duration": "end_of_target_next_turn",
+        "deal_damage": false
+      },
+      {
+        "id": "humanoid_special_fencing_lunge",
+        "type": "humanoid",
+        "name": "Фехтовальный выпад",
+        "description": "Одна ближняя атака с повышением damage profile на один шаг.",
+        "kind": "power_attack",
+        "uses": 1,
+        "max_targets": 1,
+        "ultimate": true,
+        "damage_step": 1
+      },
+      {
+        "id": "humanoid_special_dirty_trick",
+        "type": "humanoid",
+        "name": "Грязный приём",
+        "description": "После попадания выбрать: дополнительный d4 damage или потеря целью 1 Нерва.",
+        "kind": "nerve_damage",
+        "uses": 1,
+        "max_targets": 1,
+        "choices": [
+          {
+            "extra_damage": "d4"
+          },
+          {
+            "nerve_damage": 1
+          }
+        ]
+      },
+      {
+        "id": "humanoid_special_trip",
+        "type": "humanoid",
+        "name": "Свалить с ног",
+        "description": "Обычная ближняя атака; после Body damage цель при провале встречной физической проверки падает.",
+        "kind": "movement_debuff",
+        "uses": 2,
+        "max_targets": 1,
+        "requires_body_damage": true,
+        "requires_check": "physical",
+        "condition": "prone"
+      }
+    ],
+    "mechanism": [
+      {
+        "id": "mechanism_special_emergency_burst",
+        "type": "mechanism",
+        "name": "Аварийная очередь",
+        "description": "Совершает две отдельные атаки основным оружием; обе используют сцену 3d4.",
+        "kind": "multiattack",
+        "uses": 1,
+        "max_targets": 2,
+        "scene": "hindrance",
+        "multiattack": {
+          "attacks": 2,
+          "targeting": "split_or_focus",
+          "max_targets": 2
+        }
+      },
+      {
+        "id": "mechanism_special_calculated_shot",
+        "type": "mechanism",
+        "name": "Расчётный выстрел",
+        "description": "Одна атака оружием со сценой 3d8.",
+        "kind": "advantage_attack",
+        "uses": 2,
+        "max_targets": 1,
+        "scene": "advantage"
+      },
+      {
+        "id": "mechanism_special_overloaded_shot",
+        "type": "mechanism",
+        "name": "Перегруженный выстрел",
+        "description": "При попадании добавляет d6 damage; после атаки оружие теряет 1 Прочность.",
+        "kind": "power_attack",
+        "uses": 1,
+        "max_targets": 1,
+        "ultimate": true,
+        "durability_cost": 1,
+        "bonus_damage": "d6"
+      },
+      {
+        "id": "mechanism_special_arc_discharge",
+        "type": "mechanism",
+        "name": "Дуговой разряд",
+        "description": "Ближняя атака d4, T 2; после Body damage следующее действие цели получает Помеху 3d4.",
+        "kind": "accuracy_debuff",
+        "uses": 2,
+        "max_targets": 1,
+        "target_scene": "hindrance",
+        "consume_on_next_action": true,
+        "damage_override": "d4"
+      },
+      {
+        "id": "mechanism_special_tracer_shot",
+        "type": "mechanism",
+        "name": "Трассирующий выстрел",
+        "description": "После попадания следующая атака механизма по этой цели получает сцену 3d8; затем метка снимается.",
+        "kind": "advantage_attack",
+        "uses": 1,
+        "max_targets": 1,
+        "mark_next_attack": true,
+        "next_scene": "advantage",
+        "consume_on_next_attack": true
+      },
+      {
+        "id": "mechanism_action_self_repair",
+        "type": "mechanism",
+        "name": "Саморемонт",
+        "description": "Восстанавливает d6 Body; до начала следующего хода механизм не использует реакции.",
+        "kind": "heal_action",
+        "uses": 1,
+        "max_targets": 1,
+        "disable_reactions_until": "next_turn",
+        "heal": "d6"
+      }
+    ],
+    "animal": [
+      {
+        "id": "animal_special_knockdown_pounce",
+        "type": "animal",
+        "name": "Сбивающий бросок",
+        "description": "Обычная ближняя атака; после Body damage цель при провале встречной физической проверки падает.",
+        "kind": "movement_debuff",
+        "uses": 2,
+        "max_targets": 1,
+        "requires_body_damage": true,
+        "requires_check": "physical",
+        "condition": "prone"
+      },
+      {
+        "id": "animal_special_finisher",
+        "type": "animal",
+        "name": "Добивание",
+        "description": "Только против цели с Body не выше половины: одна ближняя атака со сценой 3d8.",
+        "kind": "advantage_attack",
+        "uses": 2,
+        "max_targets": 1,
+        "scene": "advantage",
+        "target_hp_fraction_max": 0.5
+      },
+      {
+        "id": "animal_special_maul",
+        "type": "animal",
+        "name": "Терзать",
+        "description": "Против лежащей, удерживаемой или обездвиженной цели: обычная атака и дополнительный d4 damage.",
+        "kind": "power_attack",
+        "uses": 2,
+        "max_targets": 1,
+        "target_condition_any": [
+          "prone",
+          "grappled",
+          "immobilized"
+        ],
+        "bonus_damage": "d4"
+      }
+    ],
+    "beast": [
+      {
+        "id": "beast_special_blood_drinker",
+        "type": "beast",
+        "name": "Кровопийца",
+        "description": "Обычная ближняя атака; после Body damage восстанавливает 2 Body, не выше максимума.",
+        "kind": "heal_attack",
+        "uses": 2,
+        "max_targets": 1,
+        "requires_body_damage": true,
+        "heal_flat": 2
+      },
+      {
+        "id": "beast_action_stitch_flesh",
+        "type": "beast",
+        "name": "Сшивание плоти",
+        "description": "При Body не выше половины восстанавливает d6 Body; в следующий ход доступны только обычные атаки.",
+        "kind": "heal_action",
+        "uses": 1,
+        "max_targets": 1,
+        "self_body_fraction_max": 0.5,
+        "disable_special_until": "after_next_turn",
+        "heal": "d6"
+      },
+      {
+        "id": "beast_special_enraged_strike",
+        "type": "beast",
+        "name": "Разъярённый удар",
+        "description": "Если с конца прошлого хода потеряно не менее 5 Body: одна ближняя атака с damage +1 step.",
+        "kind": "power_attack",
+        "uses": 1,
+        "max_targets": 1,
+        "damage_step": 1,
+        "requires_body_lost_since_last_turn": 5
+      },
+      {
+        "id": "beast_special_double_strike",
+        "type": "beast",
+        "name": "Двойной удар",
+        "description": "Одно действие: две отдельные ближние атаки, каждая с pool −1.",
+        "kind": "multiattack",
+        "uses": 1,
+        "max_targets": 2,
+        "multiattack": {
+          "attacks": 2,
+          "targeting": "split_or_focus",
+          "max_targets": 2
+        },
+        "pool_delta": -1
+      },
+      {
+        "id": "beast_special_crush",
+        "type": "beast",
+        "name": "Сокрушение",
+        "description": "Одна ближняя атака с damage +1 step и Пробитием 1.",
+        "kind": "power_attack",
+        "uses": 1,
+        "max_targets": 1,
+        "ultimate": true,
+        "damage_step": 1,
+        "penetration_bonus": 1
+      },
+      {
+        "id": "beast_special_rend_armor",
+        "type": "beast",
+        "name": "Разорвать доспех",
+        "description": "После Body damage Armor цели снижается на 2 до начала следующего хода бестии.",
+        "kind": "armor_break",
+        "uses": 1,
+        "max_targets": 1,
+        "armor_delta": -2,
+        "requires_body_damage": true,
+        "duration": "until_attacker_next_turn",
+        "stacking": "strongest"
+      },
+      {
+        "id": "beast_action_monster_roar",
+        "type": "beast",
+        "name": "Чудовищный рёв",
+        "description": "До двух живых PC проходят mental resistance; при провале следующая атака получает сцену 3d4.",
+        "kind": "accuracy_debuff",
+        "uses": 1,
+        "max_targets": 2,
+        "target_scene": "hindrance",
+        "consume_on_next_attack": true,
+        "requires_check": "mental"
+      },
+      {
+        "id": "beast_special_sweeping_blow",
+        "type": "beast",
+        "name": "Размашистый удар",
+        "description": "Атакует до двух соседних целей отдельными бросками; damage на шаг ниже основной атаки.",
+        "kind": "aoe_attack",
+        "uses": 1,
+        "max_targets": 2,
+        "damage_step": -1,
+        "separate_rolls": true
+      },
+      {
+        "id": "beast_action_mark_weakness",
+        "type": "beast",
+        "name": "Почувствовать слабость",
+        "description": "До начала следующего хода бестии выбранный PC получает +1 Body damage от её успешных атак.",
+        "kind": "vulnerability",
+        "uses": 1,
+        "max_targets": 1,
+        "duration": "until_attacker_next_turn",
+        "stacking": "none",
+        "bonus_body_damage": 1
+      }
+    ],
+    "undead": [
+      {
+        "id": "undead_special_bone_lunge",
+        "type": "undead",
+        "name": "Костяной выпад",
+        "description": "Одна ближняя атака с damage +1 step.",
+        "kind": "power_attack",
+        "uses": 1,
+        "max_targets": 1,
+        "ultimate": true,
+        "damage_step": 1
+      },
+      {
+        "id": "undead_special_devour",
+        "type": "undead",
+        "name": "Пожирание",
+        "description": "Только против живой цели: ближняя атака; после Body damage восстанавливает 2 Body.",
+        "kind": "heal_attack",
+        "uses": 2,
+        "max_targets": 1,
+        "requires_body_damage": true,
+        "target": "living",
+        "heal_flat": 2
+      },
+      {
+        "id": "undead_special_deadening_blow",
+        "type": "undead",
+        "name": "Мертвящий удар",
+        "description": "После Body damage следующая атака PC наносит damage на шаг ниже; затем эффект заканчивается.",
+        "kind": "damage_debuff",
+        "uses": 2,
+        "max_targets": 1,
+        "damage_step": -1,
+        "requires_body_damage": true,
+        "consume_on_next_attack": true
+      },
+      {
+        "id": "undead_special_decay",
+        "type": "undead",
+        "name": "Разложение",
+        "description": "После Body damage Armor цели снижается на 1 до начала следующего хода нежити.",
+        "kind": "armor_break",
+        "uses": 2,
+        "max_targets": 1,
+        "armor_delta": -1,
+        "requires_body_damage": true,
+        "duration": "until_attacker_next_turn",
+        "stacking": "strongest"
+      },
+      {
+        "id": "undead_action_death_seal",
+        "type": "undead",
+        "name": "Печать смерти",
+        "description": "До начала следующего хода нежити выбранный живой PC получает +1 Body damage от её атак.",
+        "kind": "vulnerability",
+        "uses": 1,
+        "max_targets": 1,
+        "duration": "until_attacker_next_turn",
+        "target": "living",
+        "stacking": "none",
+        "bonus_body_damage": 1
+      },
+      {
+        "id": "undead_action_grave_grip",
+        "type": "undead",
+        "name": "Хватка могилы",
+        "description": "После успешной встречной физической проверки Speed цели снижается на 2 и Рывок недоступен до конца её следующего хода.",
+        "kind": "movement_debuff",
+        "uses": 2,
+        "max_targets": 1,
+        "requires_check": "physical",
+        "speed_delta": -2,
+        "disable_dash": true,
+        "min_speed": 1,
+        "duration": "end_of_target_next_turn"
+      },
+      {
+        "id": "undead_action_dead_force_burst",
+        "type": "undead",
+        "name": "Всплеск мёртвой силы",
+        "description": "До двух PC проходят отдельный effect roll; при успехе получают d4 damage и Помеху 3d4 на следующую атаку.",
+        "kind": "aoe_attack",
+        "uses": 1,
+        "max_targets": 2,
+        "separate_rolls": true,
+        "target_scene": "hindrance",
+        "consume_on_next_attack": true,
+        "damage_override": "d4"
+      }
+    ]
+  },
+  "reactions": {
+    "humanoid": [
+      {
+        "id": "humanoid_3",
+        "type": "humanoid",
+        "name": "Сбить прицел",
+        "description": "Кубы сцены атакующего становятся 3d4 только для этой атаки.",
+        "kind": "hindrance_defense",
+        "uses": 2,
+        "target_scene": "hindrance",
+        "duration": "one_attack"
+      },
+      {
+        "id": "humanoid_4",
+        "type": "humanoid",
+        "name": "Резкий уклон",
+        "description": "Атакующий перебрасывает одну из двух наибольших костей и обязан принять новый результат.",
+        "kind": "reroll_defense",
+        "uses": 1,
+        "reroll": "one_of_two_highest"
+      },
+      {
+        "id": "humanoid_5",
+        "type": "humanoid",
+        "name": "Подставить укрытие",
+        "description": "Укрытие уменьшает входящий урон; после этого может быть разрушено.",
+        "kind": "damage_reduction",
+        "uses": 1,
+        "environmental": true,
+        "reduction_expr": "d6"
+      },
+      {
+        "id": "humanoid_6",
+        "type": "humanoid",
+        "name": "Стиснуть зубы",
+        "description": "Уменьшает входящий урон на 2, но не ниже 0.",
+        "kind": "damage_reduction",
+        "uses": 2,
+        "reduction": 2,
+        "min_damage": 0
+      },
+      {
+        "id": "humanoid_7",
+        "type": "humanoid",
+        "name": "Поднять воротник",
+        "description": "Получает +2 Брони против одной объявленной атаки.",
+        "kind": "temporary_armor",
+        "uses": 1,
+        "duration": "one_attack",
+        "armor_bonus": 2
+      },
+      {
+        "id": "humanoid_12",
+        "type": "humanoid",
+        "name": "Команда пригнуться",
+        "description": "Союзник получает +1 ПЗ против этой атаки.",
+        "kind": "intercept",
+        "uses": 1,
+        "ally_protection": "pz",
+        "pz_delta": 1,
+        "duration": "one_attack"
+      },
+      {
+        "id": "humanoid_intercept",
+        "type": "humanoid",
+        "name": "Перехват",
+        "description": "Гуманоид становится новой целью, если физически может закрыть союзника.",
+        "kind": "intercept",
+        "uses": 1,
+        "range": "adjacent"
+      },
+      {
+        "id": "humanoid_retreat_step",
+        "type": "humanoid",
+        "name": "Отступающий шаг",
+        "description": "Перемещается на 1 клетку без провоцированной атаки.",
+        "kind": "forced_movement",
+        "uses": 2,
+        "self": true,
+        "distance": 1,
+        "provokes": false
+      }
+    ],
+    "mechanism": [
+      {
+        "id": "mechanism_4",
+        "type": "mechanism",
+        "name": "Дымовой выброс",
+        "description": "Кубы сцены атакующего становятся 3d4 только для этой атаки.",
+        "kind": "hindrance_defense",
+        "uses": 2,
+        "target_scene": "hindrance",
+        "duration": "one_attack"
+      },
+      {
+        "id": "mechanism_5",
+        "type": "mechanism",
+        "name": "Сдвиг бронепластин",
+        "description": "Получает +1 Брони до конца раунда.",
+        "kind": "temporary_armor",
+        "uses": 2,
+        "duration": "end_of_round",
+        "armor_bonus": 1
+      },
+      {
+        "id": "mechanism_6",
+        "type": "mechanism",
+        "name": "Энергетический буфер",
+        "description": "Уменьшает входящий урон на 2, но не ниже 0.",
+        "kind": "damage_reduction",
+        "uses": 2,
+        "reduction": 2,
+        "min_damage": 0
+      },
+      {
+        "id": "mechanism_8",
+        "type": "mechanism",
+        "name": "Запасная бронепластина",
+        "description": "Отменяет одно снижение Брони.",
+        "kind": "temporary_armor",
+        "uses": 1,
+        "cancel_armor_loss": true
+      },
+      {
+        "id": "mechanism_11",
+        "type": "mechanism",
+        "name": "Гироскопическая стабилизация",
+        "description": "Уменьшает перемещение на 1 клетку и получает Преимущество на проверку против падения.",
+        "kind": "forced_movement",
+        "uses": 2,
+        "distance_delta": -1,
+        "check_scene": "advantage"
+      },
+      {
+        "id": "mechanism_12",
+        "type": "mechanism",
+        "name": "Резервный контур",
+        "description": "Остаётся с 2 Прочности; проверки модуля до конца следующего хода идут с Помехой.",
+        "kind": "condition_resistance",
+        "uses": 1,
+        "equipment_durability": 2,
+        "self_scene": "hindrance"
+      },
+      {
+        "id": "mechanism_14",
+        "type": "mechanism",
+        "name": "Сброс давления",
+        "description": "После успешной физической проверки отталкивает его на 1 клетку без урона.",
+        "kind": "forced_movement",
+        "uses": 2,
+        "distance": 1,
+        "damage": 0,
+        "requires_check": "physical"
+      },
+      {
+        "id": "mechanism_magnetic_grip",
+        "type": "mechanism",
+        "name": "Магнитный захват",
+        "description": "При успехе во встречной физической проверке оставшееся перемещение PC заканчивается.",
+        "kind": "movement_denial",
+        "uses": 2,
+        "requires_check": "physical",
+        "damage": 0
+      }
+    ],
+    "animal": [
+      {
+        "id": "animal_2",
+        "type": "animal",
+        "name": "Прыжок хищника",
+        "description": "Животное перемещается к нему на расстояние до двух клеток; урона не наносит.",
+        "kind": "forced_movement",
+        "uses": 2,
+        "self": true,
+        "distance": 2,
+        "damage": 0
+      },
+      {
+        "id": "animal_5",
+        "type": "animal",
+        "name": "Зигзагообразный бег",
+        "description": "Кубы сцены атакующего становятся 3d4 только для этой атаки.",
+        "kind": "hindrance_defense",
+        "uses": 2,
+        "target_scene": "hindrance",
+        "duration": "one_attack"
+      },
+      {
+        "id": "animal_6",
+        "type": "animal",
+        "name": "Резкий скачок",
+        "description": "Атакующий перебрасывает одну из двух наибольших костей и принимает новый результат.",
+        "kind": "reroll_defense",
+        "uses": 1,
+        "reroll": "one_of_two_highest"
+      },
+      {
+        "id": "animal_7",
+        "type": "animal",
+        "name": "Толстая шкура",
+        "description": "Уменьшает входящий урон на 2, но не ниже 0.",
+        "kind": "damage_reduction",
+        "uses": 2,
+        "reduction": 2,
+        "min_damage": 0
+      },
+      {
+        "id": "animal_8",
+        "type": "animal",
+        "name": "Яростная хватка",
+        "description": "При успехе во встречной физической проверке Speed PC становится 1 и перемещение заканчивается. Урон не наносится.",
+        "kind": "movement_denial",
+        "uses": 2,
+        "requires_check": "physical",
+        "speed_set": 1,
+        "damage": 0
+      },
+      {
+        "id": "animal_9",
+        "type": "animal",
+        "name": "Защитить детёныша",
+        "description": "Животное становится новой целью и получает +1 Брони против этой атаки.",
+        "kind": "intercept",
+        "uses": 1,
+        "range": "adjacent",
+        "armor_delta": 1
+      },
+      {
+        "id": "animal_13",
+        "type": "animal",
+        "name": "Инстинктивное уклонение",
+        "description": "Уменьшает полученный урон вдвое, округляя вниз.",
+        "kind": "damage_reduction",
+        "uses": 1,
+        "multiplier": 0.5,
+        "round": "down"
+      },
+      {
+        "id": "animal_under_strike",
+        "type": "animal",
+        "name": "Уход под ударом",
+        "description": "Животное перемещается на 1 клетку.",
+        "kind": "forced_movement",
+        "uses": 2,
+        "self": true,
+        "distance": 1,
+        "provokes": false
+      }
+    ],
+    "beast": [
+      {
+        "id": "beast_1",
+        "type": "beast",
+        "name": "Разрыв пространства",
+        "description": "До броска телепортируется в свободную точку на расстоянии до двух клеток.",
+        "kind": "forced_movement",
+        "uses": 1,
+        "self": true,
+        "distance": 2,
+        "teleport": true
+      },
+      {
+        "id": "beast_5",
+        "type": "beast",
+        "name": "Неправильный угол",
+        "description": "Кубы сцены атакующего становятся 3d4 только для этой атаки.",
+        "kind": "hindrance_defense",
+        "uses": 2,
+        "target_scene": "hindrance",
+        "duration": "one_attack"
+      },
+      {
+        "id": "beast_6",
+        "type": "beast",
+        "name": "Складка пространства",
+        "description": "Уменьшает входящий урон на d6.",
+        "kind": "damage_reduction",
+        "uses": 1,
+        "min_damage": 0,
+        "reduction_expr": "d6"
+      },
+      {
+        "id": "beast_7",
+        "type": "beast",
+        "name": "Чужая броня",
+        "description": "Уменьшает входящий урон на 1 до конца следующего раунда.",
+        "kind": "damage_reduction",
+        "uses": 1,
+        "reduction": 1,
+        "duration": "end_of_next_round"
+      },
+      {
+        "id": "beast_9",
+        "type": "beast",
+        "name": "Эхо боли",
+        "description": "Нападающий теряет 2 Нерва; Body damage не наносится.",
+        "kind": "condition_resistance",
+        "uses": 1,
+        "nerve_retaliation": 2,
+        "body_damage": 0,
+        "deal_damage": false
+      },
+      {
+        "id": "beast_14",
+        "type": "beast",
+        "name": "Временная линька",
+        "description": "Отменяет состояние, но теряет 2 Body, игнорируя Armor.",
+        "kind": "condition_resistance",
+        "uses": 1,
+        "self_body_cost": 2,
+        "ignore_armor": true
+      },
+      {
+        "id": "beast_push_away",
+        "type": "beast",
+        "name": "Отбросить",
+        "description": "При успехе во встречной физической проверке отталкивает PC на 1 клетку без урона.",
+        "kind": "forced_movement",
+        "uses": 2,
+        "requires_check": "physical",
+        "distance": 1,
+        "damage": 0
+      }
+    ],
+    "undead": [
+      {
+        "id": "undead_1",
+        "type": "undead",
+        "name": "Не замечает раны",
+        "description": "Уменьшает входящий урон на 2, но не ниже 0.",
+        "kind": "damage_reduction",
+        "uses": 2,
+        "reduction": 2,
+        "min_damage": 0
+      },
+      {
+        "id": "undead_2",
+        "type": "undead",
+        "name": "Мёртвая плоть",
+        "description": "Получает +2 Брони против этой атаки.",
+        "kind": "temporary_armor",
+        "uses": 1,
+        "duration": "one_attack",
+        "armor_bonus": 2
+      },
+      {
+        "id": "undead_5",
+        "type": "undead",
+        "name": "Мёртвая хватка",
+        "description": "При успехе во встречной физической проверке перемещение заканчивается. Урон не наносится.",
+        "kind": "movement_denial",
+        "uses": 2,
+        "requires_check": "physical",
+        "damage": 0
+      },
+      {
+        "id": "undead_6",
+        "type": "undead",
+        "name": "Холод могилы",
+        "description": "При провале проверки Дисциплины противник теряет 1 Нерв; Body damage не наносится.",
+        "kind": "condition_resistance",
+        "uses": 2,
+        "target_nerve_loss": 1,
+        "body_damage": 0,
+        "deal_damage": false
+      },
+      {
+        "id": "undead_7",
+        "type": "undead",
+        "name": "Гаснущий взгляд",
+        "description": "Кубы сцены атакующего становятся 3d4 только для этой атаки.",
+        "kind": "hindrance_defense",
+        "uses": 2,
+        "target_scene": "hindrance",
+        "duration": "one_attack"
+      },
+      {
+        "id": "undead_11",
+        "type": "undead",
+        "name": "Отдать конечность",
+        "description": "Уменьшает входящий урон вдвое ценой постоянного тактического ограничения.",
+        "kind": "damage_reduction",
+        "uses": 1,
+        "multiplier": 0.5,
+        "permanent_cost": "speed_or_attack"
+      },
+      {
+        "id": "undead_13",
+        "type": "undead",
+        "name": "Пустой разум",
+        "description": "Проверка сопротивления проходит с Преимуществом; при успехе состояние отменяется.",
+        "kind": "condition_resistance",
+        "uses": 2,
+        "check_scene": "advantage"
+      },
+      {
+        "id": "undead_corpse_shield",
+        "type": "undead",
+        "name": "Трупный заслон",
+        "description": "Эта нежить становится новой целью, если физически может закрыть союзника.",
+        "kind": "intercept",
+        "uses": 1,
+        "range": "adjacent"
+      }
+    ]
+  },
+  "passives": {
+    "humanoid": [
+      {
+        "id": "humanoid_trait_forced_dash",
+        "type": "humanoid",
+        "name": "Форсированный рывок",
+        "description": "В свой ход может усилить перемещение; это не реакция.",
+        "kind": "movement_trait",
+        "speed_delta": 2,
+        "duration": "end_of_turn"
+      },
+      {
+        "id": "humanoid_trait_last_strength",
+        "type": "humanoid",
+        "name": "На последних силах",
+        "description": "При первом снижении Body до половины получает краткий authored buff.",
+        "kind": "conditional_buff",
+        "threshold": 0.5,
+        "pz_delta": 1,
+        "damage_delta": 1,
+        "duration": "until_next_turn"
+      },
+      {
+        "id": "humanoid_trait_emergency_reload",
+        "type": "humanoid",
+        "name": "Неожиданная перезарядка",
+        "description": "Authored защита снаряжения; не занимает reaction slot.",
+        "kind": "equipment_trait",
+        "retain_durability": 1,
+        "max_triggers": 1
+      }
+    ],
+    "mechanism": [
+      {
+        "id": "mechanism_trait_overdrive",
+        "type": "mechanism",
+        "name": "Форсаж приводов",
+        "description": "В свой ход может усилить перемещение; это не реакция.",
+        "kind": "movement_trait",
+        "speed_delta": 1,
+        "duration": "end_of_turn"
+      },
+      {
+        "id": "mechanism_trait_last_protocol",
+        "type": "mechanism",
+        "name": "Последний протокол",
+        "description": "Authored death effect; не занимает reaction slot.",
+        "kind": "death_effect",
+        "damage": "d6",
+        "area": "adjacent"
+      }
+    ],
+    "animal": [
+      {
+        "id": "animal_trait_pack_dash",
+        "type": "animal",
+        "name": "Рывок стаи",
+        "description": "Стайное перемещение является movement trait.",
+        "kind": "movement_trait",
+        "speed_per_ally": 1
+      }
+    ],
+    "beast": [
+      {
+        "id": "beast_trait_unstable_blood",
+        "type": "beast",
+        "name": "Нестабильная кровь",
+        "description": "Первое касательное ранение в раунде наносит источнику 2 damage; максимум 3 раза за бой.",
+        "kind": "contact_damage",
+        "damage": 2,
+        "once_per_round": true,
+        "max_triggers": 3
+      },
+      {
+        "id": "beast_trait_storm_aftermath",
+        "type": "beast",
+        "name": "Последствие бури",
+        "description": "Authored death-zone effect; не занимает reaction slot.",
+        "kind": "death_effect",
+        "damage": "d6",
+        "area": "adjacent"
+      },
+      {
+        "id": "beast_trait_chaotic_step",
+        "type": "beast",
+        "name": "Хаотический скачок",
+        "description": "После подходящей special attack бестия может сместиться на клетку.",
+        "kind": "movement_trait",
+        "distance": 1
+      }
+    ],
+    "undead": [
+      {
+        "id": "undead_trait_dead_dash",
+        "type": "undead",
+        "name": "Рывок мертвеца",
+        "description": "Ускорение в свой ход является movement trait.",
+        "kind": "movement_trait",
+        "speed_delta": 2,
+        "duration": "end_of_turn"
+      },
+      {
+        "id": "undead_trait_grave_call",
+        "type": "undead",
+        "name": "Зов из могилы",
+        "description": "Падение союзной нежити даёт conditional buff; не занимает reaction slot.",
+        "kind": "conditional_buff",
+        "damage_delta": 1,
+        "speed_delta": 1,
+        "duration": "until_next_turn"
+      }
+    ]
+  }
+}

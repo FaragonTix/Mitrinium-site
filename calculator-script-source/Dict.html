@@ -1144,16 +1144,16 @@ const npcAction = (id,name,effect,uses,kind,mechanic={},options={}) => ({
 
 const SPECIAL_ACTION_LIBRARY = {
   humanoid:[
-    npcAction('humanoid_special_quick_burst','Быстрая очередь','Совершает две отдельные дальние атаки тем же оружием; обе используют сцену 3d4.',1,'multiattack',{attacks:2,scene:'hindrance'}),
+    npcAction('humanoid_special_quick_burst','Быстрая очередь','Совершает две отдельные дальние атаки тем же оружием; обе используют сцену 3d4.',1,'multiattack',{scene:'hindrance',multiattack:{attacks:2,targeting:'split_or_focus',max_targets:2}}),
     npcAction('humanoid_action_suppressing_fire','Подавляющий огонь','Атака с 3d4 не наносит Body damage; при успехе Speed цели снижается на 2 и Рывок недоступен до конца её следующего хода.',2,'movement_debuff',{scene:'hindrance',bodyDamage:0,speedDelta:-2,disableDash:true,duration:'end_of_target_next_turn'}),
-    npcAction('humanoid_special_fencing_lunge','Фехтовальный выпад','Одна ближняя атака с повышением damage profile на один шаг.',1,'power_attack',{damageStep:1},{range:'Ближняя',damageStep:1}),
+    npcAction('humanoid_special_fencing_lunge','Фехтовальный выпад','Одна ближняя атака с повышением damage profile на один шаг.',1,'power_attack',{ultimate:true,damageStep:1},{range:'Ближняя',damageStep:1}),
     npcAction('humanoid_special_dirty_trick','Грязный приём','После попадания выбрать: дополнительный d4 damage или потеря целью 1 Нерва.',1,'nerve_damage',{choices:[{extraDamage:'d4'},{nerveDamage:1}]}),
     npcAction('humanoid_special_trip','Свалить с ног','Обычная ближняя атака; после Body damage цель при провале встречной физической проверки падает.',2,'movement_debuff',{requiresBodyDamage:true,requiresCheck:'physical',condition:'prone'},{range:'Ближняя'})
   ],
   mechanism:[
-    npcAction('mechanism_special_emergency_burst','Аварийная очередь','Совершает две отдельные атаки основным оружием; обе используют сцену 3d4.',1,'multiattack',{attacks:2,scene:'hindrance'}),
+    npcAction('mechanism_special_emergency_burst','Аварийная очередь','Совершает две отдельные атаки основным оружием; обе используют сцену 3d4.',1,'multiattack',{scene:'hindrance',multiattack:{attacks:2,targeting:'split_or_focus',max_targets:2}}),
     npcAction('mechanism_special_calculated_shot','Расчётный выстрел','Одна атака оружием со сценой 3d8.',2,'advantage_attack',{scene:'advantage'}),
-    npcAction('mechanism_special_overloaded_shot','Перегруженный выстрел','При попадании добавляет d6 damage; после атаки оружие теряет 1 Прочность.',1,'power_attack',{extraDamage:'d6',durabilityCost:1}),
+    npcAction('mechanism_special_overloaded_shot','Перегруженный выстрел','При попадании добавляет d6 damage; после атаки оружие теряет 1 Прочность.',1,'power_attack',{ultimate:true,extraDamage:'d6',durabilityCost:1}),
     npcAction('mechanism_special_arc_discharge','Дуговой разряд','Ближняя атака d4, T 2; после Body damage следующее действие цели получает Помеху 3d4.',2,'accuracy_debuff',{fixedDamage:'d4',targetScene:'hindrance',consumeOnNextAction:true},{range:'Ближняя'}),
     npcAction('mechanism_special_tracer_shot','Трассирующий выстрел','После попадания следующая атака механизма по этой цели получает сцену 3d8; затем метка снимается.',1,'advantage_attack',{markNextAttack:true,nextScene:'advantage',consumeOnNextAttack:true}),
     npcAction('mechanism_action_self_repair','Саморемонт','Восстанавливает d6 Body; до начала следующего хода механизм не использует реакции.',1,'heal_action',{healing:'d6',disableReactionsUntil:'next_turn'},{category:'Действие'})
@@ -1167,15 +1167,15 @@ const SPECIAL_ACTION_LIBRARY = {
     npcAction('beast_special_blood_drinker','Кровопийца','Обычная ближняя атака; после Body damage восстанавливает 2 Body, не выше максимума.',2,'heal_attack',{healing:2,requiresBodyDamage:true},{range:'Ближняя'}),
     npcAction('beast_action_stitch_flesh','Сшивание плоти','При Body не выше половины восстанавливает d6 Body; в следующий ход доступны только обычные атаки.',1,'heal_action',{healing:'d6',selfBodyFractionMax:.5,disableSpecialUntil:'after_next_turn'},{category:'Действие'}),
     npcAction('beast_special_enraged_strike','Разъярённый удар','Если с конца прошлого хода потеряно не менее 5 Body: одна ближняя атака с damage +1 step.',1,'power_attack',{damageStep:1,requiresBodyLostSinceLastTurn:5},{range:'Ближняя',damageStep:1}),
-    npcAction('beast_special_double_strike','Двойной удар','Одно действие: две отдельные ближние атаки, каждая с pool −1.',1,'multiattack',{attacks:2,poolDelta:-1},{range:'Ближняя',poolModifier:-1}),
-    npcAction('beast_special_crush','Сокрушение','Одна ближняя атака с damage +1 step и Пробитием 1.',1,'power_attack',{damageStep:1,penetration:1},{range:'Ближняя',damageStep:1,penetrating:true}),
+    npcAction('beast_special_double_strike','Двойной удар','Одно действие: две отдельные ближние атаки, каждая с pool −1.',1,'multiattack',{multiattack:{attacks:2,targeting:'split_or_focus',max_targets:2},poolDelta:-1},{range:'Ближняя',poolModifier:-1}),
+    npcAction('beast_special_crush','Сокрушение','Одна ближняя атака с damage +1 step и Пробитием 1.',1,'power_attack',{ultimate:true,damageStep:1,penetration:1},{range:'Ближняя',damageStep:1,penetrating:true}),
     npcAction('beast_special_rend_armor','Разорвать доспех','После Body damage Armor цели снижается на 2 до начала следующего хода бестии.',1,'armor_break',{armorDelta:-2,requiresBodyDamage:true,duration:'until_attacker_next_turn',stacking:'strongest'},{range:'Ближняя'}),
     npcAction('beast_action_monster_roar','Чудовищный рёв','До двух живых PC проходят mental resistance; при провале следующая атака получает сцену 3d4.',1,'accuracy_debuff',{targetScene:'hindrance',consumeOnNextAttack:true,requiresCheck:'mental',maxTargets:2},{category:'Контроль',zoneSize:'Малая зона'}),
     npcAction('beast_special_sweeping_blow','Размашистый удар','Атакует до двух соседних целей отдельными бросками; damage на шаг ниже основной атаки.',1,'aoe_attack',{maxTargets:2,damageStep:-1,separateRolls:true},{range:'Ближняя',zoneSize:'До 2 соседних целей',damageStep:-1}),
     npcAction('beast_action_mark_weakness','Почувствовать слабость','До начала следующего хода бестии выбранный PC получает +1 Body damage от её успешных атак.',1,'vulnerability',{incomingBodyDamageDelta:1,duration:'until_attacker_next_turn',stacking:'none'},{category:'Контроль'})
   ],
   undead:[
-    npcAction('undead_special_bone_lunge','Костяной выпад','Одна ближняя атака с damage +1 step.',1,'power_attack',{damageStep:1},{range:'Ближняя',damageStep:1}),
+    npcAction('undead_special_bone_lunge','Костяной выпад','Одна ближняя атака с damage +1 step.',1,'power_attack',{ultimate:true,damageStep:1},{range:'Ближняя',damageStep:1}),
     npcAction('undead_special_devour','Пожирание','Только против живой цели: ближняя атака; после Body damage восстанавливает 2 Body.',2,'heal_attack',{healing:2,requiresBodyDamage:true,target:'living'},{range:'Ближняя'}),
     npcAction('undead_special_deadening_blow','Мертвящий удар','После Body damage следующая атака PC наносит damage на шаг ниже; затем эффект заканчивается.',2,'damage_debuff',{damageStep:-1,requiresBodyDamage:true,consumeOnNextAttack:true},{range:'Ближняя'}),
     npcAction('undead_special_decay','Разложение','После Body damage Armor цели снижается на 1 до начала следующего хода нежити.',2,'armor_break',{armorDelta:-1,requiresBodyDamage:true,duration:'until_attacker_next_turn',stacking:'strongest'},{range:'Ближняя'}),

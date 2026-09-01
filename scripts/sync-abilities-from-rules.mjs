@@ -11,7 +11,14 @@ const categories = new Map([
   ["Ультимативные", "ultimate"],
   ["Любимые приёмы", "favorite"],
   ["Обычные дела", "common"],
+  ["Ситуативные способности", "situational"],
 ]);
+const expectedCategoryCounts = {
+  ultimate: 6,
+  favorite: 6,
+  common: 5,
+  situational: 4,
+};
 const fieldLabels = new Map([
   ["Пререквизит", "prerequisite"],
   ["Тип", "type"],
@@ -42,6 +49,15 @@ function slug(value) {
 
 function cleanLine(value) {
   return String(value || "").replace(/^\s+|\s+$/g, "").replace(/\s+/g, " ");
+}
+
+function categoryFromType(type) {
+  const normalized = cleanLine(type).toLowerCase();
+  if (normalized.startsWith("ультиматив")) return "ultimate";
+  if (normalized.startsWith("любимый приём")) return "favorite";
+  if (normalized.startsWith("обычное дело")) return "common";
+  if (normalized.startsWith("ситуативная способность")) return "situational";
+  return "";
 }
 
 const source = await readFile(sourcePath, "utf8");
@@ -125,6 +141,7 @@ for (let typePosition = 0; typePosition < typeIndexes.length; typePosition += 1)
   }
 
   const type = fields.type || "";
+  category = categoryFromType(type) || category;
   const chargesMatch = type.match(/\((\d+)\)/);
   const effect = fields.effect || "";
   const reactionMatch = effect.match(/^Реакция\s+(до|после)\s+броска\./i);
@@ -169,13 +186,13 @@ if (!abilities.some((ability) => ability.className === "Рекрут" && ability
 
 const counts = {};
 for (const ability of abilities) {
-  counts[ability.className] ||= { ultimate: 0, favorite: 0, common: 0 };
+  counts[ability.className] ||= { ultimate: 0, favorite: 0, common: 0, situational: 0 };
   counts[ability.className][ability.category] += 1;
 }
 for (const className of classes) {
-  for (const category of categories.values()) {
-    if (counts[className]?.[category] !== 5) {
-      throw new Error(`${className}/${category}: ожидалось 5, найдено ${counts[className]?.[category] || 0}`);
+  for (const [category, expectedCount] of Object.entries(expectedCategoryCounts)) {
+    if (counts[className]?.[category] !== expectedCount) {
+      throw new Error(`${className}/${category}: ожидалось ${expectedCount}, найдено ${counts[className]?.[category] || 0}`);
     }
   }
 }
@@ -184,6 +201,7 @@ const labels = {
   ultimate: "Ультимативные",
   favorite: "Любимые приёмы",
   common: "Обычные дела",
+  situational: "Ситуативные способности",
 };
 const output = `<script>\n  const abilityCategoryLabels = ${JSON.stringify(labels, null, 2)};\n  const abilityData = ${JSON.stringify(abilities, null, 2)};\n</script>\n`;
 await writeFile(targetPath, output, "utf8");

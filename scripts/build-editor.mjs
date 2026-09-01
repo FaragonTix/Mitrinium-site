@@ -1,6 +1,7 @@
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { exportMechanicsCatalogV18 } from "./export-mechanics-catalog-v18.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceDir = path.join(root, "apps-script-source");
@@ -237,6 +238,7 @@ async function buildLanding() {
 }
 
 await mkdir(publicDir, { recursive: true });
+await exportMechanicsCatalogV18();
 await Promise.all([
   buildLanding(),
   buildEditor(),

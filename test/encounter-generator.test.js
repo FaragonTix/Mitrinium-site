@@ -406,6 +406,7 @@ test("режим конкретных врагов использует един
   assert.match(script, /source:manual\?'manual'/);
   assert.match(script, /library-archetype:/);
   assert.match(script, /Добавить как пресет/);
+  assert.match(script, /resolveCreaturePregen\(pregen,\{attacks:ATTACK_LIBRARY,reactions:REACTION_LIBRARY,passives:PASSIVE_TRAITS\}\)/);
   assert.doesNotMatch(index, /Точный статблок/);
 });
 

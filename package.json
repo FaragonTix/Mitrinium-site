@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build-editor.mjs",
+    "export:mechanics-v18": "node scripts/export-mechanics-catalog-v18.mjs",
     "dev": "npm run build && wrangler dev",
     "test": "node --test",
     "deploy": "npm run build && wrangler deploy"
